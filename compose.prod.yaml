@@ -1,0 +1,29 @@
+name: shiftly
+
+services:
+  postgres:
+    image: postgres:18.3
+    container_name: shiftly-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env}
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      PGDATA: /var/lib/postgresql/18/docker
+    ports:
+      - "127.0.0.1:${DB_PORT:?Set DB_PORT in .env}:5432"
+    volumes:
+      - shiftly-postgres-prod-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  shiftly-postgres-prod-data:

@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { isAllowedRole } from "@/lib/roles";
@@ -21,6 +21,17 @@ export async function requireUser() {
 
   if (!user) {
     redirect("/sign-in");
+  }
+
+  return user;
+}
+
+// Superadmin-only pages and actions answer with notFound(), matching app/dashboard/sites/page.tsx.
+export async function requireSuperadmin() {
+  const user = await requireUser();
+
+  if (user.role !== "superadmin") {
+    notFound();
   }
 
   return user;

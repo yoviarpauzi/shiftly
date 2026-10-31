@@ -47,7 +47,9 @@ export function SignInForm({ className }: { className?: string }) {
     >
       <FieldGroup>
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Sign in to Shiftly</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Sign in to Shiftly
+          </h1>
           <p className="text-base text-muted-foreground">
             Enter your email and password to continue
           </p>
@@ -84,6 +86,9 @@ export function SignInForm({ className }: { className?: string }) {
             Sign in
           </Button>
         </Field>
+        <p className="text-center text-sm text-muted-foreground">
+          Forgot your password? Contact HO or shiftly admin.
+        </p>
       </FieldGroup>
     </form>
   );

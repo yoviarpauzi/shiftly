@@ -154,7 +154,11 @@ export function SitesDataTable({
                     {site.locationCount}
                   </TableCell>
                   <TableCell className="pl-8">
-                    <Badge variant={site.deletedAt ? "secondary" : "outline"}>
+                    <Badge variant="outline">
+                      <span
+                        aria-hidden
+                        className={`size-2 rounded-full ${site.deletedAt ? "bg-destructive" : "bg-accent-text"}`}
+                      />
                       {site.deletedAt ? "Deleted" : "Active"}
                     </Badge>
                   </TableCell>

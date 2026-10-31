@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 
 import { NavDocuments } from "@/components/dashboard/nav-documents";
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -29,19 +30,13 @@ import {
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
-  CommandIcon,
 } from "lucide-react";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: <LayoutDashboardIcon />,
     },
     {
@@ -60,8 +55,8 @@ const data = {
       icon: <FolderIcon />,
     },
     {
-      title: "Team",
-      url: "#",
+      title: "Users",
+      url: "/dashboard/users",
       icon: <UsersIcon />,
     },
   ],
@@ -148,7 +143,12 @@ const data = {
     },
   ],
 };
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  user,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  user: { name: string; email: string; avatar?: string | null }
+}) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -158,8 +158,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
               render={<a href="#" />}
             >
-              <CommandIcon className="size-5!" />
-              <span className="text-base font-semibold">Acme Inc.</span>
+              <Image
+                src="/logo.webp"
+                alt=""
+                width={203}
+                height={230}
+                className="h-6 w-auto"
+              />
+              <span className="text-base font-semibold">Shiftly</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -170,7 +176,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   );

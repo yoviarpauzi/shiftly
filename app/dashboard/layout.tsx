@@ -1,8 +1,13 @@
+import { Suspense } from "react";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Header } from "@/components/dashboard/header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { requireUser } from "@/lib/session";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+async function DashboardShell({ children }: { children: React.ReactNode }) {
+  const user = await requireUser();
+
   return (
     <SidebarProvider
       style={
@@ -12,7 +17,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar
+        variant="inset"
+        user={{ name: user.name, email: user.email, avatar: user.image }}
+      />
       <SidebarInset>
         <Header />
         <div className="flex flex-1 flex-col">
@@ -22,5 +30,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-svh flex-col gap-4 p-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-full w-full" />
+        </div>
+      }
+    >
+      <DashboardShell>{children}</DashboardShell>
+    </Suspense>
   );
 }

@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/select";
 
 const OPTIONS: { value: SiteStatus; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "deleted", label: "Deleted" },
-  { value: "all", label: "All" },
 ];
 
 export function SitesStatusFilter({ status }: { status: SiteStatus }) {

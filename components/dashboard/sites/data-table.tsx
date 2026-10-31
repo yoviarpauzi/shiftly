@@ -60,9 +60,7 @@ export function SitesDataTable({ data }: { data: SitePage }) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Locations</TableHead>
-              <TableHead className="w-24">
-                <span className="sr-only">Actions</span>
-              </TableHead>
+              <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

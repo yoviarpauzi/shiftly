@@ -57,4 +57,4 @@ Theme tokens are CSS variables in `app/globals.css` under `:root`, mapped into T
 
 Components import `cn` from the `cn` npm package. `lib/utils.ts` re-exports it, and one file imports from `@/lib/utils`. Both work.
 
-**Docs.** `docs/PRD.md` holds the product rules and open questions. `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/TESTING.md`, `docs/SECURITY.md`, and `docs/DESIGN.md` cover their own areas. `docs/CODE_STYLE.md` and `docs/DESIGN_SYSTEM.md` are empty. `README.md` is the `create-next-app` boilerplate and is not project documentation.
+**Docs.** `docs/PRD.md` holds the product rules and open questions. `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/TESTING.md`, `docs/SECURITY.md`, and `docs/DESIGN.md`, and `docs/CODE_STYLE.md` cover their own areas. `docs/DESIGN_SYSTEM.md` is empty. `README.md` is the `create-next-app` boilerplate and is not project documentation.

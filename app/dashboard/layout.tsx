@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/dashboard/app-sidebar";
 import { Header } from "@/components/dashboard/header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { requireUser } from "@/lib/session";
 
 async function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ async function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </SidebarInset>
+      <Toaster />
     </SidebarProvider>
   );
 }

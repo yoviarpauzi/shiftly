@@ -6,6 +6,9 @@ export const DUPLICATE_NAME_MESSAGE = "A site with this name already exists";
 
 export const SITE_NOT_FOUND_MESSAGE = "This site no longer exists";
 
+export const RESTORE_CONFLICT_MESSAGE =
+  "Another active site already uses this name. Rename it before restoring.";
+
 const SITE_NAME_CONSTRAINT = "site_name_lower_active_unique";
 
 function plural(count: number, singular: string, pluralForm: string) {

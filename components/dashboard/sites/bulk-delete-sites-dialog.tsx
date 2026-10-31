@@ -67,8 +67,9 @@ export function BulkDeleteSitesDialog({
             Delete {count} {count === 1 ? "site" : "sites"}?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            The selected sites are removed from the list. A site with active
-            locations or assigned HO users is kept, and the reason is shown.
+            The selected sites move to Deleted and can be restored from that
+            filter. A site with active locations or assigned HO users is kept,
+            and the reason is shown.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -2,7 +2,7 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
@@ -13,6 +13,7 @@ import {
   canDeleteSite,
   DUPLICATE_NAME_MESSAGE,
   isSiteNameConflict,
+  RESTORE_CONFLICT_MESSAGE,
   SITE_NOT_FOUND_MESSAGE,
   type SiteActionResult,
   type SiteBulkDeleteResult,
@@ -128,6 +129,32 @@ export async function deleteSite(id: string): Promise<SiteActionResult> {
   }
 
   return result;
+}
+
+export async function restoreSite(id: string): Promise<SiteActionResult> {
+  await requireSuperadmin();
+
+  try {
+    const restored = await db
+      .update(site)
+      .set({ deletedAt: null })
+      .where(and(eq(site.id, id), isNotNull(site.deletedAt)))
+      .returning({ id: site.id });
+
+    if (restored.length === 0) {
+      return { ok: false, formError: SITE_NOT_FOUND_MESSAGE };
+    }
+  } catch (error) {
+    if (isSiteNameConflict(error)) {
+      return { ok: false, formError: RESTORE_CONFLICT_MESSAGE };
+    }
+
+    throw error;
+  }
+
+  revalidatePath(SITES_PATH);
+
+  return { ok: true };
 }
 
 // Each site is checked on its own, so some can be deleted while others are blocked.

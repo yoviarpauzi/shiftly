@@ -21,7 +21,10 @@ type DeleteSiteDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function DeleteSiteDialog({ site, onOpenChange }: DeleteSiteDialogProps) {
+export function DeleteSiteDialog({
+  site,
+  onOpenChange,
+}: DeleteSiteDialogProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -60,8 +63,7 @@ export function DeleteSiteDialog({ site, onOpenChange }: DeleteSiteDialogProps) 
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {site?.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            The site is removed from the list. It cannot be restored from the
-            app.
+            The site moves to Deleted. You can restore it from that filter.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {formError && (

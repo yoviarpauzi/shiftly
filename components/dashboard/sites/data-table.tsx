@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { EllipsisIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  EllipsisIcon,
+  PencilIcon,
+  PlusIcon,
+  RotateCcwIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { restoreSite } from "@/app/dashboard/sites/actions";
 import type { SitePage, SiteRow } from "@/app/dashboard/sites/sites";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { BulkDeleteSitesDialog } from "@/components/dashboard/sites/bulk-delete-sites-dialog";
@@ -80,6 +88,16 @@ export function SitesDataTable({
         ? [...ids.filter((value) => value !== id), id]
         : ids.filter((value) => value !== id),
     );
+  }
+
+  async function handleRestore(site: SiteRow) {
+    const result = await restoreSite(site.id);
+
+    if (result.ok) {
+      toast.success(`${site.name} restored`);
+    } else {
+      toast.error(result.formError ?? "Could not restore the site");
+    }
   }
 
   function toggleAll(checked: boolean) {
@@ -163,38 +181,49 @@ export function SitesDataTable({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {site.deletedAt === null && (
-                      <div className="flex justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Actions for ${site.name}`}
-                              />
-                            }
-                          >
-                            <EllipsisIcon />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuGroup>
-                              <DropdownMenuItem onClick={() => openForm(site)}>
-                                <PencilIcon />
-                                Edit
-                              </DropdownMenuItem>
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Actions for ${site.name}`}
+                            />
+                          }
+                        >
+                          <EllipsisIcon />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuGroup>
+                            {site.deletedAt === null ? (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => openForm(site)}
+                                >
+                                  <PencilIcon />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setDeletingSite(site)}
+                                >
+                                  <Trash2Icon />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
                               <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setDeletingSite(site)}
+                                onClick={() => handleRestore(site)}
                               >
-                                <Trash2Icon />
-                                Delete
+                                <RotateCcwIcon />
+                                Restore
                               </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
+                            )}
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -34,7 +34,7 @@ The PostgreSQL service is defined in `compose.yaml`.
 
 `compose.yaml` requires `DB_USER`, `DB_NAME`, and `DB_PASSWORD` to be set. If any is missing, Compose stops with an error.
 
-`compose.prod.yaml` is empty for now.
+`compose.prod.yaml` defines the production PostgreSQL service. It uses the container `shiftly-postgres-prod`, binds its port to `127.0.0.1` only, and requires `DB_PORT` to be set. See [ARCHITECTURE.md](ARCHITECTURE.md#deployment) for how each environment is started.
 
 ## File layout
 
@@ -154,6 +154,6 @@ The following tables are needed by the [PRD](PRD.md) but are not modeled yet:
 - Shifts and their hours per site
 - Roster requests, rosters, and rule conflicts
 - Annual off and break history
-- Admin roles per site
+- User roles (superadmin, HO, and admin site) and site assignment
 
 Some decisions in the PRD are still open and affect the design of these tables. For example, the unique employee identifier (NIK or employee ID) and how to handle employees who belong to more than one department.

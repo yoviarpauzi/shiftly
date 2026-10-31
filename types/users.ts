@@ -1,4 +1,5 @@
 export type UserScope = {
+  id: string;
   role?: string | null;
   siteId?: string | null;
   locationId?: string | null;

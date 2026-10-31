@@ -1,16 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { clampPage, parseUsersPageParams } from "./users-pagination";
+import {
+  clampPage,
+  escapeLikePattern,
+  MAX_QUERY_LENGTH,
+  parseUsersPageParams,
+} from "./users-pagination";
 
 describe("parseUsersPageParams", () => {
   it("reads a valid page and pageSize", () => {
     expect(parseUsersPageParams({ page: "3", pageSize: "20" })).toEqual({
       page: 3,
       pageSize: 20,
+      query: "",
     });
   });
 
-  it("defaults to page 1 and pageSize 10 when params are missing", () => {
-    expect(parseUsersPageParams({})).toEqual({ page: 1, pageSize: 10 });
+  it("defaults to page 1, pageSize 10 and an empty query when params are missing", () => {
+    expect(parseUsersPageParams({})).toEqual({
+      page: 1,
+      pageSize: 10,
+      query: "",
+    });
+  });
+
+  it("trims the search query", () => {
+    expect(parseUsersPageParams({ q: "  budi  " }).query).toBe("budi");
+  });
+
+  it("treats a blank query as no query", () => {
+    expect(parseUsersPageParams({ q: "   " }).query).toBe("");
+  });
+
+  it("caps the search query length", () => {
+    const long = "a".repeat(MAX_QUERY_LENGTH + 20);
+
+    expect(parseUsersPageParams({ q: long }).query).toHaveLength(
+      MAX_QUERY_LENGTH,
+    );
+  });
+
+  it("uses the first query value when q is repeated", () => {
+    expect(parseUsersPageParams({ q: ["budi", "siti"] }).query).toBe("budi");
   });
 
   it.each(["abc", "0", "-2", "1.5", ""])("falls back to page 1 for %j", (page) => {
@@ -26,6 +56,16 @@ describe("parseUsersPageParams", () => {
 
   it("uses the first value when a param is repeated", () => {
     expect(parseUsersPageParams({ page: ["2", "5"] }).page).toBe(2);
+  });
+});
+
+describe("escapeLikePattern", () => {
+  it("leaves plain text unchanged", () => {
+    expect(escapeLikePattern("budi santoso")).toBe("budi santoso");
+  });
+
+  it("escapes LIKE wildcards and the escape character", () => {
+    expect(escapeLikePattern("50%_off\\")).toBe("50\\%\\_off\\\\");
   });
 });
 

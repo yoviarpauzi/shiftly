@@ -31,6 +31,7 @@ import {
 import { PAGE_SIZES } from "@/app/dashboard/users/users-pagination"
 import type { UserPage } from "@/types/users"
 import { columns, features } from "./columns"
+import { UsersSearch } from "./users-search"
 
 export function UsersDataTable({ data }: { data: UserPage }) {
   const router = useRouter()
@@ -71,6 +72,7 @@ export function UsersDataTable({ data }: { data: UserPage }) {
 
   return (
     <div className="flex w-full flex-col gap-4">
+      <UsersSearch total={data.total} />
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-muted">

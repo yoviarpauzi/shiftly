@@ -1,9 +1,13 @@
 import "server-only";
-import { and, asc, count, eq, isNotNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, ilike, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { db } from "@/lib/db";
-import { clampPage, type UsersPageParams } from "./users-pagination";
+import {
+  clampPage,
+  escapeLikePattern,
+  type UsersPageParams,
+} from "./users-pagination";
 import type { UserPage, UserScope } from "@/types/users";
 
 const columns = {
@@ -34,11 +38,27 @@ function visibleUsersFilter(scope: UserScope): SQL | undefined {
   return sql`false`;
 }
 
+// Matches name or email, case-insensitively. An empty query matches every row.
+function searchUsersFilter(query: string): SQL | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  const pattern = `%${escapeLikePattern(query)}%`;
+
+  return or(ilike(user.name, pattern), ilike(user.email, pattern));
+}
+
 export async function listVisibleUsers(
   scope: UserScope,
-  { page, pageSize }: UsersPageParams,
+  { page, pageSize, query }: UsersPageParams,
 ): Promise<UserPage> {
-  const filter = visibleUsersFilter(scope);
+  // The signed-in user's own account is not listed here.
+  const filter = and(
+    visibleUsersFilter(scope),
+    ne(user.id, scope.id),
+    searchUsersFilter(query),
+  );
 
   const [{ total }] = await db
     .select({ total: count() })

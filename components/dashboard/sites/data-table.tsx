@@ -89,8 +89,10 @@ export function SitesDataTable({
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <SitesSearch total={data.total} />
-        <SitesStatusFilter status={status} />
+        <div className="flex items-center gap-2">
+          <SitesSearch total={data.total} />
+          <SitesStatusFilter status={status} />
+        </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />
           Add site

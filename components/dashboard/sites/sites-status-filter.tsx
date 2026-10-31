@@ -2,7 +2,14 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { SiteStatus } from "@/app/dashboard/sites/site-rules";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const OPTIONS: { value: SiteStatus; label: string }[] = [
   { value: "active", label: "Active" },
@@ -24,23 +31,27 @@ export function SitesStatusFilter({ status }: { status: SiteStatus }) {
   }
 
   return (
-    <ToggleGroup
-      value={[status]}
-      variant="outline"
-      size="sm"
-      onValueChange={(values) => {
-        const next = values[0] as SiteStatus | undefined;
-
-        if (next) {
-          setStatus(next);
+    <Select
+      value={status}
+      onValueChange={(value) => {
+        if (value) {
+          setStatus(value as SiteStatus);
         }
       }}
+      items={OPTIONS}
     >
-      {OPTIONS.map((option) => (
-        <ToggleGroupItem key={option.value} value={option.value}>
-          {option.label}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
+      <SelectTrigger aria-label="Filter sites by status" className="h-9 w-32">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }

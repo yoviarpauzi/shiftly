@@ -5,10 +5,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EllipsisIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { SitePage, SiteRow } from "@/app/dashboard/sites/sites";
 import { TablePagination } from "@/components/dashboard/pagination";
+import { BulkDeleteSitesDialog } from "@/components/dashboard/sites/bulk-delete-sites-dialog";
 import { DeleteSiteDialog } from "@/components/dashboard/sites/delete-site-dialog";
 import { SiteFormDialog } from "@/components/dashboard/sites/site-form-dialog";
 import { SitesSearch } from "@/components/dashboard/sites/sites-search";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +37,8 @@ export function SitesDataTable({ data }: { data: SitePage }) {
   const [formKey, setFormKey] = React.useState(0);
   const [editingSite, setEditingSite] = React.useState<SiteRow | null>(null);
   const [deletingSite, setDeletingSite] = React.useState<SiteRow | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
 
   // A new key remounts the dialog, so each open starts from the right defaults.
   function openForm(site: SiteRow | null) {
@@ -52,6 +56,22 @@ export function SitesDataTable({ data }: { data: SitePage }) {
 
   const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
 
+  // Only rows on the current page count as selected, so a stale id from another page is ignored.
+  const selectedSites = data.rows.filter((site) => selectedIds.includes(site.id));
+  const allSelected =
+    data.rows.length > 0 && selectedSites.length === data.rows.length;
+  const someSelected = selectedSites.length > 0 && !allSelected;
+
+  function toggleSite(id: string, checked: boolean) {
+    setSelectedIds((ids) =>
+      checked ? [...ids.filter((value) => value !== id), id] : ids.filter((value) => value !== id),
+    );
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelectedIds(checked ? data.rows.map((site) => site.id) : []);
+  }
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
@@ -61,10 +81,31 @@ export function SitesDataTable({ data }: { data: SitePage }) {
           Add site
         </Button>
       </div>
+      {selectedSites.length > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted px-4 py-2">
+          <p className="text-sm font-medium">{selectedSites.length} selected</p>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleting(true)}
+          >
+            <Trash2Icon data-icon="inline-start" />
+            Delete selected
+          </Button>
+        </div>
+      )}
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader className="bg-muted">
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  aria-label="Select all sites on this page"
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onCheckedChange={(checked) => toggleAll(checked)}
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Locations</TableHead>
               <TableHead className="w-24 text-right">Actions</TableHead>
@@ -74,6 +115,13 @@ export function SitesDataTable({ data }: { data: SitePage }) {
             {data.rows.length ? (
               data.rows.map((site) => (
                 <TableRow key={site.id}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Select ${site.name}`}
+                      checked={selectedIds.includes(site.id)}
+                      onCheckedChange={(checked) => toggleSite(site.id, checked)}
+                    />
+                  </TableCell>
                   <TableCell>{site.name}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {site.locationCount}
@@ -114,7 +162,7 @@ export function SitesDataTable({ data }: { data: SitePage }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   {query ? `No sites match "${query}"` : "No sites yet"}
                 </TableCell>
               </TableRow>
@@ -139,6 +187,11 @@ export function SitesDataTable({ data }: { data: SitePage }) {
         site={editingSite}
         open={formOpen}
         onOpenChange={setFormOpen}
+      />
+      <BulkDeleteSitesDialog
+        sites={selectedSites}
+        open={bulkDeleting}
+        onOpenChange={setBulkDeleting}
       />
       <DeleteSiteDialog
         site={deletingSite}

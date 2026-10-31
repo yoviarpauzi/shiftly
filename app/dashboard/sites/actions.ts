@@ -15,6 +15,7 @@ import {
   isSiteNameConflict,
   SITE_NOT_FOUND_MESSAGE,
   type SiteActionResult,
+  type SiteBulkDeleteResult,
 } from "./site-rules";
 
 const SITES_PATH = "/dashboard/sites";
@@ -78,9 +79,8 @@ export async function updateSite(
   return { ok: true };
 }
 
-export async function deleteSite(id: string): Promise<SiteActionResult> {
-  await requireSuperadmin();
-
+// Checks and soft-deletes one site. Callers must check the superadmin role first.
+async function softDeleteSite(id: string): Promise<SiteActionResult> {
   // The row lock stops a location or user from being assigned to this site
   // until the checks have run and the change is committed.
   const result = await db.transaction(async (tx) => {
@@ -115,9 +115,44 @@ export async function deleteSite(id: string): Promise<SiteActionResult> {
     return { ok: true as const };
   });
 
+  return result;
+}
+
+export async function deleteSite(id: string): Promise<SiteActionResult> {
+  await requireSuperadmin();
+
+  const result = await softDeleteSite(id);
+
   if (result.ok) {
     revalidatePath(SITES_PATH);
   }
 
   return result;
+}
+
+// Each site is checked on its own, so some can be deleted while others are blocked.
+export async function deleteSites(ids: string[]): Promise<SiteBulkDeleteResult> {
+  await requireSuperadmin();
+
+  const deletedIds: string[] = [];
+  const blocked: SiteBulkDeleteResult["blocked"] = [];
+
+  for (const id of ids) {
+    const result = await softDeleteSite(id);
+
+    if (result.ok) {
+      deletedIds.push(id);
+    } else {
+      blocked.push({
+        id,
+        formError: result.formError ?? SITE_NOT_FOUND_MESSAGE,
+      });
+    }
+  }
+
+  if (deletedIds.length > 0) {
+    revalidatePath(SITES_PATH);
+  }
+
+  return { deletedIds, blocked };
 }

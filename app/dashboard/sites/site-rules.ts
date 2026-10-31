@@ -68,3 +68,25 @@ export function isSiteNameConflict(error: unknown) {
 export function nameFieldError(message: string | undefined) {
   return message ? { message } : undefined;
 }
+
+export type SiteBulkDeleteResult = {
+  deletedIds: string[];
+  blocked: { id: string; formError: string }[];
+};
+
+function sitesWord(count: number) {
+  return count === 1 ? "site" : "sites";
+}
+
+// Summary shown after a bulk delete. Each site is checked on its own, so some can succeed while others are blocked.
+export function bulkDeleteMessage(deleted: number, blocked: number) {
+  if (blocked === 0) {
+    return `${deleted} ${sitesWord(deleted)} deleted`;
+  }
+
+  if (deleted === 0) {
+    return `${blocked} ${sitesWord(blocked)} could not be deleted`;
+  }
+
+  return `${deleted} ${sitesWord(deleted)} deleted, ${blocked} could not be deleted`;
+}

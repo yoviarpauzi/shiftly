@@ -2,13 +2,20 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { EllipsisIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { SitePage, SiteRow } from "@/app/dashboard/sites/sites";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { DeleteSiteDialog } from "@/components/dashboard/sites/delete-site-dialog";
 import { SiteFormDialog } from "@/components/dashboard/sites/site-form-dialog";
 import { SitesSearch } from "@/components/dashboard/sites/sites-search";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -72,23 +79,35 @@ export function SitesDataTable({ data }: { data: SitePage }) {
                     {site.locationCount}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Edit ${site.name}`}
-                        onClick={() => openForm(site)}
-                      >
-                        <PencilIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Delete ${site.name}`}
-                        onClick={() => setDeletingSite(site)}
-                      >
-                        <Trash2Icon />
-                      </Button>
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Actions for ${site.name}`}
+                            />
+                          }
+                        >
+                          <EllipsisIcon />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem onClick={() => openForm(site)}>
+                              <PencilIcon />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDeletingSite(site)}
+                            >
+                              <Trash2Icon />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>

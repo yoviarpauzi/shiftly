@@ -2,6 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skill router
+
+Before starting a task, check this table. If a row matches, invoke that skill with the Skill tool before writing code or answering. Process skills (`brainstorming`, `systematic-debugging`) come before implementation skills. Rules in this file override a skill's default steps.
+
+| Task | Skill |
+|---|---|
+| New feature, component, or behavior change | `brainstorming`, then `writing-plans` |
+| Bug, failing test, or unexpected behavior | `systematic-debugging` |
+| Writing feature or bugfix code | `test-driven-development` |
+| Next.js routes, layouts, `proxy.ts`, Turbopack | `nextjs-turbopack`; verify in a running app with `next-dev-loop` |
+| Cache Components (`cacheComponents`) | `next-cache-components-adoption`, `next-cache-components-optimizer` |
+| React/Next.js performance, data fetching, bundle size | `vercel-react-best-practices`, `next-bundle-optimizer` |
+| Auth (`lib/auth.ts`, `/api/auth`, sign-in) | `better-auth-best-practices`; hardening: `better-auth-security-best-practices`; password flows: `email-and-password-best-practices` |
+| Scaffolding sign-in or sign-up UI | `create-auth` |
+| Schema, queries, migrations (`database/schema`) | `postgresql-optimization`, `postgresql-code-review` |
+| shadcn components (`components/ui`, `components.json`) | `shadcn` |
+| Visual design, layout, mobile reflow | `frontend-design`, `antislop-ui`, `antislop-layoutmobile` |
+| Reviewing UI against interface guidelines | `web-design-guidelines` |
+| Charts | `dataviz` |
+| Data tables | `tanstack-table` |
+| Input validation with `z.object` or `safeParse` | `zod` |
+| Security review | `security-review` |
+| Reviewing a PR or diff | `code-review` |
+| Acting on review feedback | `receiving-code-review` |
+| Cleaning up changed code | `simplify` |
+| Writing or editing files in `docs/` | `documentation-writer`; product rules: `prd` |
+| Running the app or taking screenshots | `run` |
+| Two or more independent tasks | `dispatching-parallel-agents` |
+| Executing an existing implementation plan | `executing-plans` or `subagent-driven-development` |
+| Commit message | `conventional-commit` |
+| About to say work is done, fixed, or passing | `verification-before-completion` |
+| Finishing a branch | `finishing-a-development-branch` |
+
+For library API questions (Drizzle, better-auth, Base UI, Next.js), fetch current docs with Context7 before answering from memory.
+
 ## Commands
 
 The package manager is Bun (`packageManager: bun@1.4.2`, `bun.lock`). Use `bun` and `bunx`, not npm.

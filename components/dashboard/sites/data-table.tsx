@@ -125,7 +125,7 @@ export function SitesDataTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Locations</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="pl-8">Status</TableHead>
               <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -153,7 +153,7 @@ export function SitesDataTable({
                   <TableCell className="text-right tabular-nums">
                     {site.locationCount}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="pl-8">
                     <Badge variant={site.deletedAt ? "secondary" : "outline"}>
                       {site.deletedAt ? "Deleted" : "Active"}
                     </Badge>

@@ -125,6 +125,7 @@ export function SitesDataTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Locations</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -148,16 +149,14 @@ export function SitesDataTable({
                       />
                     )}
                   </TableCell>
-                  <TableCell>
-                    {site.name}
-                    {site.deletedAt && (
-                      <Badge variant="secondary" className="ml-2">
-                        Deleted
-                      </Badge>
-                    )}
-                  </TableCell>
+                  <TableCell>{site.name}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {site.locationCount}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={site.deletedAt ? "secondary" : "outline"}>
+                      {site.deletedAt ? "Deleted" : "Active"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {site.deletedAt === null && (
@@ -197,7 +196,7 @@ export function SitesDataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   {query
                     ? `No sites match "${query}"`
                     : status === "deleted"

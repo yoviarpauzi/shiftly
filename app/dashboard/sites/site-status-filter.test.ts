@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseSiteStatus } from "./site-rules";
 
 describe("parseSiteStatus", () => {
-  it("defaults to active when the parameter is missing", () => {
-    expect(parseSiteStatus(undefined)).toBe("active");
+  it("defaults to all when the parameter is missing", () => {
+    expect(parseSiteStatus(undefined)).toBe("all");
   });
 
   it("reads each supported status", () => {
@@ -12,8 +12,8 @@ describe("parseSiteStatus", () => {
     expect(parseSiteStatus("all")).toBe("all");
   });
 
-  it("falls back to active for an unknown value", () => {
-    expect(parseSiteStatus("archived")).toBe("active");
+  it("falls back to all for an unknown value", () => {
+    expect(parseSiteStatus("archived")).toBe("all");
   });
 
   it("uses the first value when the parameter is repeated", () => {

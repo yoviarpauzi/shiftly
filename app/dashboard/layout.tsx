@@ -19,7 +19,12 @@ async function DashboardShell({ children }: { children: React.ReactNode }) {
     >
       <AppSidebar
         variant="inset"
-        user={{ name: user.name, email: user.email, avatar: user.image }}
+        user={{
+          name: user.name,
+          email: user.email,
+          avatar: user.image,
+          role: user.role,
+        }}
       />
       <SidebarInset>
         <Header />

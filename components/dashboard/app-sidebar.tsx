@@ -22,6 +22,7 @@ import {
   ChartBarIcon,
   FolderIcon,
   UsersIcon,
+  Building2Icon,
   CameraIcon,
   FileTextIcon,
   Settings2Icon,
@@ -38,6 +39,12 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: <LayoutDashboardIcon />,
+    },
+    {
+      title: "Site",
+      url: "/dashboard/sites",
+      icon: <Building2Icon />,
+      superadminOnly: true,
     },
     {
       title: "Lifecycle",
@@ -147,8 +154,17 @@ export function AppSidebar({
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  user: { name: string; email: string; avatar?: string | null }
+  user: {
+    name: string
+    email: string
+    avatar?: string | null
+    role?: string | null
+  }
 }) {
+  const navMain = data.navMain.filter(
+    (item) => !item.superadminOnly || user.role === "superadmin"
+  )
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -171,7 +187,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

@@ -1,6 +1,30 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser } from "@/lib/session";
+
+function AuthButton({ href, label }: { href: string; label: string }) {
+  return (
+    <Button
+      render={<Link href={href} />}
+      nativeButton={false}
+      className="h-9 rounded-md px-4"
+    >
+      {label}
+    </Button>
+  );
+}
+
+async function HeaderAuthButton() {
+  const user = await getCurrentUser();
+
+  return user ? (
+    <AuthButton href="/dashboard" label="Dashboard" />
+  ) : (
+    <AuthButton href="/sign-in" label="Sign in" />
+  );
+}
 
 export default function Header() {
   return (
@@ -22,14 +46,10 @@ export default function Header() {
 
           <ul></ul>
 
-          {/* sign-in button */}
-          <Button
-            render={<Link href="/sign-in" />}
-            nativeButton={false}
-            className="h-9 rounded-md px-4"
-          >
-            Sign in
-          </Button>
+          {/* sign-in or dashboard button */}
+          <Suspense fallback={<AuthButton href="/sign-in" label="Sign in" />}>
+            <HeaderAuthButton />
+          </Suspense>
         </nav>
       </div>
     </header>

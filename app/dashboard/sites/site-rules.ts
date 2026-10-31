@@ -62,3 +62,9 @@ export function isSiteNameConflict(error: unknown) {
     hasNameConflictCode(error.cause)
   );
 }
+
+// TanStack Form reads field errors as { message } objects, the shape zod issues have.
+// A bare string renders nothing in FieldError, so the message is wrapped here.
+export function nameFieldError(message: string | undefined) {
+  return message ? { message } : undefined;
+}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { createSite, updateSite } from "@/app/dashboard/sites/actions";
 import type { SiteRow } from "@/app/dashboard/sites/sites";
+import { nameFieldError } from "@/app/dashboard/sites/site-rules";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -52,7 +53,7 @@ export function SiteFormDialog({
         formApi.setErrorMap({
           onSubmit: {
             form: result.formError,
-            fields: { name: result.fieldErrors?.name },
+            fields: { name: nameFieldError(result.fieldErrors?.name) },
           },
         });
         return;

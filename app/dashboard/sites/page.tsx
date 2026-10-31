@@ -1,6 +1,7 @@
 import { SitesDataTable } from "@/components/dashboard/sites/data-table";
 import { parsePageParams } from "@/lib/pagination";
 import { requireSuperadmin } from "@/lib/session";
+import { parseSiteStatus } from "./site-rules";
 import { listSites } from "./sites";
 
 export default async function Page({
@@ -10,7 +11,9 @@ export default async function Page({
 }) {
   await requireSuperadmin();
 
-  const sites = await listSites(parsePageParams(await searchParams));
+  const params = await searchParams;
+  const status = parseSiteStatus(params.status);
+  const sites = await listSites({ ...parsePageParams(params), status });
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
@@ -20,7 +23,7 @@ export default async function Page({
           All sites and the locations in each one.
         </p>
       </div>
-      <SitesDataTable data={sites} />
+      <SitesDataTable data={sites} status={status} />
     </div>
   );
 }

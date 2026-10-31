@@ -9,6 +9,9 @@ import { BulkDeleteSitesDialog } from "@/components/dashboard/sites/bulk-delete-
 import { DeleteSiteDialog } from "@/components/dashboard/sites/delete-site-dialog";
 import { SiteFormDialog } from "@/components/dashboard/sites/site-form-dialog";
 import { SitesSearch } from "@/components/dashboard/sites/sites-search";
+import { SitesStatusFilter } from "@/components/dashboard/sites/sites-status-filter";
+import type { SiteStatus } from "@/app/dashboard/sites/site-rules";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -27,7 +30,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function SitesDataTable({ data }: { data: SitePage }) {
+export function SitesDataTable({
+  data,
+  status,
+}: {
+  data: SitePage;
+  status: SiteStatus;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -56,26 +65,32 @@ export function SitesDataTable({ data }: { data: SitePage }) {
 
   const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
 
-  // Only rows on the current page count as selected, so a stale id from another page is ignored.
-  const selectedSites = data.rows.filter((site) => selectedIds.includes(site.id));
+  // Deleted sites cannot be selected. Only rows on the current page count, so a stale id is ignored.
+  const activeRows = data.rows.filter((site) => site.deletedAt === null);
+  const selectedSites = activeRows.filter((site) =>
+    selectedIds.includes(site.id),
+  );
   const allSelected =
-    data.rows.length > 0 && selectedSites.length === data.rows.length;
+    activeRows.length > 0 && selectedSites.length === activeRows.length;
   const someSelected = selectedSites.length > 0 && !allSelected;
 
   function toggleSite(id: string, checked: boolean) {
     setSelectedIds((ids) =>
-      checked ? [...ids.filter((value) => value !== id), id] : ids.filter((value) => value !== id),
+      checked
+        ? [...ids.filter((value) => value !== id), id]
+        : ids.filter((value) => value !== id),
     );
   }
 
   function toggleAll(checked: boolean) {
-    setSelectedIds(checked ? data.rows.map((site) => site.id) : []);
+    setSelectedIds(checked ? activeRows.map((site) => site.id) : []);
   }
 
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <SitesSearch total={data.total} />
+        <SitesStatusFilter status={status} />
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />
           Add site
@@ -114,56 +129,78 @@ export function SitesDataTable({ data }: { data: SitePage }) {
           <TableBody>
             {data.rows.length ? (
               data.rows.map((site) => (
-                <TableRow key={site.id}>
+                <TableRow
+                  key={site.id}
+                  className={
+                    site.deletedAt ? "text-muted-foreground" : undefined
+                  }
+                >
                   <TableCell>
-                    <Checkbox
-                      aria-label={`Select ${site.name}`}
-                      checked={selectedIds.includes(site.id)}
-                      onCheckedChange={(checked) => toggleSite(site.id, checked)}
-                    />
+                    {site.deletedAt === null && (
+                      <Checkbox
+                        aria-label={`Select ${site.name}`}
+                        checked={selectedIds.includes(site.id)}
+                        onCheckedChange={(checked) =>
+                          toggleSite(site.id, checked)
+                        }
+                      />
+                    )}
                   </TableCell>
-                  <TableCell>{site.name}</TableCell>
+                  <TableCell>
+                    {site.name}
+                    {site.deletedAt && (
+                      <Badge variant="secondary" className="ml-2">
+                        Deleted
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {site.locationCount}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Actions for ${site.name}`}
-                            />
-                          }
-                        >
-                          <EllipsisIcon />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem onClick={() => openForm(site)}>
-                              <PencilIcon />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDeletingSite(site)}
-                            >
-                              <Trash2Icon />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    {site.deletedAt === null && (
+                      <div className="flex justify-end">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Actions for ${site.name}`}
+                              />
+                            }
+                          >
+                            <EllipsisIcon />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem onClick={() => openForm(site)}>
+                                <PencilIcon />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeletingSite(site)}
+                              >
+                                <Trash2Icon />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  {query ? `No sites match "${query}"` : "No sites yet"}
+                  {query
+                    ? `No sites match "${query}"`
+                    : status === "deleted"
+                      ? "No deleted sites"
+                      : "No sites yet"}
                 </TableCell>
               </TableRow>
             )}

@@ -90,3 +90,16 @@ export function bulkDeleteMessage(deleted: number, blocked: number) {
 
   return `${deleted} ${sitesWord(deleted)} deleted, ${blocked} could not be deleted`;
 }
+
+export const SITE_STATUSES = ["active", "deleted", "all"] as const;
+
+export type SiteStatus = (typeof SITE_STATUSES)[number];
+
+// Reads the status filter from the URL. Anything unknown falls back to active sites.
+export function parseSiteStatus(value: string | string[] | undefined): SiteStatus {
+  const first = Array.isArray(value) ? value[0] : value;
+
+  return (SITE_STATUSES as readonly string[]).includes(first ?? "")
+    ? (first as SiteStatus)
+    : "active";
+}

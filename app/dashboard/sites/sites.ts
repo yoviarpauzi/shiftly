@@ -1,14 +1,29 @@
 import "server-only";
-import { and, asc, count, eq, ilike, isNull, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  ilike,
+  isNotNull,
+  isNull,
+  type SQL,
+} from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
-import { clampPage, escapeLikePattern, type PageParams } from "@/lib/pagination";
+import {
+  clampPage,
+  escapeLikePattern,
+  type PageParams,
+} from "@/lib/pagination";
+import type { SiteStatus } from "./site-rules";
 
 export type SiteRow = {
   id: string;
   name: string;
   locationCount: number;
+  deletedAt: Date | null;
 };
 
 export type SitePage = {
@@ -18,12 +33,15 @@ export type SitePage = {
   pageSize: number;
 };
 
-// Matches name case-insensitively. An empty query matches every active site.
-function activeSitesFilter(query: string): SQL | undefined {
+type SiteListParams = PageParams & { status: SiteStatus };
+
+// Matches name case-insensitively. An empty query matches every site in the status.
+function siteFilter(query: string, status: SiteStatus): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
-    isNull(site.deletedAt),
+    status === "active" ? isNull(site.deletedAt) : undefined,
+    status === "deleted" ? isNotNull(site.deletedAt) : undefined,
     query ? ilike(site.name, pattern) : undefined,
   );
 }
@@ -32,8 +50,9 @@ export async function listSites({
   page,
   pageSize,
   query,
-}: PageParams): Promise<SitePage> {
-  const filter = activeSitesFilter(query);
+  status,
+}: SiteListParams): Promise<SitePage> {
+  const filter = siteFilter(query, status);
 
   // Counted from the site table alone, so the location join does not inflate the total.
   const [{ total }] = await db
@@ -48,6 +67,7 @@ export async function listSites({
       id: site.id,
       name: site.name,
       locationCount: count(location.id),
+      deletedAt: site.deletedAt,
     })
     .from(site)
     .leftJoin(
@@ -55,7 +75,7 @@ export async function listSites({
       and(eq(location.siteId, site.id), isNull(location.deletedAt)),
     )
     .where(filter)
-    .groupBy(site.id, site.name)
+    .groupBy(site.id, site.name, site.deletedAt)
     .orderBy(asc(site.name), asc(site.id))
     .limit(pageSize)
     .offset((currentPage - 1) * pageSize);

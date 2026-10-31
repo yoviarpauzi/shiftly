@@ -15,6 +15,13 @@
       "when": 1793437908127,
       "tag": "0001_aberrant_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793469082862,
+      "tag": "0002_site_name_case_insensitive",
+      "breakpoints": true
     }
   ]
 }

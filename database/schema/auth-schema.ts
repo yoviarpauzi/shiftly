@@ -1,5 +1,7 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, uuid } from "drizzle-orm/pg-core";
+import { location } from "./location-schema";
+import { site } from "./site-schema";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -12,6 +14,14 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  role: text("role"),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
+  siteId: uuid("site_id").references(() => site.id, { onDelete: "restrict" }),
+  locationId: uuid("location_id").references(() => location.id, {
+    onDelete: "restrict",
+  }),
 });
 
 export const session = pgTable(
@@ -29,6 +39,7 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    impersonatedBy: text("impersonated_by"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );

@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function SitesTable({ data }: { data: SitePage }) {
+export function SitesDataTable({ data }: { data: SitePage }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -1,4 +1,4 @@
-import { SitesTable } from "@/components/dashboard/sites/sites-table";
+import { SitesDataTable } from "@/components/dashboard/sites/data-table";
 import { parsePageParams } from "@/lib/pagination";
 import { requireSuperadmin } from "@/lib/session";
 import { listSites } from "./sites";
@@ -20,7 +20,7 @@ export default async function Page({
           All sites and the locations in each one.
         </p>
       </div>
-      <SitesTable data={sites} />
+      <SitesDataTable data={sites} />
     </div>
   );
 }

@@ -20,7 +20,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { authClient } from "@/lib/auth-client"
 import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export function NavUser({
   user,
@@ -31,6 +33,7 @@ export function NavUser({
     avatar?: string | null
   }
 }) {
+  const router = useRouter()
   const { isMobile } = useSidebar()
   const initials = user.name
     .split(" ")
@@ -38,6 +41,18 @@ export function NavUser({
     .join("")
     .slice(0, 2)
     .toUpperCase()
+
+  async function handleSignOut() {
+    const { error } = await authClient.signOut()
+
+    if (error) {
+      return
+    }
+
+    router.replace("/sign-in")
+    router.refresh()
+  }
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -100,7 +115,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <LogOutIcon
               />
               Log out

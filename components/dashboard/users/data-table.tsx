@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { PAGE_SIZES } from "@/app/dashboard/users/users-pagination"
+import { PAGE_SIZES } from "@/lib/pagination"
 import type { UserPage } from "@/types/users"
 import { columns, features } from "./columns"
 import { UsersSearch } from "./users-search"

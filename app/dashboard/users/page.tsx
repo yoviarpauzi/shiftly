@@ -1,7 +1,7 @@
 import { UsersDataTable } from "@/components/dashboard/users/data-table";
 import { requireUser } from "@/lib/session";
 import { listVisibleUsers } from "./users";
-import { parseUsersPageParams } from "./users-pagination";
+import { parsePageParams } from "@/lib/pagination";
 
 export default async function Page({
   searchParams,
@@ -11,7 +11,7 @@ export default async function Page({
   const currentUser = await requireUser();
   const users = await listVisibleUsers(
     currentUser,
-    parseUsersPageParams(await searchParams),
+    parsePageParams(await searchParams),
   );
 
   return (

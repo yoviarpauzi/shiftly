@@ -3,11 +3,7 @@ import { and, asc, count, eq, ilike, isNotNull, ne, or, sql, type SQL } from "dr
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { db } from "@/lib/db";
-import {
-  clampPage,
-  escapeLikePattern,
-  type UsersPageParams,
-} from "./users-pagination";
+import { clampPage, escapeLikePattern, type PageParams } from "@/lib/pagination";
 import type { UserPage, UserScope } from "@/types/users";
 
 const columns = {
@@ -51,7 +47,7 @@ function searchUsersFilter(query: string): SQL | undefined {
 
 export async function listVisibleUsers(
   scope: UserScope,
-  { page, pageSize, query }: UsersPageParams,
+  { page, pageSize, query }: PageParams,
 ): Promise<UserPage> {
   // The signed-in user's own account is not listed here.
   const filter = and(

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
+import { position } from "@/database/schema/position-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/session";
@@ -103,12 +104,17 @@ async function softDeleteSite(id: string): Promise<SiteActionResult> {
       .from(location)
       .where(and(eq(location.siteId, id), isNull(location.deletedAt)));
 
+    const [{ value: activePositions }] = await tx
+      .select({ value: count() })
+      .from(position)
+      .where(and(eq(position.siteId, id), isNull(position.deletedAt)));
+
     const [{ value: assignedUsers }] = await tx
       .select({ value: count() })
       .from(user)
       .where(eq(user.siteId, id));
 
-    const verdict = canDeleteSite({ activeLocations, assignedUsers });
+    const verdict = canDeleteSite({ activeLocations, activePositions, assignedUsers });
 
     if (!verdict.ok) {
       return { ok: false as const, formError: verdict.formError };

@@ -1,4 +1,7 @@
 import type { PageParams } from "@/types/pagination";
+import type { SortCriterion } from "@/types/sort";
+
+export type LocationSortColumn = "name" | "site" | "status";
 
 export type LocationAccess = {
   // null means every site, which only superadmin gets.
@@ -22,7 +25,10 @@ export type LocationPage = {
 
 export type LocationStatus = "active" | "deleted" | "all";
 
-export type LocationListParams = PageParams & { status: LocationStatus };
+export type LocationListParams = PageParams & {
+  status: LocationStatus;
+  sort: SortCriterion<LocationSortColumn>[];
+};
 
 export type SiteOption = { id: string; name: string };
 

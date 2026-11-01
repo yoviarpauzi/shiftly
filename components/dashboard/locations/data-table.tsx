@@ -10,9 +10,13 @@ import {
   bulkRestoreMessage,
   bulkSelectionMode,
 } from "@/app/dashboard/locations/location-rules";
+import { nextSort } from "@/lib/sort";
+import { serializeSort } from "@/validation/sort";
+import type { SortCriterion } from "@/types/sort";
 import type {
   LocationPage,
   LocationRow,
+  LocationSortColumn,
   LocationStatus,
   SiteChoice,
 } from "@/types/locations";
@@ -50,10 +54,12 @@ export function LocationsDataTable({
   data,
   status,
   siteChoice,
+  sort,
 }: {
   data: LocationPage;
   status: LocationStatus;
   siteChoice: SiteChoice;
+  sort: SortCriterion<LocationSortColumn>[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -75,14 +81,34 @@ export function LocationsDataTable({
     setFormOpen(true);
   }, []);
 
+  // A header click changes the URL, so the server sorts the page. The page goes back to 1.
+  const sortBy = React.useCallback(
+    (column: LocationSortColumn, shift: boolean) => {
+      const next = nextSort(sort, column, shift);
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (next.length > 0) {
+        params.set("sort", serializeSort(next));
+      } else {
+        params.delete("sort");
+      }
+      params.set("page", "1");
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams, sort],
+  );
+
   const columns = React.useMemo(
     () =>
-      createLocationColumns({
-        onEdit: openForm,
-        onDelete: setDeletingLocation,
-        onRestore: restoreWithToast,
-      }),
-    [openForm],
+      createLocationColumns(
+        {
+          onEdit: openForm,
+          onDelete: setDeletingLocation,
+          onRestore: restoreWithToast,
+        },
+        { sort, onSort: sortBy },
+      ),
+    [openForm, sort, sortBy],
   );
 
   // Only rows on the current page count, so a stale id is ignored.

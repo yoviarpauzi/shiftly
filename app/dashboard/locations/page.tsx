@@ -2,7 +2,10 @@ import { LocationsDataTable } from "@/components/dashboard/locations/data-table"
 import { requireLocationManager } from "@/lib/session";
 import { parseLocationStatus } from "@/validation/location-status";
 import { parsePageParams } from "@/validation/pagination";
+import { parseSortParam } from "@/validation/sort";
 import { listLocations, siteChoiceFor } from "./locations";
+
+const LOCATION_SORT_COLUMNS = ["name", "site", "status"] as const;
 
 export default async function Page({
   searchParams,
@@ -13,9 +16,11 @@ export default async function Page({
 
   const params = await searchParams;
   const status = parseLocationStatus(params.status);
+  const sort = parseSortParam(params.sort, LOCATION_SORT_COLUMNS);
   const locations = await listLocations(access, {
     ...parsePageParams(params),
     status,
+    sort,
   });
   const siteChoice = await siteChoiceFor(access);
 
@@ -27,7 +32,12 @@ export default async function Page({
           Locations in the sites you can manage.
         </p>
       </div>
-      <LocationsDataTable data={locations} status={status} siteChoice={siteChoice} />
+      <LocationsDataTable
+        data={locations}
+        status={status}
+        siteChoice={siteChoice}
+        sort={sort}
+      />
     </div>
   );
 }

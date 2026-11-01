@@ -5,7 +5,9 @@ import {
   tableFeatures,
 } from "@tanstack/react-table";
 import { EllipsisIcon, PencilIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
-import type { LocationActions, LocationRow } from "@/types/locations";
+import type { LocationActions, LocationRow, LocationSortColumn } from "@/types/locations";
+import type { SortControl } from "@/types/sort";
+import { SortHeader } from "@/components/dashboard/sort-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,7 +26,10 @@ export const features = tableFeatures({
 
 const columnHelper = createColumnHelper<typeof features, LocationRow>();
 
-export function createLocationColumns({ onEdit, onDelete, onRestore }: LocationActions) {
+export function createLocationColumns(
+  { onEdit, onDelete, onRestore }: LocationActions,
+  { sort, onSort }: SortControl<LocationSortColumn>,
+) {
   return columnHelper.columns([
     columnHelper.display({
       id: "select",
@@ -49,15 +54,23 @@ export function createLocationColumns({ onEdit, onDelete, onRestore }: LocationA
       enableHiding: false,
     }),
     columnHelper.accessor("name", {
-      header: "Name",
+      header: () => (
+        <SortHeader label="Name" column="name" sort={sort} onSort={onSort} />
+      ),
       cell: ({ row }) => row.original.name,
     }),
     columnHelper.accessor("siteName", {
-      header: "Site",
+      header: () => (
+        <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />
+      ),
       cell: ({ row }) => row.original.siteName,
     }),
     columnHelper.accessor("deletedAt", {
-      header: () => <span className="block pl-8">Status</span>,
+      header: () => (
+        <div className="pl-8">
+          <SortHeader label="Status" column="status" sort={sort} onSort={onSort} />
+        </div>
+      ),
       cell: ({ row }) => (
         <div className="pl-8">
           <Badge variant="outline">

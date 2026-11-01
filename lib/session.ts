@@ -5,12 +5,18 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { locationAccessFor } from "@/lib/location-access";
 import { isAllowedRole } from "@/lib/roles";
+import { userScopeIsActive } from "@/lib/scope-status";
 
 // Checks the session against the database. This is the real check. proxy.ts only reads the cookie.
 export const getCurrentUser = cache(async () => {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session || !isAllowedRole(session.user.role)) {
+    return null;
+  }
+
+  // A session issued before its site or location was deleted ends here, not at expiry.
+  if (!(await userScopeIsActive(session.user))) {
     return null;
   }
 

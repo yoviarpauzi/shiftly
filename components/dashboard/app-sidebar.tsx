@@ -21,6 +21,7 @@ import {
   ListIcon,
   ChartBarIcon,
   FolderIcon,
+  FolderTreeIcon,
   UsersIcon,
   Building2Icon,
   CameraIcon,
@@ -50,6 +51,12 @@ const data = {
       url: "/dashboard/locations",
       icon: <MapPinIcon />,
       roles: ["superadmin", "ho"],
+    },
+    {
+      title: "Department",
+      url: "/dashboard/departments",
+      icon: <FolderTreeIcon />,
+      roles: ["superadmin", "ho", "admin_site"],
     },
     {
       title: "Users",

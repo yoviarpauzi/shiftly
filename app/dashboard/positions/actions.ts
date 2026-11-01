@@ -145,32 +145,48 @@ export async function deletePosition(id: string): Promise<PositionActionResult> 
 
 // Restores one position. The caller has already passed requirePositionManager().
 async function restoreOne(id: string, access: PositionAccess): Promise<PositionActionResult> {
-  const [target] = await db
-    .select({ id: position.id, siteDeletedAt: site.deletedAt })
-    .from(position)
-    .innerJoin(site, eq(site.id, position.siteId))
-    .where(and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)));
-
-  if (!target) {
-    return { ok: false, formError: POSITION_NOT_FOUND_MESSAGE };
-  }
-
-  const verdict = canRestorePosition({ siteDeleted: target.siteDeletedAt !== null });
-
-  if (!verdict.ok) {
-    return { ok: false, formError: verdict.formError };
-  }
-
   try {
-    const restored = await db
-      .update(position)
-      .set({ deletedAt: null })
-      .where(and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)))
-      .returning({ id: position.id });
+    // The share lock on the site conflicts with the update lock a site delete takes, so the site
+    // cannot be deleted between the check and the restore. Without it a site delete could count
+    // this position as deleted, commit, and leave it active under a deleted site.
+    return await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ id: position.id, siteId: position.siteId })
+        .from(position)
+        .where(
+          and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)),
+        );
 
-    if (restored.length === 0) {
-      return { ok: false, formError: POSITION_NOT_FOUND_MESSAGE };
-    }
+      if (!target) {
+        return { ok: false as const, formError: POSITION_NOT_FOUND_MESSAGE };
+      }
+
+      const [owner] = await tx
+        .select({ deletedAt: site.deletedAt })
+        .from(site)
+        .where(eq(site.id, target.siteId))
+        .for("share");
+
+      const verdict = canRestorePosition({ siteDeleted: owner.deletedAt !== null });
+
+      if (!verdict.ok) {
+        return { ok: false as const, formError: verdict.formError };
+      }
+
+      const restored = await tx
+        .update(position)
+        .set({ deletedAt: null })
+        .where(
+          and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)),
+        )
+        .returning({ id: position.id });
+
+      if (restored.length === 0) {
+        return { ok: false as const, formError: POSITION_NOT_FOUND_MESSAGE };
+      }
+
+      return { ok: true as const };
+    });
   } catch (error) {
     if (isPositionNameConflict(error)) {
       return { ok: false, formError: POSITION_RESTORE_CONFLICT_MESSAGE };
@@ -178,8 +194,6 @@ async function restoreOne(id: string, access: PositionAccess): Promise<PositionA
 
     throw error;
   }
-
-  return { ok: true };
 }
 
 export async function restorePosition(id: string): Promise<PositionActionResult> {

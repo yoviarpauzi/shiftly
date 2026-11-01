@@ -1,7 +1,7 @@
 import { UsersDataTable } from "@/components/dashboard/users/data-table";
-import { requireUserManager } from "@/lib/session";
+import { requireUserManager } from "./user-guard";
 import { listUserChoices, listVisibleUsers } from "./users";
-import { parsePageParams } from "@/lib/pagination";
+import { parsePageParams } from "@/validation/pagination";
 
 export default async function Page({
   searchParams,

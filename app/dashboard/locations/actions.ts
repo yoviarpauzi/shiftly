@@ -7,8 +7,8 @@ import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
-import { resolveSiteId } from "@/lib/location-access";
-import { requireLocationManager } from "@/lib/session";
+import { resolveSiteId } from "./location-access";
+import { requireLocationManager } from "./location-guard";
 import type {
   LocationAccess,
   LocationActionResult,

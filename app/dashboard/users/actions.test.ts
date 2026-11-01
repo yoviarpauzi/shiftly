@@ -9,7 +9,7 @@ import {
   LOCATION_OUT_OF_SCOPE_MESSAGE,
   SELF_DEACTIVATE_MESSAGE,
   USER_NOT_FOUND_MESSAGE,
-} from "@/lib/user-rules";
+} from "./user-rules";
 import type { UserAccess } from "@/types/users";
 
 // The database is replaced by a recorder. Every query is logged as a Call, and the
@@ -103,7 +103,7 @@ const tx = {
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/session", () => ({
+vi.mock("./user-guard", () => ({
   requireUserManager: async () => fake.access,
 }));
 vi.mock("@/lib/db", () => ({

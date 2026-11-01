@@ -10,14 +10,14 @@ import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
-import { requireUserManager } from "@/lib/session";
-import { assignableRoles, canAssign, canManageUser } from "@/lib/user-access";
+import { requireUserManager } from "./user-guard";
+import { assignableRoles, canAssign, canManageUser } from "./user-access";
 import {
   guardDeactivation,
   guardRoleChange,
   LOCATION_OUT_OF_SCOPE_MESSAGE,
   USER_NOT_FOUND_MESSAGE,
-} from "@/lib/user-rules";
+} from "./user-rules";
 import type {
   ManagedTarget,
   Scope,

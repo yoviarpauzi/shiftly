@@ -1,5 +1,5 @@
 import { LocationsDataTable } from "@/components/dashboard/locations/data-table";
-import { requireLocationManager } from "@/lib/session";
+import { requireLocationManager } from "./location-guard";
 import { parseLocationStatus } from "@/validation/location-status";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";

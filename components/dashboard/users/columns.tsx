@@ -29,7 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { canManageUser } from "@/lib/user-access"
+import { canManageUser } from "@/app/dashboard/users/user-access"
 import type { ManagedUser, UserAccess, UserActions } from "@/types/users"
 
 export const features = tableFeatures({

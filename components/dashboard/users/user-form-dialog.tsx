@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/locations/location-rules";
 import { createUser, updateUser } from "@/app/dashboard/users/actions";
-import { assignableRoles } from "@/lib/user-access";
+import { assignableRoles } from "@/app/dashboard/users/user-access";
 import type { AppRole } from "@/types/roles";
 import type { LocationOption, UserAccess, UserFormDialogProps } from "@/types/users";
 import { Button } from "@/components/ui/button";

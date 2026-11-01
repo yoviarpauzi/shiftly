@@ -14,20 +14,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { ManagedUser, UserAccess, UserChoices, UserPage } from "@/types/users"
+import type {
+  LocationOption,
+  ManagedUser,
+  UserAccess,
+  UserChoices,
+  UserPage,
+  UserRoleFilter,
+  UserStatusFilter,
+} from "@/types/users"
 import { createUserColumns, features } from "./columns"
 import { DeactivateUserDialog } from "./deactivate-user-dialog"
 import { UserFormDialog } from "./user-form-dialog"
 import { UsersSearch } from "./users-search"
+import { type UserFilterOption, UsersSelectFilter } from "./users-select-filter"
+
+const STATUS_OPTIONS: (UserFilterOption & { value: UserStatusFilter })[] = [
+  { value: "all", label: "All statuses" },
+  { value: "active", label: "Active" },
+  { value: "banned", label: "Banned" },
+]
+
+const ROLE_OPTIONS: (UserFilterOption & { value: UserRoleFilter })[] = [
+  { value: "all", label: "All roles" },
+  { value: "superadmin", label: "Superadmin" },
+  { value: "ho", label: "HO" },
+  { value: "admin_site", label: "Admin site" },
+]
 
 export function UsersDataTable({
   data,
   access,
   choices,
+  status,
+  role,
+  siteId,
+  locations,
+  locationId,
 }: {
   data: UserPage
   access: UserAccess
   choices: UserChoices
+  status: UserStatusFilter
+  role: UserRoleFilter
+  siteId: string | null
+  locations: LocationOption[]
+  locationId: string | null
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -87,7 +119,51 @@ export function UsersDataTable({
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <UsersSearch total={data.total} />
+        <div className="flex flex-wrap items-center gap-2">
+          <UsersSearch total={data.total} />
+          <UsersSelectFilter
+            param="status"
+            value={status}
+            options={STATUS_OPTIONS}
+            ariaLabel="Filter users by status"
+            className="h-9 w-36"
+          />
+          <UsersSelectFilter
+            param="role"
+            value={role}
+            options={ROLE_OPTIONS}
+            ariaLabel="Filter users by role"
+            className="h-9 w-36"
+          />
+          {access.siteId === null && (
+            <UsersSelectFilter
+              param="site"
+              value={siteId ?? "all"}
+              options={[
+                { value: "all", label: "All sites" },
+                ...choices.sites.map((site) => ({ value: site.id, label: site.name })),
+              ]}
+              ariaLabel="Filter users by site"
+              className="h-9 w-48"
+              resets={["location"]}
+            />
+          )}
+          {(access.siteId !== null || siteId !== null) && (
+            <UsersSelectFilter
+              param="location"
+              value={locationId ?? "all"}
+              options={[
+                { value: "all", label: "All locations" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                })),
+              ]}
+              ariaLabel="Filter users by location"
+              className="h-9 w-48"
+            />
+          )}
+        </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />
           Add user

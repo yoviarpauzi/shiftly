@@ -1,4 +1,5 @@
 import type { db } from "@/lib/db";
+import type { PageParams } from "@/types/pagination";
 import type { SiteOption } from "@/types/locations";
 import type { AppRole } from "@/types/roles";
 
@@ -26,6 +27,19 @@ export type ManagedUser = {
   siteName: string | null;
   locationId: string | null;
   locationName: string | null;
+};
+
+export type UserStatusFilter = "all" | "active" | "banned";
+
+export type UserRoleFilter = "all" | AppRole;
+
+export type UserListParams = PageParams & {
+  status: UserStatusFilter;
+  role: UserRoleFilter;
+  // null means every site the actor can see.
+  siteId: string | null;
+  // null means every location the actor can see.
+  locationId: string | null;
 };
 
 export type UserPage = {

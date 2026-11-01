@@ -5,8 +5,14 @@ import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
-import type { PageParams } from "@/types/pagination";
-import type { UserAccess, UserChoices, UserPage, UserScope } from "@/types/users";
+import type {
+  UserAccess,
+  UserChoices,
+  UserListParams,
+  UserPage,
+  UserScope,
+  UserStatusFilter,
+} from "@/types/users";
 
 const columns = {
   id: user.id,
@@ -55,15 +61,28 @@ function searchUsersFilter(query: string): SQL | undefined {
   return or(ilike(user.name, pattern), ilike(user.email, pattern));
 }
 
+// Active covers users with no ban flag set, so a null flag counts as active.
+function userStatusFilter(status: UserStatusFilter): SQL | undefined {
+  if (status === "active") {
+    return or(eq(user.banned, false), isNull(user.banned));
+  }
+
+  return status === "banned" ? eq(user.banned, true) : undefined;
+}
+
 export async function listVisibleUsers(
   scope: UserScope,
-  { page, pageSize, query }: PageParams,
+  { page, pageSize, query, status, role, siteId, locationId }: UserListParams,
 ): Promise<UserPage> {
   // The signed-in user's own account is not listed here.
   const filter = and(
     visibleUsersFilter(scope),
     ne(user.id, scope.id),
     searchUsersFilter(query),
+    userStatusFilter(status),
+    role === "all" ? undefined : eq(user.role, role),
+    siteId ? eq(userSiteId, siteId) : undefined,
+    locationId ? eq(user.locationId, locationId) : undefined,
   );
 
   const [{ total }] = await db

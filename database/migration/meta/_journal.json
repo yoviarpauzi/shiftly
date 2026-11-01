@@ -36,6 +36,13 @@
       "when": 1793514534887,
       "tag": "0004_admin_plugin_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793521750730,
+      "tag": "0005_new_calypso",
+      "breakpoints": true
     }
   ]
 }

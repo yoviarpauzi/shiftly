@@ -127,3 +127,8 @@ export type DeleteSubDepartmentDialogProps = {
   subDepartment: SubDepartmentRow | null;
   onOpenChange: (open: boolean) => void;
 };
+
+export type EditDepartmentButtonProps = {
+  department: DepartmentRow;
+  locationChoice: DepartmentLocationChoice;
+};

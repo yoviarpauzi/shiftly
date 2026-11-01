@@ -4,7 +4,8 @@ import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
-import { clampPage, escapeLikePattern, type PageParams } from "@/lib/pagination";
+import { clampPage, escapeLikePattern } from "@/lib/pagination";
+import type { PageParams } from "@/types/pagination";
 import type { UserAccess, UserChoices, UserPage, UserScope } from "@/types/users";
 
 const columns = {

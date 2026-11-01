@@ -1,6 +1,6 @@
 import { UsersDataTable } from "@/components/dashboard/users/data-table";
-import { requireUser } from "@/lib/session";
-import { listVisibleUsers } from "./users";
+import { requireUserManager } from "@/lib/session";
+import { listUserChoices, listVisibleUsers } from "./users";
 import { parsePageParams } from "@/lib/pagination";
 
 export default async function Page({
@@ -8,11 +8,11 @@ export default async function Page({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const currentUser = await requireUser();
-  const users = await listVisibleUsers(
-    currentUser,
-    parsePageParams(await searchParams),
-  );
+  const access = await requireUserManager();
+  const [users, choices] = await Promise.all([
+    listVisibleUsers(access, parsePageParams(await searchParams)),
+    listUserChoices(access),
+  ]);
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
@@ -22,7 +22,7 @@ export default async function Page({
           Manage user accounts for the dashboard.
         </p>
       </div>
-      <UsersDataTable data={users} />
+      <UsersDataTable data={users} access={access} choices={choices} />
     </div>
   );
 }

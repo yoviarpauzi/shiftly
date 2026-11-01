@@ -8,16 +8,24 @@ export default function Loading() {
         <Skeleton className="h-4 w-72" />
       </div>
       <div className="overflow-hidden rounded-lg border">
-        <div className="grid grid-cols-3 gap-4 bg-muted p-4">
+        <div className="grid grid-cols-7 gap-4 bg-muted p-4">
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-8 justify-self-end" />
         </div>
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="grid grid-cols-3 gap-4 border-t p-4">
+          <div key={index} className="grid grid-cols-7 gap-4 border-t p-4">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-4 w-48" />
             <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="size-8 justify-self-end" />
           </div>
         ))}
       </div>

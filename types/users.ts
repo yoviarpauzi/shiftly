@@ -66,3 +66,9 @@ export type DeactivateUserDialogProps = {
   user: ManagedUser | null;
   onOpenChange: (open: boolean) => void;
 };
+
+export type UserActions = {
+  onEdit: (user: ManagedUser) => void;
+  // Opens the dialog that deactivates the user, or reactivates when user.banned is true.
+  onChangeStatus: (user: ManagedUser) => void;
+};

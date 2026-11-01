@@ -1,0 +1,2 @@
+DROP INDEX "location_siteId_name_active_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "location_siteId_lowerName_active_unique" ON "location" USING btree ("site_id",lower("name")) WHERE "location"."deleted_at" is null;

@@ -81,12 +81,6 @@ export function LocationsSearch({ total }: { total: number }) {
           </button>
         )}
       </div>
-      {query !== "" && (
-        <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "location matches" : "locations match"} &ldquo;
-          {query}&rdquo;
-        </p>
-      )}
     </div>
   );
 }

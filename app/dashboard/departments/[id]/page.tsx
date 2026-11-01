@@ -4,12 +4,17 @@ import { EditDepartmentButton } from "@/components/dashboard/departments/edit-de
 import { SubDepartmentTable } from "@/components/dashboard/departments/sub-department-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseDepartmentId } from "@/validation/department-id";
+import { parseDepartmentStatus } from "@/validation/department-status";
+import { parsePageParams } from "@/validation/pagination";
+import { parseSortParam } from "@/validation/sort";
 import { requireDepartmentManager } from "../department-guard";
 import {
   departmentLocationChoiceFor,
   getDepartment,
   listSubDepartments,
 } from "../departments";
+
+const SUB_DEPARTMENT_SORT_COLUMNS = ["name", "status"] as const;
 
 function DepartmentDetailSkeleton() {
   return (
@@ -30,7 +35,13 @@ function DepartmentDetailSkeleton() {
   );
 }
 
-async function DepartmentDetail({ params }: { params: Promise<{ id: string }> }) {
+async function DepartmentDetail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const access = await requireDepartmentManager();
 
   const { id } = await params;
@@ -40,17 +51,25 @@ async function DepartmentDetail({ params }: { params: Promise<{ id: string }> })
     notFound();
   }
 
-  // getDepartment is scoped and active only. It is the only scope check on this page,
-  // so listSubDepartments (which takes just an id) must never run before it passes.
+  // getDepartment is scoped and active only. It gives the 404 for a missing or out-of-scope id,
+  // so no data call runs before it passes. listSubDepartments also applies the scope itself.
   const department = await getDepartment(access, id);
 
   if (!department) {
     notFound();
   }
 
+  const query = await searchParams;
+  const status = parseDepartmentStatus(query.status);
+  const sort = parseSortParam(query.sort, SUB_DEPARTMENT_SORT_COLUMNS);
+
   const [locationChoice, subDepartments] = await Promise.all([
     departmentLocationChoiceFor(access),
-    listSubDepartments(department.id),
+    listSubDepartments(access, department.id, {
+      ...parsePageParams(query),
+      status,
+      sort,
+    }),
   ]);
 
   return (
@@ -62,15 +81,26 @@ async function DepartmentDetail({ params }: { params: Promise<{ id: string }> })
         </div>
         <EditDepartmentButton department={department} locationChoice={locationChoice} />
       </div>
-      <SubDepartmentTable departmentId={department.id} rows={subDepartments} />
+      <SubDepartmentTable
+        departmentId={department.id}
+        data={subDepartments}
+        status={status}
+        sort={sort}
+      />
     </div>
   );
 }
 
-export default function Page({ params }: { params: Promise<{ id: string }> }) {
+export default function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   return (
     <Suspense fallback={<DepartmentDetailSkeleton />}>
-      <DepartmentDetail params={params} />
+      <DepartmentDetail params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

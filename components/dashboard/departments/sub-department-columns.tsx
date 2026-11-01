@@ -1,4 +1,9 @@
-import { createColumnHelper, tableFeatures } from "@tanstack/react-table";
+import {
+  columnVisibilityFeature,
+  createColumnHelper,
+  rowSelectionFeature,
+  tableFeatures,
+} from "@tanstack/react-table";
 import {
   BanIcon,
   CircleCheckIcon,
@@ -7,9 +12,16 @@ import {
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
-import type { SubDepartmentActions, SubDepartmentRow } from "@/types/departments";
+import type {
+  SubDepartmentActions,
+  SubDepartmentRow,
+  SubDepartmentSortColumn,
+} from "@/types/departments";
+import type { SortControl } from "@/types/sort";
+import { SortHeader } from "@/components/dashboard/sort-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,33 +30,64 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// The table has no search, sort, selection, or pagination, so it needs no optional feature.
-export const subDepartmentFeatures = tableFeatures({});
+export const subDepartmentFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowSelectionFeature,
+});
 
 const columnHelper = createColumnHelper<typeof subDepartmentFeatures, SubDepartmentRow>();
 
-export function createSubDepartmentColumns({
-  onEdit,
-  onDelete,
-  onRestore,
-}: SubDepartmentActions) {
+export function createSubDepartmentColumns(
+  { onEdit, onDelete, onRestore }: SubDepartmentActions,
+  { sort, onSort }: SortControl<SubDepartmentSortColumn>,
+) {
   return columnHelper.columns([
+    columnHelper.display({
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          aria-label="Select all sub-departments on this page"
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Select ${row.original.name}`}
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+        />
+      ),
+      enableHiding: false,
+    }),
     columnHelper.accessor("name", {
-      header: "Name",
+      header: () => (
+        <SortHeader label="Name" column="name" sort={sort} onSort={onSort} />
+      ),
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     }),
     columnHelper.accessor("deletedAt", {
       id: "status",
-      header: "Status",
+      header: () => (
+        <div className="pl-8">
+          <SortHeader label="Status" column="status" sort={sort} onSort={onSort} />
+        </div>
+      ),
       cell: ({ row }) => (
-        <Badge variant="outline" className="px-1.5 text-muted-foreground">
-          {row.original.deletedAt ? (
-            <BanIcon />
-          ) : (
-            <CircleCheckIcon className="fill-green-500 dark:fill-green-400" />
-          )}
-          {row.original.deletedAt ? "Deleted" : "Active"}
-        </Badge>
+        <div className="pl-8">
+          <Badge variant="outline" className="px-1.5 text-muted-foreground">
+            {row.original.deletedAt ? (
+              <BanIcon />
+            ) : (
+              <CircleCheckIcon className="fill-green-500 dark:fill-green-400" />
+            )}
+            {row.original.deletedAt ? "Deleted" : "Active"}
+          </Badge>
+        </div>
       ),
     }),
     columnHelper.display({
@@ -91,6 +134,7 @@ export function createSubDepartmentColumns({
           </DropdownMenu>
         </div>
       ),
+      enableHiding: false,
     }),
   ]);
 }

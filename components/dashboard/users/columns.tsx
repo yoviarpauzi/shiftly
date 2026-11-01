@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { canManageUser } from "@/app/dashboard/users/user-access"
+import { isAllowedRole, ROLE_LABELS } from "@/lib/roles"
 import type { ManagedUser, UserAccess, UserActions } from "@/types/users"
 
 export const features = tableFeatures({
@@ -64,8 +65,10 @@ export function createUserColumns(
     columnHelper.accessor("role", {
       header: "Role",
       cell: ({ row }) => (
-        <Badge variant="outline" className="px-1.5 text-muted-foreground capitalize">
-          {row.original.role ?? "No role"}
+        <Badge variant="outline" className="px-1.5 text-muted-foreground">
+          {isAllowedRole(row.original.role)
+            ? ROLE_LABELS[row.original.role]
+            : (row.original.role ?? "No role")}
         </Badge>
       ),
     }),

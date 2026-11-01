@@ -31,6 +31,7 @@ import {
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
+  MapPinIcon,
 } from "lucide-react";
 
 const data = {
@@ -44,7 +45,13 @@ const data = {
       title: "Site",
       url: "/dashboard/sites",
       icon: <Building2Icon />,
-      superadminOnly: true,
+      roles: ["superadmin"],
+    },
+    {
+      title: "Location",
+      url: "/dashboard/locations",
+      icon: <MapPinIcon />,
+      roles: ["superadmin", "ho"],
     },
     {
       title: "Lifecycle",
@@ -161,8 +168,9 @@ export function AppSidebar({
     role?: string | null
   }
 }) {
+  // An item without roles is shown to every signed-in user.
   const navMain = data.navMain.filter(
-    (item) => !item.superadminOnly || user.role === "superadmin"
+    (item) => !item.roles || item.roles.some((role) => role === user.role)
   )
 
   return (

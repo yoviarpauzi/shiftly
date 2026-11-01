@@ -26,3 +26,11 @@ export type UserPage = {
   page: number;
   pageSize: number;
 };
+
+// siteId is the target's own site_id. locationSiteId is the site_id of the target's location.
+export type ManagedTarget = {
+  id: string;
+  role: string | null;
+  siteId: string | null;
+  locationSiteId: string | null;
+};

@@ -4,6 +4,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
+import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
@@ -125,7 +126,12 @@ async function softDeleteLocation(
       .from(user)
       .where(and(eq(user.locationId, id), eq(user.role, "admin_site")));
 
-    const verdict = canDeleteLocation({ assignedAdminSites });
+    const [{ value: activeDepartments }] = await tx
+      .select({ value: count() })
+      .from(department)
+      .where(and(eq(department.locationId, id), isNull(department.deletedAt)));
+
+    const verdict = canDeleteLocation({ assignedAdminSites, activeDepartments });
 
     if (!verdict.ok) {
       return { ok: false as const, formError: verdict.formError };

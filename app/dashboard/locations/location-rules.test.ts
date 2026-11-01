@@ -17,21 +17,43 @@ const location = (deleted: boolean): LocationRow => ({
 });
 
 describe("canDeleteLocation", () => {
-  it("allows deleting a location with no admin site users", () => {
-    expect(canDeleteLocation({ assignedAdminSites: 0 })).toEqual({ ok: true });
+  it("allows deleting a location with no admin site users and no active departments", () => {
+    expect(canDeleteLocation({ assignedAdminSites: 0, activeDepartments: 0 })).toEqual({ ok: true });
   });
 
   it("blocks deleting a location with one admin site user", () => {
-    expect(canDeleteLocation({ assignedAdminSites: 1 })).toEqual({
+    expect(canDeleteLocation({ assignedAdminSites: 1, activeDepartments: 0 })).toEqual({
       ok: false,
       formError: "This location has 1 admin site user assigned. Move them first.",
     });
   });
 
   it("uses the plural when several admin site users are assigned", () => {
-    expect(canDeleteLocation({ assignedAdminSites: 2 })).toEqual({
+    expect(canDeleteLocation({ assignedAdminSites: 2, activeDepartments: 0 })).toEqual({
       ok: false,
       formError: "This location has 2 admin site users assigned. Move them first.",
+    });
+  });
+
+  it("blocks deleting a location with one active department", () => {
+    expect(canDeleteLocation({ assignedAdminSites: 0, activeDepartments: 1 })).toEqual({
+      ok: false,
+      formError: "This location has 1 active department. Delete it first.",
+    });
+  });
+
+  it("uses the plural when several departments are active", () => {
+    expect(canDeleteLocation({ assignedAdminSites: 0, activeDepartments: 2 })).toEqual({
+      ok: false,
+      formError: "This location has 2 active departments. Delete them first.",
+    });
+  });
+
+  it("names both blockers when admin site users and departments are present", () => {
+    expect(canDeleteLocation({ assignedAdminSites: 1, activeDepartments: 2 })).toEqual({
+      ok: false,
+      formError:
+        "This location has 1 admin site user assigned and 2 active departments. Move the users and delete the departments first.",
     });
   });
 });

@@ -1,5 +1,6 @@
 import { LocationsDataTable } from "@/components/dashboard/locations/data-table";
 import { requireLocationManager } from "./location-guard";
+import { parseLocationSite } from "@/validation/location-site";
 import { parseLocationStatus } from "@/validation/location-status";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";
@@ -17,12 +18,18 @@ export default async function Page({
   const params = await searchParams;
   const status = parseLocationStatus(params.status);
   const sort = parseSortParam(params.sort, LOCATION_SORT_COLUMNS);
+  const siteChoice = await siteChoiceFor(access);
+  // Only superadmin picks a site, so a fixed-site manager gets no site filter.
+  const siteId = parseLocationSite(
+    params.site,
+    siteChoice.mode === "pick" ? siteChoice.sites : [],
+  );
   const locations = await listLocations(access, {
     ...parsePageParams(params),
     status,
+    siteId,
     sort,
   });
-  const siteChoice = await siteChoiceFor(access);
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
@@ -35,6 +42,7 @@ export default async function Page({
       <LocationsDataTable
         data={locations}
         status={status}
+        siteId={siteId}
         siteChoice={siteChoice}
         sort={sort}
       />

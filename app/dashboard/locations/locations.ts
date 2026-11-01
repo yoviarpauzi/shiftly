@@ -49,11 +49,13 @@ function locationFilter(
   access: LocationAccess,
   query: string,
   status: LocationStatus,
+  siteId: string | null,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     locationScopeFilter(access),
+    siteId ? eq(location.siteId, siteId) : undefined,
     status === "active" ? isNull(location.deletedAt) : undefined,
     status === "deleted" ? isNotNull(location.deletedAt) : undefined,
     query ? ilike(location.name, pattern) : undefined,
@@ -62,9 +64,9 @@ function locationFilter(
 
 export async function listLocations(
   access: LocationAccess,
-  { page, pageSize, query, status, sort }: LocationListParams,
+  { page, pageSize, query, status, siteId, sort }: LocationListParams,
 ): Promise<LocationPage> {
-  const filter = locationFilter(access, query, status);
+  const filter = locationFilter(access, query, status, siteId);
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the location table alone, so the site join does not inflate the total.

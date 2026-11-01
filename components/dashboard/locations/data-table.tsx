@@ -29,6 +29,7 @@ import {
 import { DeleteLocationDialog } from "@/components/dashboard/locations/delete-location-dialog";
 import { LocationFormDialog } from "@/components/dashboard/locations/location-form-dialog";
 import { LocationsSearch } from "@/components/dashboard/locations/locations-search";
+import { LocationsSiteFilter } from "@/components/dashboard/locations/locations-site-filter";
 import { LocationsStatusFilter } from "@/components/dashboard/locations/locations-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,11 +54,13 @@ async function restoreWithToast(location: LocationRow) {
 export function LocationsDataTable({
   data,
   status,
+  siteId,
   siteChoice,
   sort,
 }: {
   data: LocationPage;
   status: LocationStatus;
+  siteId: string | null;
   siteChoice: SiteChoice;
   sort: SortCriterion<LocationSortColumn>[];
 }) {
@@ -167,6 +170,9 @@ export function LocationsDataTable({
         <div className="flex items-center gap-2">
           <LocationsSearch total={data.total} />
           <LocationsStatusFilter status={status} />
+          {siteChoice.mode === "pick" && (
+            <LocationsSiteFilter siteId={siteId} sites={siteChoice.sites} />
+          )}
         </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />

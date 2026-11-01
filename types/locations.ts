@@ -27,6 +27,8 @@ export type LocationStatus = "active" | "deleted" | "all";
 
 export type LocationListParams = PageParams & {
   status: LocationStatus;
+  // null means every site the actor can see.
+  siteId: string | null;
   sort: SortCriterion<LocationSortColumn>[];
 };
 

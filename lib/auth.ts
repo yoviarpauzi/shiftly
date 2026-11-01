@@ -11,6 +11,8 @@ import { userScopeIsActive } from "./scope-status";
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   baseURL: "http://localhost:3000/",
+  // Accounts are created by superadmin or HO through the Users menu, never by public sign-up.
+  disabledPaths: ["/sign-up/email"],
   emailAndPassword: { enabled: true },
   databaseHooks: {
     session: {

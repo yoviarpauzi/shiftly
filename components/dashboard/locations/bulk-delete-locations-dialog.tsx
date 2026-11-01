@@ -64,8 +64,8 @@ export function BulkDeleteLocationsDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             The selected locations move to Deleted and can be restored from that
-            filter. A location with assigned admin site users is kept, and the
-            reason is shown.
+            filter. A location with assigned admin site users or active
+            departments is kept, and the reason is shown.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

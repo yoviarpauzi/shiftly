@@ -106,6 +106,7 @@ export async function updateDepartment(
   }
 
   revalidatePath(DEPARTMENTS_PATH);
+  revalidatePath(`${DEPARTMENTS_PATH}/${id}`);
 
   return { ok: true };
 }
@@ -160,6 +161,7 @@ export async function deleteDepartment(id: string): Promise<DepartmentActionResu
 
   if (result.ok) {
     revalidatePath(DEPARTMENTS_PATH);
+    revalidatePath(`${DEPARTMENTS_PATH}/${id}`);
   }
 
   return result;
@@ -223,6 +225,7 @@ export async function restoreDepartment(id: string): Promise<DepartmentActionRes
 
   if (result.ok) {
     revalidatePath(DEPARTMENTS_PATH);
+    revalidatePath(`${DEPARTMENTS_PATH}/${id}`);
   }
 
   return result;

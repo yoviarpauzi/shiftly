@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EditDepartmentButton } from "@/components/dashboard/departments/edit-department-button";
 import { SubDepartmentTable } from "@/components/dashboard/departments/sub-department-table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { parseDepartmentId } from "@/validation/department-id";
 import { requireDepartmentManager } from "../department-guard";
 import {
   departmentLocationChoiceFor,
@@ -33,6 +34,12 @@ async function DepartmentDetail({ params }: { params: Promise<{ id: string }> })
   const access = await requireDepartmentManager();
 
   const { id } = await params;
+
+  // A malformed id would make the uuid comparison throw in Postgres, so it is a 404 instead.
+  if (!parseDepartmentId(id)) {
+    notFound();
+  }
+
   // getDepartment is scoped and active only. It is the only scope check on this page,
   // so listSubDepartments (which takes just an id) must never run before it passes.
   const department = await getDepartment(access, id);

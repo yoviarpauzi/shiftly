@@ -29,7 +29,13 @@ export function NavMain({
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 tooltip={item.title}
-                isActive={item.url !== "#" && pathname === item.url}
+                isActive={
+                  item.url !== "#" &&
+                  (pathname === item.url ||
+                    // "/dashboard" stays exact, or it would be active on every page.
+                    (item.url !== "/dashboard" &&
+                      pathname.startsWith(`${item.url}/`)))
+                }
                 render={<Link href={item.url} />}
               >
                 {item.icon}

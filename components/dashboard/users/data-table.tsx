@@ -52,8 +52,8 @@ export function UsersDataTable({
   }, [])
 
   const columns = React.useMemo(
-    () => createUserColumns({ onEdit: openForm, onChangeStatus: openStatusDialog }),
-    [openForm, openStatusDialog],
+    () => createUserColumns(access, { onEdit: openForm, onChangeStatus: openStatusDialog }),
+    [access, openForm, openStatusDialog],
   )
 
   const pagination = {

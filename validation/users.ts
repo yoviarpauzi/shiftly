@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Scope } from "@/types/users";
 
 const roleSchema = z.enum(["superadmin", "ho", "admin_site"], { error: "Choose a role" });
 
@@ -22,8 +23,6 @@ const baseFields = z.object({
   siteId: z.string({ error: "Choose a site" }).uuid("Choose a site").nullable(),
   locationId: z.string({ error: "Choose a location" }).uuid("Choose a location").nullable(),
 });
-
-type Scope = { role: z.infer<typeof roleSchema>; siteId: string | null; locationId: string | null };
 
 // ho needs a site and no location, admin_site the reverse, superadmin neither.
 const checkScope = ({ role, siteId, locationId }: Scope, ctx: z.RefinementCtx) => {

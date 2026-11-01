@@ -342,6 +342,12 @@ export function UserFormDialog({
                             }}
                           </form.Field>
                         )}
+                        {access.role === "ho" && choices.sites[0] && (
+                          <Field>
+                            <FieldLabel>Site</FieldLabel>
+                            <p className="text-sm">{choices.sites[0].name}</p>
+                          </Field>
+                        )}
                         {role === "admin_site" && (
                           <form.Field name="locationId">
                             {(field) => {

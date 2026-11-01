@@ -1,4 +1,6 @@
+import type { db } from "@/lib/db";
 import type { SiteOption } from "@/types/locations";
+import type { AppRole } from "@/types/roles";
 
 export type UserScope = {
   id: string;
@@ -66,6 +68,11 @@ export type DeactivateUserDialogProps = {
   user: ManagedUser | null;
   onOpenChange: (open: boolean) => void;
 };
+
+// The role and place a user is assigned to.
+export type Scope = { role: AppRole; siteId: string | null; locationId: string | null };
+
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type UserActions = {
   onEdit: (user: ManagedUser) => void;

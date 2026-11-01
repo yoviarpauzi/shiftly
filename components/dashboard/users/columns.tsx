@@ -29,7 +29,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { ManagedUser, UserActions } from "@/types/users"
+import { canManageUser } from "@/lib/user-access"
+import type { ManagedUser, UserAccess, UserActions } from "@/types/users"
 
 export const features = tableFeatures({
   columnFilteringFeature,
@@ -45,7 +46,10 @@ export const features = tableFeatures({
 
 const columnHelper = createColumnHelper<typeof features, ManagedUser>()
 
-export function createUserColumns({ onEdit, onChangeStatus }: UserActions) {
+export function createUserColumns(
+  access: UserAccess,
+  { onEdit, onChangeStatus }: UserActions,
+) {
   return columnHelper.columns([
     columnHelper.accessor("name", {
       header: "Name",
@@ -90,42 +94,52 @@ export function createUserColumns({ onEdit, onChangeStatus }: UserActions) {
     }),
     columnHelper.display({
       id: "actions",
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                className="flex size-8 text-muted-foreground data-open:bg-muted"
-                size="icon"
-              />
-            }
-          >
-            <EllipsisVerticalIcon />
-            <span className="sr-only">Actions for {row.original.name}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={() => onEdit(row.original)}>
-              <PencilIcon />
-              Edit
-            </DropdownMenuItem>
-            {row.original.banned ? (
-              <DropdownMenuItem onClick={() => onChangeStatus(row.original)}>
-                <RotateCcwIcon />
-                Reactivate
+      cell: ({ row }) =>
+        // An empty cell keeps the column width, so rows the actor cannot manage show no actions.
+        !canManageUser(access, {
+          id: row.original.id,
+          role: row.original.role,
+          siteId: null,
+          locationSiteId: row.original.siteId,
+          banned: row.original.banned ?? false,
+        }) ? (
+          <div className="size-8" />
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  className="flex size-8 text-muted-foreground data-open:bg-muted"
+                  size="icon"
+                />
+              }
+            >
+              <EllipsisVerticalIcon />
+              <span className="sr-only">Actions for {row.original.name}</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onEdit(row.original)}>
+                <PencilIcon />
+                Edit
               </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onChangeStatus(row.original)}
-              >
-                <UserXIcon />
-                Deactivate
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+              {row.original.banned ? (
+                <DropdownMenuItem onClick={() => onChangeStatus(row.original)}>
+                  <RotateCcwIcon />
+                  Reactivate
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onChangeStatus(row.original)}
+                >
+                  <UserXIcon />
+                  Deactivate
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
     }),
   ])
 }

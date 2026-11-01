@@ -18,8 +18,14 @@ import {
   LOCATION_OUT_OF_SCOPE_MESSAGE,
   USER_NOT_FOUND_MESSAGE,
 } from "@/lib/user-rules";
-import type { AppRole } from "@/types/roles";
-import type { ManagedTarget, UserAccess, UserActionResult, UserField } from "@/types/users";
+import type {
+  ManagedTarget,
+  Scope,
+  Tx,
+  UserAccess,
+  UserActionResult,
+  UserField,
+} from "@/types/users";
 import {
   createUserSchema,
   updateUserSchema,
@@ -30,10 +36,6 @@ import {
 const USERS_PATH = "/dashboard/users";
 const EMAIL_TAKEN_MESSAGE = "This email is already used by another account";
 const USER_FIELDS: readonly string[] = ["name", "email", "password", "role", "siteId", "locationId"];
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-type Scope = { role: AppRole; siteId: string | null; locationId: string | null };
 
 const userNotFound: UserActionResult = { ok: false, formError: USER_NOT_FOUND_MESSAGE };
 const emailTaken: UserActionResult = { ok: false, fieldErrors: { email: EMAIL_TAKEN_MESSAGE } };

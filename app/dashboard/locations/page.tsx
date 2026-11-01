@@ -2,7 +2,7 @@ import { LocationsDataTable } from "@/components/dashboard/locations/data-table"
 import { requireLocationManager } from "@/lib/session";
 import { parseLocationStatus } from "@/validation/location-status";
 import { parsePageParams } from "@/validation/pagination";
-import { listLocations } from "./locations";
+import { listLocations, siteChoiceFor } from "./locations";
 
 export default async function Page({
   searchParams,
@@ -17,6 +17,7 @@ export default async function Page({
     ...parsePageParams(params),
     status,
   });
+  const siteChoice = await siteChoiceFor(access);
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
@@ -26,7 +27,7 @@ export default async function Page({
           Locations in the sites you can manage.
         </p>
       </div>
-      <LocationsDataTable data={locations} status={status} />
+      <LocationsDataTable data={locations} status={status} siteChoice={siteChoice} />
     </div>
   );
 }

@@ -4,7 +4,14 @@ import {
   rowSelectionFeature,
   tableFeatures,
 } from "@tanstack/react-table";
-import { EllipsisIcon, PencilIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import {
+  BanIcon,
+  CircleCheckIcon,
+  EllipsisIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { LocationActions, LocationRow, LocationSortColumn } from "@/types/locations";
 import type { SortControl } from "@/types/sort";
 import { SortHeader } from "@/components/dashboard/sort-header";
@@ -73,11 +80,12 @@ export function createLocationColumns(
       ),
       cell: ({ row }) => (
         <div className="pl-8">
-          <Badge variant="outline">
-            <span
-              aria-hidden
-              className={`size-2 rounded-full ${row.original.deletedAt ? "bg-destructive" : "bg-accent-text"}`}
-            />
+          <Badge variant="outline" className="px-1.5 text-muted-foreground">
+            {row.original.deletedAt ? (
+              <BanIcon />
+            ) : (
+              <CircleCheckIcon className="fill-green-500 dark:fill-green-400" />
+            )}
             {row.original.deletedAt ? "Deleted" : "Active"}
           </Badge>
         </div>

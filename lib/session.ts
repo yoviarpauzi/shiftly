@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/lib/auth";
+import { locationAccessFor } from "@/lib/location-access";
 import { isAllowedRole } from "@/lib/roles";
 
 // Checks the session against the database. This is the real check. proxy.ts only reads the cookie.
@@ -35,4 +36,15 @@ export async function requireSuperadmin() {
   }
 
   return user;
+}
+
+// Location pages and actions: superadmin and HO only. Other roles get notFound(), like requireSuperadmin.
+export async function requireLocationManager() {
+  const access = locationAccessFor(await requireUser());
+
+  if (!access) {
+    notFound();
+  }
+
+  return access;
 }

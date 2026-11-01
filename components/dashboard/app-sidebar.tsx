@@ -26,8 +26,6 @@ import {
   CameraIcon,
   FileTextIcon,
   Settings2Icon,
-  CircleHelpIcon,
-  SearchIcon,
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
@@ -52,21 +50,6 @@ const data = {
       url: "/dashboard/locations",
       icon: <MapPinIcon />,
       roles: ["superadmin", "ho"],
-    },
-    {
-      title: "Lifecycle",
-      url: "#",
-      icon: <ListIcon />,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: <ChartBarIcon />,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: <FolderIcon />,
     },
     {
       title: "Users",
@@ -129,16 +112,6 @@ const data = {
       url: "#",
       icon: <Settings2Icon />,
     },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: <CircleHelpIcon />,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: <SearchIcon />,
-    },
   ],
   documents: [
     {
@@ -163,16 +136,16 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   user: {
-    name: string
-    email: string
-    avatar?: string | null
-    role?: string | null
-  }
+    name: string;
+    email: string;
+    avatar?: string | null;
+    role?: string | null;
+  };
 }) {
   // An item without roles is shown to every signed-in user.
   const navMain = data.navMain.filter(
-    (item) => !item.roles || item.roles.some((role) => role === user.role)
-  )
+    (item) => !item.roles || item.roles.some((role) => role === user.role),
+  );
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

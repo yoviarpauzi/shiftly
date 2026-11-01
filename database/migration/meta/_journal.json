@@ -29,6 +29,13 @@
       "when": 1793506322652,
       "tag": "0003_rainy_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793514534887,
+      "tag": "0004_admin_plugin_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ import {
   BanIcon,
   CircleCheckIcon,
   EllipsisIcon,
+  FolderTreeIcon,
   PencilIcon,
   RotateCcwIcon,
   Trash2Icon,
@@ -70,12 +71,7 @@ export function createDepartmentColumns(
         <SortHeader label="Name" column="name" sort={sort} onSort={onSort} />
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/dashboard/departments/${row.original.id}`}
-          className="font-medium underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
-        >
-          {row.original.name}
-        </Link>
+        <span className="font-medium">{row.original.name}</span>
       ),
     }),
     columnHelper.accessor("locationName", {
@@ -128,6 +124,14 @@ export function createDepartmentColumns(
               <DropdownMenuGroup>
                 {row.original.deletedAt === null ? (
                   <>
+                    <DropdownMenuItem
+                      render={
+                        <Link href={`/dashboard/departments/${row.original.id}`} />
+                      }
+                    >
+                      <FolderTreeIcon />
+                      Detail
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(row.original)}>
                       <PencilIcon />
                       Edit

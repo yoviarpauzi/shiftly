@@ -1,3 +1,5 @@
+import type { SiteOption } from "@/types/locations";
+
 export type UserScope = {
   id: string;
   role?: string | null;
@@ -18,6 +20,10 @@ export type ManagedUser = {
   email: string;
   role: string | null;
   banned: boolean | null;
+  siteId: string | null;
+  siteName: string | null;
+  locationId: string | null;
+  locationName: string | null;
 };
 
 export type UserPage = {
@@ -34,4 +40,29 @@ export type ManagedTarget = {
   siteId: string | null;
   locationSiteId: string | null;
   banned: boolean;
+};
+
+export type LocationOption = { id: string; name: string; siteId: string; siteName: string };
+
+// For HO, sites holds only HO's own site and locations holds only locations in it.
+export type UserChoices = { sites: SiteOption[]; locations: LocationOption[] };
+
+export type UserField = "name" | "email" | "password" | "role" | "siteId" | "locationId";
+
+export type UserActionResult =
+  | { ok: true }
+  | { ok: false; formError?: string; fieldErrors?: Partial<Record<UserField, string>> };
+
+export type UserFormDialogProps = {
+  user: ManagedUser | null;
+  access: UserAccess;
+  choices: UserChoices;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+// The dialog reactivates when user.banned is true.
+export type DeactivateUserDialogProps = {
+  user: ManagedUser | null;
+  onOpenChange: (open: boolean) => void;
 };

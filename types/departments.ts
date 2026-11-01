@@ -125,6 +125,12 @@ export type SubDepartmentActionResult =
       formError?: string;
     };
 
+// One row's write outcome. The department id is set once the row passed its parent check.
+export type SubDepartmentWrite = {
+  result: SubDepartmentActionResult;
+  departmentId?: string;
+};
+
 export type SubDepartmentActions = {
   onEdit: (subDepartment: SubDepartmentRow) => void;
   onDelete: (subDepartment: SubDepartmentRow) => void;
@@ -133,7 +139,16 @@ export type SubDepartmentActions = {
 
 export type SubDepartmentTableProps = {
   departmentId: string;
-  rows: SubDepartmentRow[];
+  data: SubDepartmentPage;
+  status: DepartmentStatus;
+  sort: SortCriterion<SubDepartmentSortColumn>[];
+};
+
+export type BulkDeleteSubDepartmentsDialogProps = {
+  subDepartments: SubDepartmentRow[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onComplete: () => void;
 };
 
 export type SubDepartmentFormDialogProps = {

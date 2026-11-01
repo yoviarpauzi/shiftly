@@ -27,7 +27,9 @@ import type {
   DepartmentRow,
   DepartmentSortColumn,
   DepartmentStatus,
-  SubDepartmentRow,
+  SubDepartmentListParams,
+  SubDepartmentPage,
+  SubDepartmentSortColumn,
 } from "@/types/departments";
 import type { SortCriterion } from "@/types/sort";
 
@@ -41,6 +43,15 @@ const DEPARTMENT_SORT_EXPRESSIONS: Record<DepartmentSortColumn, SQLWrapper> = {
   name: department.name,
   location: location.name,
   status: sql`(${department.deletedAt} is not null)`,
+};
+
+const SUB_DEPARTMENT_DEFAULT_SORT: SortCriterion<SubDepartmentSortColumn>[] = [
+  { column: "name", direction: "asc" },
+];
+
+const SUB_DEPARTMENT_SORT_EXPRESSIONS: Record<SubDepartmentSortColumn, SQLWrapper> = {
+  name: subDepartment.name,
+  status: sql`(${subDepartment.deletedAt} is not null)`,
 };
 
 // Superadmin sees every department. Admin site sees its own location. HO sees the locations of its own site.
@@ -186,9 +197,44 @@ export async function getDepartment(
   return row;
 }
 
-// Every sub-department of the department, active and deleted. The caller checks the department scope first.
-export async function listSubDepartments(departmentId: string): Promise<SubDepartmentRow[]> {
-  return db
+// Matches name case-insensitively. An empty query matches every sub-department in the status.
+// The scope sits on the department side of the join, so an out-of-scope parent yields no rows.
+function subDepartmentFilter(
+  access: DepartmentAccess,
+  departmentId: string,
+  query: string,
+  status: DepartmentStatus,
+): SQL | undefined {
+  const pattern = `%${escapeLikePattern(query)}%`;
+
+  return and(
+    eq(subDepartment.departmentId, departmentId),
+    departmentScopeFilter(access),
+    status === "active" ? isNull(subDepartment.deletedAt) : undefined,
+    status === "deleted" ? isNotNull(subDepartment.deletedAt) : undefined,
+    query ? ilike(subDepartment.name, pattern) : undefined,
+  );
+}
+
+// One page of the department's sub-departments, scoped by the access the caller holds.
+export async function listSubDepartments(
+  access: DepartmentAccess,
+  departmentId: string,
+  { page, pageSize, query, status, sort }: SubDepartmentListParams,
+): Promise<SubDepartmentPage> {
+  const filter = subDepartmentFilter(access, departmentId, query, status);
+  const criteria = sort.length > 0 ? sort : SUB_DEPARTMENT_DEFAULT_SORT;
+
+  // Counted from the sub-department table. The join to department is one-to-one, so it does not inflate the total.
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(subDepartment)
+    .innerJoin(department, eq(department.id, subDepartment.departmentId))
+    .where(filter);
+
+  const currentPage = clampPage(page, total, pageSize);
+
+  const rows = await db
     .select({
       id: subDepartment.id,
       name: subDepartment.name,
@@ -196,6 +242,11 @@ export async function listSubDepartments(departmentId: string): Promise<SubDepar
       deletedAt: subDepartment.deletedAt,
     })
     .from(subDepartment)
-    .where(eq(subDepartment.departmentId, departmentId))
-    .orderBy(asc(subDepartment.name), asc(subDepartment.id));
+    .innerJoin(department, eq(department.id, subDepartment.departmentId))
+    .where(filter)
+    .orderBy(...sortTerms(criteria, SUB_DEPARTMENT_SORT_EXPRESSIONS), asc(subDepartment.id))
+    .limit(pageSize)
+    .offset((currentPage - 1) * pageSize);
+
+  return { rows, total, page: currentPage, pageSize };
 }

@@ -5,7 +5,13 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { department, subDepartment } from "@/database/schema/department-schema";
 import { db } from "@/lib/db";
-import type { DepartmentAccess, SubDepartmentActionResult } from "@/types/departments";
+import type {
+  DepartmentAccess,
+  DepartmentBulkDeleteResult,
+  DepartmentBulkRestoreResult,
+  SubDepartmentActionResult,
+  SubDepartmentWrite,
+} from "@/types/departments";
 import { subDepartmentSchema, type SubDepartmentInput } from "@/validation/sub-department";
 import { requireDepartmentManager } from "./department-guard";
 import {
@@ -164,10 +170,9 @@ export async function updateSubDepartment(
   return result;
 }
 
-// Always allowed while the sub-department and its department are in scope. Soft delete only.
-export async function deleteSubDepartment(id: string): Promise<SubDepartmentActionResult> {
-  const access = await requireDepartmentManager();
-
+// Soft-deletes one sub-department. The caller has already passed requireDepartmentManager().
+// The department id comes back so the caller can revalidate its detail page.
+async function softDeleteOne(id: string, access: DepartmentAccess): Promise<SubDepartmentWrite> {
   let departmentId: string | undefined;
 
   const result = await db.transaction(async (tx): Promise<SubDepartmentActionResult> => {
@@ -210,6 +215,15 @@ export async function deleteSubDepartment(id: string): Promise<SubDepartmentActi
     return { ok: true };
   });
 
+  return { result, departmentId };
+}
+
+// Always allowed while the sub-department and its department are in scope. Soft delete only.
+export async function deleteSubDepartment(id: string): Promise<SubDepartmentActionResult> {
+  const access = await requireDepartmentManager();
+
+  const { result, departmentId } = await softDeleteOne(id, access);
+
   if (result.ok && departmentId) {
     revalidateDepartment(departmentId);
   }
@@ -217,9 +231,9 @@ export async function deleteSubDepartment(id: string): Promise<SubDepartmentActi
   return result;
 }
 
-export async function restoreSubDepartment(id: string): Promise<SubDepartmentActionResult> {
-  const access = await requireDepartmentManager();
-
+// Restores one sub-department. The caller has already passed requireDepartmentManager().
+// The department id comes back so the caller can revalidate its detail page.
+async function restoreOne(id: string, access: DepartmentAccess): Promise<SubDepartmentWrite> {
   let departmentId: string | undefined;
   let result: SubDepartmentActionResult;
 
@@ -278,15 +292,81 @@ export async function restoreSubDepartment(id: string): Promise<SubDepartmentAct
     });
   } catch (error) {
     if (isSubDepartmentNameConflict(error)) {
-      return { ok: false, formError: SUB_DEPARTMENT_RESTORE_CONFLICT_MESSAGE };
+      return { result: { ok: false, formError: SUB_DEPARTMENT_RESTORE_CONFLICT_MESSAGE } };
     }
 
     throw error;
   }
+
+  return { result, departmentId };
+}
+
+export async function restoreSubDepartment(id: string): Promise<SubDepartmentActionResult> {
+  const access = await requireDepartmentManager();
+
+  const { result, departmentId } = await restoreOne(id, access);
 
   if (result.ok && departmentId) {
     revalidateDepartment(departmentId);
   }
 
   return result;
+}
+
+// Each sub-department is checked and locked in its own transaction, so some can be deleted while others are blocked.
+export async function deleteSubDepartments(ids: string[]): Promise<DepartmentBulkDeleteResult> {
+  const access = await requireDepartmentManager();
+
+  const deletedIds: string[] = [];
+  const blocked: DepartmentBulkDeleteResult["blocked"] = [];
+  const touchedDepartments = new Set<string>();
+
+  for (const id of ids) {
+    const { result, departmentId } = await softDeleteOne(id, access);
+
+    if (result.ok) {
+      deletedIds.push(id);
+
+      if (departmentId) {
+        touchedDepartments.add(departmentId);
+      }
+    } else {
+      blocked.push({ id, formError: result.formError ?? SUB_DEPARTMENT_NOT_FOUND_MESSAGE });
+    }
+  }
+
+  for (const departmentId of touchedDepartments) {
+    revalidateDepartment(departmentId);
+  }
+
+  return { deletedIds, blocked };
+}
+
+// Each sub-department is checked and locked in its own transaction, so some can be restored while others are blocked.
+export async function restoreSubDepartments(ids: string[]): Promise<DepartmentBulkRestoreResult> {
+  const access = await requireDepartmentManager();
+
+  const restoredIds: string[] = [];
+  const blocked: DepartmentBulkRestoreResult["blocked"] = [];
+  const touchedDepartments = new Set<string>();
+
+  for (const id of ids) {
+    const { result, departmentId } = await restoreOne(id, access);
+
+    if (result.ok) {
+      restoredIds.push(id);
+
+      if (departmentId) {
+        touchedDepartments.add(departmentId);
+      }
+    } else {
+      blocked.push({ id, formError: result.formError ?? SUB_DEPARTMENT_NOT_FOUND_MESSAGE });
+    }
+  }
+
+  for (const departmentId of touchedDepartments) {
+    revalidateDepartment(departmentId);
+  }
+
+  return { restoredIds, blocked };
 }

@@ -24,7 +24,11 @@ export function assignableRoles(access: UserAccess): AppRole[] {
 // HO manages only admin site users whose location belongs to HO's site.
 export function canManageUser(access: UserAccess, target: ManagedTarget): boolean {
   if (access.role === "superadmin") return true;
-  return target.role === "admin_site" && target.locationSiteId === access.siteId;
+  return (
+    access.siteId !== null &&
+    target.role === "admin_site" &&
+    target.locationSiteId === access.siteId
+  );
 }
 
 export function canAssign(
@@ -33,5 +37,7 @@ export function canAssign(
   locationSiteId: string | null,
 ): boolean {
   if (access.role === "superadmin") return true;
-  return change.role === "admin_site" && locationSiteId === access.siteId;
+  return (
+    access.siteId !== null && change.role === "admin_site" && locationSiteId === access.siteId
+  );
 }

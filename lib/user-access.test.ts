@@ -65,6 +65,7 @@ const target = (fields: Partial<ManagedTarget>): ManagedTarget => ({
   role: "admin_site",
   siteId: SITE,
   locationSiteId: SITE,
+  banned: false,
   ...fields,
 });
 
@@ -115,5 +116,17 @@ describe("canAssign", () => {
     ["HO cannot assign superadmin at its own site", ho, "superadmin", SITE, false],
   ] as const)("%s", (_name, access, role, locationSiteId, expected) => {
     expect(canAssign(access, { role }, locationSiteId)).toBe(expected);
+  });
+});
+
+describe("HO without a site", () => {
+  const siteless: UserAccess = { id: "ho-2", role: "ho", siteId: null };
+
+  it("manages nothing, even when the location has no site", () => {
+    expect(canManageUser(siteless, target({ locationSiteId: null }))).toBe(false);
+  });
+
+  it("assigns nothing, even at a location with no site", () => {
+    expect(canAssign(siteless, { role: "admin_site" }, null)).toBe(false);
   });
 });

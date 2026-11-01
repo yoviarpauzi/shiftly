@@ -21,6 +21,7 @@ const target = (fields: Partial<ManagedTarget>): ManagedTarget => ({
   role: "admin_site",
   siteId: SITE,
   locationSiteId: SITE,
+  banned: false,
   ...fields,
 });
 
@@ -75,6 +76,14 @@ describe("guardRoleChange", () => {
       LAST_SUPERADMIN_MESSAGE,
     ],
     ["demotes a superadmin when others remain", superadmin, target({ role: "superadmin" }), "ho", 2, null],
+    [
+      "demotes a banned superadmin even when it is the only one counted",
+      superadmin,
+      target({ role: "superadmin", banned: true }),
+      "ho",
+      1,
+      null,
+    ],
     ["promotes an admin site to HO", superadmin, target({}), "ho", 1, null],
   ] as const)("%s", (_name, access, subject, nextRole, count, expected) => {
     expect(guardRoleChange(access, subject, nextRole, count)).toBe(expected);
@@ -93,6 +102,13 @@ describe("guardDeactivation", () => {
     ],
     ["the last superadmin", superadmin, target({ role: "superadmin" }), 1, LAST_SUPERADMIN_MESSAGE],
     ["a superadmin when another remains", superadmin, target({ role: "superadmin" }), 2, null],
+    [
+      "a banned superadmin",
+      superadmin,
+      target({ role: "superadmin", banned: true }),
+      1,
+      null,
+    ],
     ["a non-superadmin", ho, target({}), 1, null],
   ] as const)("%s", (_name, access, subject, count, expected) => {
     expect(guardDeactivation(access, subject, count)).toBe(expected);

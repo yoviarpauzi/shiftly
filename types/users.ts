@@ -33,4 +33,5 @@ export type ManagedTarget = {
   role: string | null;
   siteId: string | null;
   locationSiteId: string | null;
+  banned: boolean;
 };

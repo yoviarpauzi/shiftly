@@ -72,6 +72,7 @@ const data = {
       title: "Users",
       url: "/dashboard/users",
       icon: <UsersIcon />,
+      roles: ["superadmin", "ho"],
     },
   ],
   navClouds: [

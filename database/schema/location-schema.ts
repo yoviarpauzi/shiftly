@@ -1,5 +1,6 @@
 import { isNull, relations, sql } from "drizzle-orm";
 import { pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { position } from "./position-schema";
 import { site } from "./site-schema";
 
 export const location = pgTable(
@@ -33,4 +34,5 @@ export const locationRelations = relations(location, ({ one }) => ({
 
 export const siteRelations = relations(site, ({ many }) => ({
   locations: many(location),
+  positions: many(position),
 }));

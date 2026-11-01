@@ -2,6 +2,7 @@
 
 import { useForm, type StandardSchemaV1 } from "@tanstack/react-form";
 import { useState } from "react";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/locations/location-rules";
 import { createUser, updateUser } from "@/app/dashboard/users/actions";
@@ -24,6 +25,12 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -73,6 +80,7 @@ export function UserFormDialog({
   onOpenChange,
 }: UserFormDialogProps) {
   const [formError, setFormError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const roles = assignableRoles(access);
   const hasRoleChoice = roles.length > 1;
   const initialRole = defaultRole(user?.role, roles);
@@ -213,22 +221,38 @@ export function UserFormDialog({
                       return (
                         <Field data-invalid={isInvalid || undefined}>
                           <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                          <Input
-                            id={field.name}
-                            name={field.name}
-                            type="password"
-                            autoComplete="new-password"
-                            placeholder={
-                              user ? "Leave blank to keep the current password" : undefined
-                            }
-                            value={field.state.value ?? ""}
-                            onBlur={field.handleBlur}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value)
-                            }
-                            disabled={isSubmitting}
-                            aria-invalid={isInvalid || undefined}
-                          />
+                          <InputGroup>
+                            <InputGroupInput
+                              id={field.name}
+                              name={field.name}
+                              type={showPassword ? "text" : "password"}
+                              autoComplete="new-password"
+                              placeholder={
+                                user ? "Leave blank to keep the current password" : undefined
+                              }
+                              value={field.state.value ?? ""}
+                              onBlur={field.handleBlur}
+                              onChange={(event) =>
+                                field.handleChange(event.target.value)
+                              }
+                              disabled={isSubmitting}
+                              aria-invalid={isInvalid || undefined}
+                            />
+                            <InputGroupAddon align="inline-end">
+                              <InputGroupButton
+                                type="button"
+                                size="icon-xs"
+                                aria-label={
+                                  showPassword ? "Hide password" : "Show password"
+                                }
+                                aria-pressed={showPassword}
+                                disabled={isSubmitting}
+                                onClick={() => setShowPassword((current) => !current)}
+                              >
+                                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                              </InputGroupButton>
+                            </InputGroupAddon>
+                          </InputGroup>
                           {isInvalid && (
                             <FieldError errors={field.state.meta.errors} />
                           )}

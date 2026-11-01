@@ -16,6 +16,11 @@ export const getCurrentUser = cache(async () => {
     return null;
   }
 
+  // A deactivated user is refused here too, in case a session row outlives the ban.
+  if (session.user.banned) {
+    return null;
+  }
+
   // A session issued before its site or location was deleted ends here, not at expiry.
   if (!(await userScopeIsActive(session.user))) {
     return null;

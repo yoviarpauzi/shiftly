@@ -51,19 +51,22 @@ function invalidInput(error: ZodError): UserActionResult {
 
 // Locks every active superadmin row in id order and returns how many there are. Actions take this
 // lock before loadTarget, so two superadmins removing each other queue here instead of both
-// seeing a count of two. Postgres does not allow count() with FOR UPDATE, so rows are counted here.
+// seeing a count of two. Postgres does not allow count() with a row lock, so rows are counted here.
+// NO KEY UPDATE, not UPDATE: it still conflicts with itself, but not with the KEY SHARE lock that
+// session and account inserts take on the user row through their foreign key, so sign-ins do not wait.
 async function lockActiveSuperadmins(tx: Tx): Promise<number> {
   const rows = await tx
     .select({ id: user.id })
     .from(user)
     .where(and(eq(user.role, "superadmin"), or(isNull(user.banned), eq(user.banned, false))))
     .orderBy(asc(user.id))
-    .for("update");
+    .for("no key update");
 
   return rows.length;
 }
 
-// locationSiteId comes from the target's location, never from its own site_id.
+// locationSiteId comes from the target's location, never from its own site_id. The lock mode
+// matches lockActiveSuperadmins, so sign-ins of the target are not blocked.
 async function loadTarget(tx: Tx, id: string): Promise<ManagedTarget | null> {
   const [row] = await tx
     .select({
@@ -76,7 +79,7 @@ async function loadTarget(tx: Tx, id: string): Promise<ManagedTarget | null> {
     .from(user)
     .leftJoin(location, eq(user.locationId, location.id))
     .where(eq(user.id, id))
-    .for("update", { of: user });
+    .for("no key update", { of: user });
 
   return row ? { ...row, banned: row.banned ?? false } : null;
 }

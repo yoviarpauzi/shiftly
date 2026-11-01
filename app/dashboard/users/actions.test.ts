@@ -110,7 +110,7 @@ vi.mock("@/lib/db", () => ({
   db: { ...tx, transaction: async (run: (t: typeof tx) => unknown) => run(tx) },
 }));
 
-const { createUser, updateUser, deactivateUser } = await import("./actions");
+const { createUser, updateUser, deactivateUser, reactivateUser } = await import("./actions");
 
 const SITE_A = "11111111-1111-4111-8111-111111111111";
 const SITE_B = "22222222-2222-4222-8222-222222222222";
@@ -167,8 +167,7 @@ describe("createUser", () => {
       locationId: null,
     });
 
-    expect(res.ok).toBe(false);
-    expect(res.ok === false && res.fieldErrors?.role).toBeTruthy();
+    expect(res).toEqual({ ok: false, fieldErrors: { role: "Choose a role" } });
     expect(writes()).toEqual([]);
   });
 
@@ -258,6 +257,36 @@ describe("updateUser", () => {
       fieldErrors: { email: "This email is already used by another account" },
     });
   });
+
+  it("hides an admin site user in another site from HO", async () => {
+    fake.access = ho;
+    fake.rows.target = [{ ...target, locationSiteId: SITE_B }];
+    fake.rows.location = [{ siteId: SITE_A }];
+
+    const res = await updateUser("user-9", { ...adminSiteInput, password: "" });
+
+    expect(res).toEqual({ ok: false, formError: USER_NOT_FOUND_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+});
+
+describe("reactivateUser", () => {
+  it("lifts the ban and its details without restoring sessions", async () => {
+    fake.rows.target = [
+      { id: "user-7", role: "admin_site", siteId: null, locationSiteId: SITE_A, banned: true },
+    ];
+
+    const res = await reactivateUser("user-7");
+
+    expect(res).toEqual({ ok: true });
+    expect(writes()).toEqual([
+      {
+        op: "update",
+        table: user,
+        set: { banned: false, banReason: null, banExpires: null },
+      },
+    ]);
+  });
 });
 
 describe("deactivateUser", () => {
@@ -286,7 +315,20 @@ describe("deactivateUser", () => {
     const lockedCount = fake.calls.find(
       (c) => c.op === "select" && c.table === user && !(c.fields && "locationSiteId" in c.fields),
     );
-    expect(lockedCount?.lock).toBe("update");
+    expect(lockedCount?.lock).toBe("no key update");
+  });
+
+  it("hides a superadmin from HO before any guard runs", async () => {
+    fake.access = ho;
+    fake.rows.target = [
+      { id: "super-2", role: "superadmin", siteId: null, locationSiteId: null, banned: false },
+    ];
+    fake.rows.superadmins = [{ id: "super-2" }];
+
+    const res = await deactivateUser("super-2");
+
+    expect(res).toEqual({ ok: false, formError: USER_NOT_FOUND_MESSAGE });
+    expect(writes()).toEqual([]);
   });
 
   it("hides an admin site user in another site from HO", async () => {

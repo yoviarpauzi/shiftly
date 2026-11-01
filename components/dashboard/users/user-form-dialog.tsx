@@ -47,9 +47,15 @@ function isAppRole(role: string | null | undefined): role is AppRole {
   return role != null && ROLES.includes(role);
 }
 
-// A role the actor cannot assign falls back to the first one it can, so the form never opens on a blank role.
-function defaultRole(role: string | null | undefined, roles: AppRole[]): AppRole {
-  return isAppRole(role) && roles.includes(role) ? role : roles[0];
+// The only role the actor can assign is fixed, so the form starts on it (HO assigns admin_site). When the actor
+// has a choice, the form starts on the user's own role if it is assignable, and otherwise empty so the user must
+// pick one. It never preselects a role, which would let a save grant superadmin by default.
+function defaultRole(role: string | null | undefined, roles: AppRole[]): AppRole | "" {
+  if (roles.length === 1) {
+    return roles[0];
+  }
+
+  return isAppRole(role) && roles.includes(role) ? role : "";
 }
 
 // Superadmin sees which site each location belongs to. HO sees its own locations only.
@@ -76,7 +82,8 @@ export function UserFormDialog({
     name: user?.name ?? "",
     email: user?.email ?? "",
     password: "",
-    role: initialRole,
+    // The empty role is deliberate and fails the schema's "Choose a role" check on submit.
+    role: initialRole as AppRole,
     siteId: initialRole === "ho" ? (user?.siteId ?? null) : null,
     locationId: initialRole === "admin_site" ? (user?.locationId ?? null) : null,
   };

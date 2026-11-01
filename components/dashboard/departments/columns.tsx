@@ -120,7 +120,7 @@ export function createDepartmentColumns(
             >
               <EllipsisIcon />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-auto min-w-48">
               <DropdownMenuGroup>
                 {row.original.deletedAt === null ? (
                   <>

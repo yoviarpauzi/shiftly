@@ -1,6 +1,4 @@
-export type SiteActionResult =
-  | { ok: true }
-  | { ok: false; fieldErrors?: { name?: string }; formError?: string };
+import type { BulkSelectionMode, SiteRow } from "@/types/sites";
 
 export const DUPLICATE_NAME_MESSAGE = "A site with this name already exists";
 
@@ -72,37 +70,43 @@ export function nameFieldError(message: string | undefined) {
   return message ? { message } : undefined;
 }
 
-export type SiteBulkDeleteResult = {
-  deletedIds: string[];
-  blocked: { id: string; formError: string }[];
-};
-
 function sitesWord(count: number) {
   return count === 1 ? "site" : "sites";
 }
 
-// Summary shown after a bulk delete. Each site is checked on its own, so some can succeed while others are blocked.
-export function bulkDeleteMessage(deleted: number, blocked: number) {
+function bulkSummary(verb: "deleted" | "restored", done: number, blocked: number) {
   if (blocked === 0) {
-    return `${deleted} ${sitesWord(deleted)} deleted`;
+    return `${done} ${sitesWord(done)} ${verb}`;
   }
 
-  if (deleted === 0) {
-    return `${blocked} ${sitesWord(blocked)} could not be deleted`;
+  if (done === 0) {
+    return `${blocked} ${sitesWord(blocked)} could not be ${verb}`;
   }
 
-  return `${deleted} ${sitesWord(deleted)} deleted, ${blocked} could not be deleted`;
+  return `${done} ${sitesWord(done)} ${verb}, ${blocked} could not be ${verb}`;
 }
 
-export const SITE_STATUSES = ["active", "deleted", "all"] as const;
+// Summary shown after a bulk delete. Each site is checked on its own, so some can succeed while others are blocked.
+export function bulkDeleteMessage(deleted: number, blocked: number) {
+  return bulkSummary("deleted", deleted, blocked);
+}
 
-export type SiteStatus = (typeof SITE_STATUSES)[number];
+// Summary shown after a bulk restore. Same rule as a bulk delete: some can succeed while others are blocked.
+export function bulkRestoreMessage(restored: number, blocked: number) {
+  return bulkSummary("restored", restored, blocked);
+}
 
-// Reads the status filter from the URL. Anything missing or unknown shows all sites.
-export function parseSiteStatus(value: string | string[] | undefined): SiteStatus {
-  const first = Array.isArray(value) ? value[0] : value;
+// Active and deleted sites cannot be mixed, so the selection decides which bulk action is allowed.
+export function bulkSelectionMode(selected: SiteRow[]): BulkSelectionMode {
+  if (selected.length === 0) {
+    return "none";
+  }
 
-  return (SITE_STATUSES as readonly string[]).includes(first ?? "")
-    ? (first as SiteStatus)
-    : "all";
+  const deleted = selected.filter((site) => site.deletedAt !== null).length;
+
+  if (deleted === 0) {
+    return "active";
+  }
+
+  return deleted === selected.length ? "deleted" : "mixed";
 }

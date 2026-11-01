@@ -2,33 +2,26 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  EllipsisIcon,
-  PencilIcon,
-  PlusIcon,
-  RotateCcwIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { type RowSelectionState, useTable } from "@tanstack/react-table";
+import { PlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { restoreSite } from "@/app/dashboard/sites/actions";
-import type { SitePage, SiteRow } from "@/app/dashboard/sites/sites";
+import { restoreSite, restoreSites } from "@/app/dashboard/sites/actions";
+import {
+  bulkRestoreMessage,
+  bulkSelectionMode,
+} from "@/app/dashboard/sites/site-rules";
+import { nextSort } from "@/lib/sort";
+import { serializeSort } from "@/validation/sort";
+import type { SortCriterion } from "@/types/sort";
+import type { SitePage, SiteRow, SiteSortColumn, SiteStatus } from "@/types/sites";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { BulkDeleteSitesDialog } from "@/components/dashboard/sites/bulk-delete-sites-dialog";
+import { createSiteColumns, features } from "@/components/dashboard/sites/columns";
 import { DeleteSiteDialog } from "@/components/dashboard/sites/delete-site-dialog";
 import { SiteFormDialog } from "@/components/dashboard/sites/site-form-dialog";
 import { SitesSearch } from "@/components/dashboard/sites/sites-search";
 import { SitesStatusFilter } from "@/components/dashboard/sites/sites-status-filter";
-import type { SiteStatus } from "@/app/dashboard/sites/site-rules";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -38,12 +31,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+async function restoreWithToast(site: SiteRow) {
+  const result = await restoreSite(site.id);
+
+  if (result.ok) {
+    toast.success(`${site.name} restored`);
+  } else {
+    toast.error(result.formError ?? "Could not restore the site");
+  }
+}
+
 export function SitesDataTable({
   data,
   status,
+  sort,
 }: {
   data: SitePage;
   status: SiteStatus;
+  sort: SortCriterion<SiteSortColumn>[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -54,15 +59,59 @@ export function SitesDataTable({
   const [formKey, setFormKey] = React.useState(0);
   const [editingSite, setEditingSite] = React.useState<SiteRow | null>(null);
   const [deletingSite, setDeletingSite] = React.useState<SiteRow | null>(null);
-  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleting, setBulkDeleting] = React.useState(false);
+  const [bulkRestoring, setBulkRestoring] = React.useState(false);
 
   // A new key remounts the dialog, so each open starts from the right defaults.
-  function openForm(site: SiteRow | null) {
+  const openForm = React.useCallback((site: SiteRow | null) => {
     setEditingSite(site);
     setFormKey((key) => key + 1);
     setFormOpen(true);
-  }
+  }, []);
+
+  // A header click changes the URL, so the server sorts the page. The page goes back to 1.
+  const sortBy = React.useCallback(
+    (column: SiteSortColumn, shift: boolean) => {
+      const next = nextSort(sort, column, shift);
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (next.length > 0) {
+        params.set("sort", serializeSort(next));
+      } else {
+        params.delete("sort");
+      }
+      params.set("page", "1");
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams, sort],
+  );
+
+  const columns = React.useMemo(
+    () =>
+      createSiteColumns(
+        {
+          onEdit: openForm,
+          onDelete: setDeletingSite,
+          onRestore: restoreWithToast,
+        },
+        { sort, onSort: sortBy },
+      ),
+    [openForm, sort, sortBy],
+  );
+
+  // Only rows on the current page count, so a stale id is ignored.
+  const selectedSites = data.rows.filter((site) => rowSelection[site.id]);
+  const selectionMode = bulkSelectionMode(selectedSites);
+
+  const table = useTable({
+    features,
+    data: data.rows,
+    columns,
+    getRowId: (row) => row.id,
+    onRowSelectionChange: setRowSelection,
+    state: { rowSelection },
+  });
 
   function goToPage(page: number, pageSize: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -71,38 +120,35 @@ export function SitesDataTable({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
+  // Clears the selection after a bulk action, so the rows that changed state are not left selected.
+  async function handleBulkRestore() {
+    setBulkRestoring(true);
 
-  // Deleted sites cannot be selected. Only rows on the current page count, so a stale id is ignored.
-  const activeRows = data.rows.filter((site) => site.deletedAt === null);
-  const selectedSites = activeRows.filter((site) =>
-    selectedIds.includes(site.id),
-  );
-  const allSelected =
-    activeRows.length > 0 && selectedSites.length === activeRows.length;
-  const someSelected = selectedSites.length > 0 && !allSelected;
+    try {
+      const result = await restoreSites(selectedSites.map((site) => site.id));
+      const names = new Map(selectedSites.map((site) => [site.id, site.name]));
+      const message = bulkRestoreMessage(
+        result.restoredIds.length,
+        result.blocked.length,
+      );
 
-  function toggleSite(id: string, checked: boolean) {
-    setSelectedIds((ids) =>
-      checked
-        ? [...ids.filter((value) => value !== id), id]
-        : ids.filter((value) => value !== id),
-    );
-  }
+      if (result.blocked.length > 0) {
+        const description = result.blocked
+          .map((item) => `${names.get(item.id)}: ${item.formError}`)
+          .join("\n");
 
-  async function handleRestore(site: SiteRow) {
-    const result = await restoreSite(site.id);
+        toast.error(message, { description });
+      } else {
+        toast.success(message);
+      }
 
-    if (result.ok) {
-      toast.success(`${site.name} restored`);
-    } else {
-      toast.error(result.formError ?? "Could not restore the site");
+      setRowSelection({});
+    } finally {
+      setBulkRestoring(false);
     }
   }
 
-  function toggleAll(checked: boolean) {
-    setSelectedIds(checked ? activeRows.map((site) => site.id) : []);
-  }
+  const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -116,120 +162,76 @@ export function SitesDataTable({
           Add site
         </Button>
       </div>
-      {selectedSites.length > 0 && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted px-4 py-2">
-          <p className="text-sm font-medium">{selectedSites.length} selected</p>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleting(true)}
-          >
-            <Trash2Icon data-icon="inline-start" />
-            Delete selected
-          </Button>
+      {selectionMode !== "none" && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted px-4 py-2">
+          <div className="flex flex-col">
+            <p className="text-sm font-medium">{selectedSites.length} selected</p>
+            {selectionMode === "mixed" && (
+              <p className="text-sm text-muted-foreground">
+                Select only active sites or only deleted sites.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {selectionMode !== "deleted" && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={selectionMode === "mixed"}
+                onClick={() => setBulkDeleting(true)}
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete selected
+              </Button>
+            )}
+            {selectionMode !== "active" && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectionMode === "mixed" || bulkRestoring}
+                onClick={handleBulkRestore}
+              >
+                <RotateCcwIcon data-icon="inline-start" />
+                Restore selected
+              </Button>
+            )}
+          </div>
         </div>
       )}
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader className="bg-muted">
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  aria-label="Select all sites on this page"
-                  checked={allSelected}
-                  indeterminate={someSelected}
-                  onCheckedChange={(checked) => toggleAll(checked)}
-                />
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Locations</TableHead>
-              <TableHead className="pl-8">Status</TableHead>
-              <TableHead className="w-24 text-right">Actions</TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <table.FlexRender header={header} />
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {data.rows.length ? (
-              data.rows.map((site) => (
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
                 <TableRow
-                  key={site.id}
+                  key={row.id}
                   className={
-                    site.deletedAt ? "text-muted-foreground" : undefined
+                    row.original.deletedAt ? "text-muted-foreground" : undefined
                   }
                 >
-                  <TableCell>
-                    {site.deletedAt === null && (
-                      <Checkbox
-                        aria-label={`Select ${site.name}`}
-                        checked={selectedIds.includes(site.id)}
-                        onCheckedChange={(checked) =>
-                          toggleSite(site.id, checked)
-                        }
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>{site.name}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {site.locationCount}
-                  </TableCell>
-                  <TableCell className="pl-8">
-                    <Badge variant="outline">
-                      <span
-                        aria-hidden
-                        className={`size-2 rounded-full ${site.deletedAt ? "bg-destructive" : "bg-accent-text"}`}
-                      />
-                      {site.deletedAt ? "Deleted" : "Active"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Actions for ${site.name}`}
-                            />
-                          }
-                        >
-                          <EllipsisIcon />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            {site.deletedAt === null ? (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => openForm(site)}
-                                >
-                                  <PencilIcon />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => setDeletingSite(site)}
-                                >
-                                  <Trash2Icon />
-                                  Delete
-                                </DropdownMenuItem>
-                              </>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => handleRestore(site)}
-                              >
-                                <RotateCcwIcon />
-                                Restore
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   {query
                     ? `No sites match "${query}"`
                     : status === "deleted"
@@ -263,6 +265,7 @@ export function SitesDataTable({
         sites={selectedSites}
         open={bulkDeleting}
         onOpenChange={setBulkDeleting}
+        onComplete={() => setRowSelection({})}
       />
       <DeleteSiteDialog
         site={deletingSite}

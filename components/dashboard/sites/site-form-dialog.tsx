@@ -4,7 +4,7 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
 import { createSite, updateSite } from "@/app/dashboard/sites/actions";
-import type { SiteRow } from "@/app/dashboard/sites/sites";
+import type { SiteFormDialogProps } from "@/types/sites";
 import { nameFieldError } from "@/app/dashboard/sites/site-rules";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,12 +24,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { siteSchema } from "@/validation/site";
-
-type SiteFormDialogProps = {
-  site: SiteRow | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
 
 export function SiteFormDialog({
   site,

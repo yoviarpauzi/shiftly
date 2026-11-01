@@ -8,6 +8,11 @@ import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/session";
+import type {
+  SiteActionResult,
+  SiteBulkDeleteResult,
+  SiteBulkRestoreResult,
+} from "@/types/sites";
 import { siteSchema, type SiteInput } from "@/validation/site";
 import {
   canDeleteSite,
@@ -15,8 +20,6 @@ import {
   isSiteNameConflict,
   RESTORE_CONFLICT_MESSAGE,
   SITE_NOT_FOUND_MESSAGE,
-  type SiteActionResult,
-  type SiteBulkDeleteResult,
 } from "./site-rules";
 
 const SITES_PATH = "/dashboard/sites";
@@ -131,9 +134,8 @@ export async function deleteSite(id: string): Promise<SiteActionResult> {
   return result;
 }
 
-export async function restoreSite(id: string): Promise<SiteActionResult> {
-  await requireSuperadmin();
-
+// Restores one site. Callers must check the superadmin role first.
+async function restoreOne(id: string): Promise<SiteActionResult> {
   try {
     const restored = await db
       .update(site)
@@ -152,9 +154,19 @@ export async function restoreSite(id: string): Promise<SiteActionResult> {
     throw error;
   }
 
-  revalidatePath(SITES_PATH);
-
   return { ok: true };
+}
+
+export async function restoreSite(id: string): Promise<SiteActionResult> {
+  await requireSuperadmin();
+
+  const result = await restoreOne(id);
+
+  if (result.ok) {
+    revalidatePath(SITES_PATH);
+  }
+
+  return result;
 }
 
 // Each site is checked on its own, so some can be deleted while others are blocked.
@@ -182,4 +194,31 @@ export async function deleteSites(ids: string[]): Promise<SiteBulkDeleteResult> 
   }
 
   return { deletedIds, blocked };
+}
+
+// Each site is checked on its own, so some can be restored while others are blocked by a name conflict.
+export async function restoreSites(ids: string[]): Promise<SiteBulkRestoreResult> {
+  await requireSuperadmin();
+
+  const restoredIds: string[] = [];
+  const blocked: SiteBulkRestoreResult["blocked"] = [];
+
+  for (const id of ids) {
+    const result = await restoreOne(id);
+
+    if (result.ok) {
+      restoredIds.push(id);
+    } else {
+      blocked.push({
+        id,
+        formError: result.formError ?? SITE_NOT_FOUND_MESSAGE,
+      });
+    }
+  }
+
+  if (restoredIds.length > 0) {
+    revalidatePath(SITES_PATH);
+  }
+
+  return { restoredIds, blocked };
 }

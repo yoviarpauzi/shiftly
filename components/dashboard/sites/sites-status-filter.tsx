@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { SiteStatus } from "@/app/dashboard/sites/site-rules";
+import type { SiteStatus } from "@/types/sites";
 import {
   Select,
   SelectContent,

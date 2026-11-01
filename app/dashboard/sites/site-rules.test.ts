@@ -1,5 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { canDeleteSite, isSiteNameConflict } from "./site-rules";
+import type { SiteRow } from "@/types/sites";
+import {
+  bulkRestoreMessage,
+  bulkSelectionMode,
+  canDeleteSite,
+  isSiteNameConflict,
+} from "./site-rules";
+
+const site = (deleted: boolean): SiteRow => ({
+  id: crypto.randomUUID(),
+  name: "Nestle",
+  locationCount: 0,
+  deletedAt: deleted ? new Date() : null,
+});
+
+describe("bulkSelectionMode", () => {
+  it("is none when nothing is selected", () => {
+    expect(bulkSelectionMode([])).toBe("none");
+  });
+
+  it("is active when every selected site is active", () => {
+    expect(bulkSelectionMode([site(false), site(false)])).toBe("active");
+  });
+
+  it("is deleted when every selected site is deleted", () => {
+    expect(bulkSelectionMode([site(true)])).toBe("deleted");
+  });
+
+  it("is mixed when active and deleted sites are selected together", () => {
+    expect(bulkSelectionMode([site(false), site(true)])).toBe("mixed");
+  });
+});
+
+describe("bulkRestoreMessage", () => {
+  it("counts restored sites", () => {
+    expect(bulkRestoreMessage(2, 0)).toBe("2 sites restored");
+  });
+
+  it("uses the singular for one site", () => {
+    expect(bulkRestoreMessage(1, 0)).toBe("1 site restored");
+  });
+
+  it("reports sites that could not be restored", () => {
+    expect(bulkRestoreMessage(0, 2)).toBe("2 sites could not be restored");
+  });
+
+  it("reports both counts when some succeed and some are blocked", () => {
+    expect(bulkRestoreMessage(1, 1)).toBe(
+      "1 site restored, 1 could not be restored",
+    );
+  });
+});
 
 describe("canDeleteSite", () => {
   it("allows deleting a site with no locations and no users", () => {

@@ -16,14 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PAGE_SIZES } from "@/lib/pagination"
-
-type TablePaginationProps = {
-  page: number
-  pageCount: number
-  pageSize: number
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
-}
+import type { TablePaginationProps } from "@/types/pagination"
 
 export function TablePagination({
   page,

@@ -8,32 +8,32 @@ import {
   isNotNull,
   isNull,
   type SQL,
+  type SQLWrapper,
+  sql,
 } from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
-import {
-  clampPage,
-  escapeLikePattern,
-  type PageParams,
-} from "@/lib/pagination";
-import type { SiteStatus } from "./site-rules";
+import { clampPage, escapeLikePattern } from "@/lib/pagination";
+import { sortTerms } from "@/lib/sort";
+import type { SortCriterion } from "@/types/sort";
+import type {
+  SiteListParams,
+  SitePage,
+  SiteSortColumn,
+  SiteStatus,
+} from "@/types/sites";
 
-export type SiteRow = {
-  id: string;
-  name: string;
-  locationCount: number;
-  deletedAt: Date | null;
+const DEFAULT_SORT: SortCriterion<SiteSortColumn>[] = [
+  { column: "name", direction: "asc" },
+];
+
+// Each sortable column maps to a fixed expression. URL input only picks a key from this map.
+const SITE_SORT_EXPRESSIONS: Record<SiteSortColumn, SQLWrapper> = {
+  name: site.name,
+  locations: count(location.id),
+  status: sql`(${site.deletedAt} is not null)`,
 };
-
-export type SitePage = {
-  rows: SiteRow[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
-
-type SiteListParams = PageParams & { status: SiteStatus };
 
 // Matches name case-insensitively. An empty query matches every site in the status.
 function siteFilter(query: string, status: SiteStatus): SQL | undefined {
@@ -51,8 +51,10 @@ export async function listSites({
   pageSize,
   query,
   status,
+  sort,
 }: SiteListParams): Promise<SitePage> {
   const filter = siteFilter(query, status);
+  const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the site table alone, so the location join does not inflate the total.
   const [{ total }] = await db
@@ -76,7 +78,7 @@ export async function listSites({
     )
     .where(filter)
     .groupBy(site.id, site.name, site.deletedAt)
-    .orderBy(asc(site.name), asc(site.id))
+    .orderBy(...sortTerms(criteria, SITE_SORT_EXPRESSIONS), asc(site.id))
     .limit(pageSize)
     .offset((currentPage - 1) * pageSize);
 

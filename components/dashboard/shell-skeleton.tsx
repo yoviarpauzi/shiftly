@@ -24,7 +24,10 @@ export function ShellSkeleton() {
         <div className="flex h-12 items-center border-b px-4">
           <Skeleton className="h-6 w-40" />
         </div>
-        <ContentSkeleton />
+        <div className="flex flex-col gap-4 p-4 md:p-6">
+          <Skeleton className="h-9 w-full max-w-sm" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     </div>
   );

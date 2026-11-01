@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { deleteSites } from "@/app/dashboard/sites/actions";
 import { bulkDeleteMessage } from "@/app/dashboard/sites/site-rules";
-import type { SiteRow } from "@/app/dashboard/sites/sites";
+import type { BulkDeleteSitesDialogProps } from "@/types/sites";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,16 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-type BulkDeleteSitesDialogProps = {
-  sites: SiteRow[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
-
 export function BulkDeleteSitesDialog({
   sites,
   open,
   onOpenChange,
+  onComplete,
 }: BulkDeleteSitesDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -52,6 +47,7 @@ export function BulkDeleteSitesDialog({
       }
 
       onOpenChange(false);
+      onComplete();
     } finally {
       setIsDeleting(false);
     }

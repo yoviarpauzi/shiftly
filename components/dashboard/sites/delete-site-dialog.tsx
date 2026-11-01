@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteSite } from "@/app/dashboard/sites/actions";
-import type { SiteRow } from "@/app/dashboard/sites/sites";
+import type { DeleteSiteDialogProps } from "@/types/sites";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -15,11 +15,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-
-type DeleteSiteDialogProps = {
-  site: SiteRow | null;
-  onOpenChange: (open: boolean) => void;
-};
 
 export function DeleteSiteDialog({
   site,

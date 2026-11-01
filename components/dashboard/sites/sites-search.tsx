@@ -1,56 +1,56 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { SearchIcon, XIcon } from "lucide-react"
+import * as React from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { SearchIcon, XIcon } from "lucide-react";
 
-import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input";
 
-const SEARCH_DELAY_MS = 300
+const SEARCH_DELAY_MS = 300;
 
 // Copy of components/dashboard/users/users-search.tsx, with site wording.
 // Unify the two once a third list needs the same search.
 export function SitesSearch({ total }: { total: number }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const query = searchParams.get("q") ?? ""
-  const [value, setValue] = React.useState(query)
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q") ?? "";
+  const [value, setValue] = React.useState(query);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  React.useEffect(() => () => clearTimeout(timer.current), [])
+  React.useEffect(() => () => clearTimeout(timer.current), []);
 
   function pushQuery(next: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams.toString());
 
     if (next) {
-      params.set("q", next)
+      params.set("q", next);
     } else {
-      params.delete("q")
+      params.delete("q");
     }
-    params.set("page", "1")
-    router.replace(`${pathname}?${params.toString()}`)
+    params.set("page", "1");
+    router.replace(`${pathname}?${params.toString()}`);
   }
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const next = event.target.value
+    const next = event.target.value;
 
-    setValue(next)
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => pushQuery(next.trim()), SEARCH_DELAY_MS)
+    setValue(next);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => pushQuery(next.trim()), SEARCH_DELAY_MS);
   }
 
   function clearSearch() {
-    setValue("")
-    clearTimeout(timer.current)
-    pushQuery("")
-    inputRef.current?.focus()
+    setValue("");
+    clearTimeout(timer.current);
+    pushQuery("");
+    inputRef.current?.focus();
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape" && value !== "") {
-      clearSearch()
+      clearSearch();
     }
   }
 
@@ -89,5 +89,5 @@ export function SitesSearch({ total }: { total: number }) {
         </p>
       )}
     </div>
-  )
+  );
 }

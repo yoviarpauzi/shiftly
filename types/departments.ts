@@ -65,6 +65,12 @@ export type DepartmentBulkRestoreResult = {
 
 export type BulkSelectionMode = "none" | "active" | "deleted" | "mixed";
 
+// Singular and plural names of the rows a bulk summary counts.
+export type BulkNoun = { singular: string; plural: string };
+
+// Any row with a soft-delete timestamp can be classified for a bulk action.
+export type SoftDeletable = { deletedAt: Date | null };
+
 export type DepartmentActions = {
   onEdit: (department: DepartmentRow) => void;
   onDelete: (department: DepartmentRow) => void;
@@ -95,6 +101,20 @@ export type SubDepartmentRow = {
   name: string;
   departmentId: string;
   deletedAt: Date | null;
+};
+
+export type SubDepartmentSortColumn = "name" | "status";
+
+export type SubDepartmentPage = {
+  rows: SubDepartmentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type SubDepartmentListParams = PageParams & {
+  status: DepartmentStatus;
+  sort: SortCriterion<SubDepartmentSortColumn>[];
 };
 
 export type SubDepartmentActionResult =

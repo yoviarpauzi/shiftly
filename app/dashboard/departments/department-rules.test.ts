@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { DepartmentRow } from "@/types/departments";
+import type { DepartmentRow, SubDepartmentRow } from "@/types/departments";
 import {
   DEPARTMENT_DELETED_MESSAGE,
   LOCATION_DELETED_MESSAGE,
   bulkDeleteMessage,
   bulkRestoreMessage,
   bulkSelectionMode,
+  bulkSubDepartmentDeleteMessage,
+  bulkSubDepartmentRestoreMessage,
   canDeleteDepartment,
   canRestoreDepartment,
   canRestoreSubDepartment,
@@ -23,6 +25,13 @@ const department = (deleted: boolean): DepartmentRow => ({
   locationId: crypto.randomUUID(),
   locationName: "Kejayan",
   subDepartmentCount: 0,
+  deletedAt: deleted ? new Date() : null,
+});
+
+const subDepartment = (deleted: boolean): SubDepartmentRow => ({
+  id: crypto.randomUUID(),
+  name: "Packing",
+  departmentId: crypto.randomUUID(),
   deletedAt: deleted ? new Date() : null,
 });
 
@@ -194,5 +203,58 @@ describe("bulkSelectionMode", () => {
 
   it("is mixed when active and deleted rows are selected together", () => {
     expect(bulkSelectionMode([department(false), department(true)])).toBe("mixed");
+  });
+});
+
+describe("bulkSelectionMode with sub-department rows", () => {
+  it("is none when nothing is selected", () => {
+    expect(bulkSelectionMode<SubDepartmentRow>([])).toBe("none");
+  });
+
+  it("is active when every row is active", () => {
+    expect(bulkSelectionMode([subDepartment(false), subDepartment(false)])).toBe("active");
+  });
+
+  it("is deleted when every row is deleted", () => {
+    expect(bulkSelectionMode([subDepartment(true), subDepartment(true)])).toBe("deleted");
+  });
+
+  it("is mixed when active and deleted rows are selected together", () => {
+    expect(bulkSelectionMode([subDepartment(false), subDepartment(true)])).toBe("mixed");
+  });
+});
+
+describe("bulkSubDepartmentDeleteMessage", () => {
+  it("counts sub-departments when nothing is blocked", () => {
+    expect(bulkSubDepartmentDeleteMessage(2, 0)).toBe("2 sub-departments deleted");
+    expect(bulkSubDepartmentDeleteMessage(1, 0)).toBe("1 sub-department deleted");
+  });
+
+  it("reports both counts when some are blocked", () => {
+    expect(bulkSubDepartmentDeleteMessage(1, 1)).toBe(
+      "1 sub-department deleted, 1 could not be deleted",
+    );
+  });
+
+  it("reports only the blocked count when none were deleted", () => {
+    expect(bulkSubDepartmentDeleteMessage(0, 2)).toBe("2 sub-departments could not be deleted");
+  });
+});
+
+describe("bulkSubDepartmentRestoreMessage", () => {
+  it("counts sub-departments when nothing is blocked", () => {
+    expect(bulkSubDepartmentRestoreMessage(2, 0)).toBe("2 sub-departments restored");
+  });
+
+  it("reports both counts when some are blocked", () => {
+    expect(bulkSubDepartmentRestoreMessage(1, 2)).toBe(
+      "1 sub-department restored, 2 could not be restored",
+    );
+  });
+
+  it("reports only the blocked count when none were restored", () => {
+    expect(bulkSubDepartmentRestoreMessage(0, 2)).toBe(
+      "2 sub-departments could not be restored",
+    );
   });
 });

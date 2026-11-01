@@ -1,4 +1,4 @@
-import type { BulkSelectionMode, DepartmentRow } from "@/types/departments";
+import type { BulkNoun, BulkSelectionMode, SoftDeletable } from "@/types/departments";
 
 export const DEPARTMENT_NOT_FOUND_MESSAGE = "Department not found";
 
@@ -101,39 +101,55 @@ export function nameFieldError(message: string | undefined) {
   return message ? { message } : undefined;
 }
 
-function departmentsWord(count: number) {
-  return count === 1 ? "department" : "departments";
-}
+const DEPARTMENT_NOUN: BulkNoun = { singular: "department", plural: "departments" };
 
-function bulkSummary(verb: "deleted" | "restored", done: number, blocked: number) {
+const SUB_DEPARTMENT_NOUN: BulkNoun = { singular: "sub-department", plural: "sub-departments" };
+
+function bulkSummary(
+  verb: "deleted" | "restored",
+  done: number,
+  blocked: number,
+  noun: BulkNoun,
+) {
+  const word = (count: number) => (count === 1 ? noun.singular : noun.plural);
+
   if (blocked === 0) {
-    return `${done} ${departmentsWord(done)} ${verb}`;
+    return `${done} ${word(done)} ${verb}`;
   }
 
   if (done === 0) {
-    return `${blocked} ${departmentsWord(blocked)} could not be ${verb}`;
+    return `${blocked} ${word(blocked)} could not be ${verb}`;
   }
 
-  return `${done} ${departmentsWord(done)} ${verb}, ${blocked} could not be ${verb}`;
+  return `${done} ${word(done)} ${verb}, ${blocked} could not be ${verb}`;
 }
 
 // Summary shown after a bulk delete. Each department is checked on its own, so some can succeed while others are blocked.
 export function bulkDeleteMessage(deleted: number, blocked: number) {
-  return bulkSummary("deleted", deleted, blocked);
+  return bulkSummary("deleted", deleted, blocked, DEPARTMENT_NOUN);
 }
 
 // Summary shown after a bulk restore. Same rule as a bulk delete: some can succeed while others are blocked.
 export function bulkRestoreMessage(restored: number, blocked: number) {
-  return bulkSummary("restored", restored, blocked);
+  return bulkSummary("restored", restored, blocked, DEPARTMENT_NOUN);
 }
 
-// Active and deleted departments cannot be mixed, so the selection decides which bulk action is allowed.
-export function bulkSelectionMode(selected: DepartmentRow[]): BulkSelectionMode {
+export function bulkSubDepartmentDeleteMessage(deleted: number, blocked: number) {
+  return bulkSummary("deleted", deleted, blocked, SUB_DEPARTMENT_NOUN);
+}
+
+export function bulkSubDepartmentRestoreMessage(restored: number, blocked: number) {
+  return bulkSummary("restored", restored, blocked, SUB_DEPARTMENT_NOUN);
+}
+
+// Active and deleted rows cannot be mixed, so the selection decides which bulk action is allowed.
+// Used for departments and sub-departments.
+export function bulkSelectionMode<T extends SoftDeletable>(selected: T[]): BulkSelectionMode {
   if (selected.length === 0) {
     return "none";
   }
 
-  const deleted = selected.filter((department) => department.deletedAt !== null).length;
+  const deleted = selected.filter((row) => row.deletedAt !== null).length;
 
   if (deleted === 0) {
     return "active";

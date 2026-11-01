@@ -5,6 +5,13 @@ export type UserScope = {
   locationId?: string | null;
 };
 
+// siteId null means every site.
+export type UserAccess = {
+  id: string;
+  role: "superadmin" | "ho";
+  siteId: string | null;
+};
+
 export type ManagedUser = {
   id: string;
   name: string;

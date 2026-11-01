@@ -43,6 +43,13 @@
       "when": 1793521750730,
       "tag": "0005_new_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793530244285,
+      "tag": "0006_complete_thanos",
+      "breakpoints": true
     }
   ]
 }

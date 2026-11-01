@@ -31,6 +31,7 @@ import {
   FileChartColumnIcon,
   FileIcon,
   MapPinIcon,
+  BriefcaseIcon,
 } from "lucide-react";
 
 const data = {
@@ -56,6 +57,12 @@ const data = {
       title: "Department",
       url: "/dashboard/departments",
       icon: <FolderTreeIcon />,
+      roles: ["superadmin", "ho", "admin_site"],
+    },
+    {
+      title: "Position",
+      url: "/dashboard/positions",
+      icon: <BriefcaseIcon />,
       roles: ["superadmin", "ho", "admin_site"],
     },
     {

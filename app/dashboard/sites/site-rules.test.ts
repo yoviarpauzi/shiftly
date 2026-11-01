@@ -53,14 +53,20 @@ describe("bulkRestoreMessage", () => {
 });
 
 describe("canDeleteSite", () => {
-  it("allows deleting a site with no locations and no users", () => {
-    expect(canDeleteSite({ activeLocations: 0, assignedUsers: 0 })).toEqual({
+  it("allows deleting a site with no locations, positions, and users", () => {
+    expect(
+      canDeleteSite({ activeLocations: 0, activePositions: 0, assignedUsers: 0 }),
+    ).toEqual({
       ok: true,
     });
   });
 
   it("blocks deleting a site with one active location", () => {
-    const result = canDeleteSite({ activeLocations: 1, assignedUsers: 0 });
+    const result = canDeleteSite({
+      activeLocations: 1,
+      activePositions: 0,
+      assignedUsers: 0,
+    });
 
     expect(result.ok).toBe(false);
     expect(result).toHaveProperty("formError");
@@ -70,20 +76,46 @@ describe("canDeleteSite", () => {
   });
 
   it("names both counts when the site has locations and users", () => {
-    expect(canDeleteSite({ activeLocations: 2, assignedUsers: 1 })).toEqual({
+    expect(
+      canDeleteSite({ activeLocations: 2, activePositions: 0, assignedUsers: 1 }),
+    ).toEqual({
       ok: false,
       formError:
-        "This site has 2 active locations and 1 HO user assigned. Move them first.",
+        "This site has 2 active locations and 1 HO user assigned. Move or delete them first.",
     });
   });
 
   it("blocks deleting a site that still has HO users assigned", () => {
-    const result = canDeleteSite({ activeLocations: 0, assignedUsers: 3 });
+    const result = canDeleteSite({
+      activeLocations: 0,
+      activePositions: 0,
+      assignedUsers: 3,
+    });
 
     expect(result.ok).toBe(false);
     expect((result as { formError: string }).formError).toContain(
       "3 HO users assigned",
     );
+  });
+
+  it("blocks deleting a site with one active position", () => {
+    expect(
+      canDeleteSite({ activeLocations: 0, activePositions: 1, assignedUsers: 0 }),
+    ).toEqual({
+      ok: false,
+      formError:
+        "This site has 1 active position. Move or delete them first.",
+    });
+  });
+
+  it("names all three counts when the site has locations, positions, and users", () => {
+    expect(
+      canDeleteSite({ activeLocations: 2, activePositions: 3, assignedUsers: 1 }),
+    ).toEqual({
+      ok: false,
+      formError:
+        "This site has 2 active locations, 3 active positions and 1 HO user assigned. Move or delete them first.",
+    });
   });
 });
 

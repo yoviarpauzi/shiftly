@@ -130,7 +130,7 @@ export function createDepartmentColumns(
                       }
                     >
                       <FolderTreeIcon />
-                      Detail
+                      Manage sub-departments
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(row.original)}>
                       <PencilIcon />

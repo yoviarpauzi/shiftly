@@ -31,7 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { locationSchema } from "@/validation/location";
+import { timezoneOptionLabel } from "@/lib/location-timezone";
+import {
+  DEFAULT_LOCATION_TIMEZONE,
+  LOCATION_TIMEZONES,
+  locationSchema,
+  locationTimezoneSchema,
+} from "@/validation/location";
 
 // HO's site is fixed, so the form starts on it. Superadmin starts on the location's site, or empty for a new one.
 function defaultSiteId(location: LocationRow | null, siteChoice: SiteChoice) {
@@ -54,6 +60,7 @@ export function LocationFormDialog({
     defaultValues: {
       name: location?.name ?? "",
       siteId: defaultSiteId(location, siteChoice),
+      timezone: location?.timezone ?? DEFAULT_LOCATION_TIMEZONE,
     },
     validators: { onSubmit: locationSchema },
     onSubmit: async ({ value, formApi }) => {
@@ -71,6 +78,7 @@ export function LocationFormDialog({
             fields: {
               name: nameFieldError(result.fieldErrors?.name),
               siteId: nameFieldError(result.fieldErrors?.siteId),
+              timezone: nameFieldError(result.fieldErrors?.timezone),
             },
           },
         });
@@ -168,6 +176,52 @@ export function LocationFormDialog({
                                 {siteChoice.sites.map((site) => (
                                   <SelectItem key={site.id} value={site.id}>
                                     {site.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          {isInvalid && (
+                            <FieldError errors={field.state.meta.errors} />
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
+                  <form.Field name="timezone">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
+
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor={field.name}>Time zone</FieldLabel>
+                          <Select
+                            value={field.state.value}
+                            onValueChange={(value) => {
+                              const zone = locationTimezoneSchema.safeParse(value);
+
+                              if (zone.success) {
+                                field.handleChange(zone.data);
+                              }
+                            }}
+                            items={LOCATION_TIMEZONES.map((zone) => ({
+                              value: zone,
+                              label: timezoneOptionLabel(zone),
+                            }))}
+                            disabled={isSubmitting}
+                          >
+                            <SelectTrigger
+                              id={field.name}
+                              aria-invalid={isInvalid || undefined}
+                              className="w-full"
+                            >
+                              <SelectValue placeholder="Choose a time zone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {LOCATION_TIMEZONES.map((zone) => (
+                                  <SelectItem key={zone} value={zone}>
+                                    {timezoneOptionLabel(zone)}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>

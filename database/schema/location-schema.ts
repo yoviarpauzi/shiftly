@@ -1,5 +1,6 @@
 import { isNull, relations, sql } from "drizzle-orm";
 import { pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { LocationTimezone } from "@/validation/location";
 import { position } from "./position-schema";
 import { site } from "./site-schema";
 
@@ -11,6 +12,7 @@ export const location = pgTable(
       .notNull()
       .references(() => site.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
+    timezone: text("timezone").$type<LocationTimezone>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

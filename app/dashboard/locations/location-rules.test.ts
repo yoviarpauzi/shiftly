@@ -5,6 +5,7 @@ import {
   bulkRestoreMessage,
   bulkSelectionMode,
   canDeleteLocation,
+  locationFieldErrors,
   nameFieldError,
 } from "./location-rules";
 
@@ -13,6 +14,7 @@ const location = (deleted: boolean): LocationRow => ({
   name: "Kejayan",
   siteId: crypto.randomUUID(),
   siteName: "Nestle",
+  timezone: "Asia/Jakarta",
   deletedAt: deleted ? new Date() : null,
 });
 
@@ -165,5 +167,38 @@ describe("bulkRestoreMessage", () => {
     expect(bulkRestoreMessage(1, 1)).toBe(
       "1 location restored, 1 could not be restored",
     );
+  });
+});
+
+describe("locationFieldErrors", () => {
+  it("maps a time zone issue to the timezone field", () => {
+    expect(
+      locationFieldErrors([{ path: ["timezone"], message: "Choose a time zone" }]),
+    ).toEqual({ timezone: "Choose a time zone" });
+  });
+
+  it("maps a name issue and a time zone issue to their own fields", () => {
+    expect(
+      locationFieldErrors([
+        { path: ["name"], message: "Location name is required" },
+        { path: ["timezone"], message: "Choose a time zone" },
+      ]),
+    ).toEqual({
+      name: "Location name is required",
+      timezone: "Choose a time zone",
+    });
+  });
+
+  it("keeps the first message for a field", () => {
+    expect(
+      locationFieldErrors([
+        { path: ["name"], message: "first" },
+        { path: ["name"], message: "second" },
+      ]),
+    ).toEqual({ name: "first" });
+  });
+
+  it("returns no errors for no issues", () => {
+    expect(locationFieldErrors([])).toEqual({});
   });
 });

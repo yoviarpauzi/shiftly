@@ -1,5 +1,6 @@
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
+import type { LocationTimezone } from "@/validation/location";
 
 export type LocationSortColumn = "name" | "site" | "status";
 
@@ -13,6 +14,7 @@ export type LocationRow = {
   name: string;
   siteId: string;
   siteName: string;
+  timezone: LocationTimezone;
   deletedAt: Date | null;
 };
 
@@ -39,11 +41,17 @@ export type SiteChoice =
   | { mode: "pick"; sites: SiteOption[] }
   | { mode: "fixed"; site: SiteOption };
 
+export type LocationFieldErrors = {
+  name?: string;
+  siteId?: string;
+  timezone?: string;
+};
+
 export type LocationActionResult =
   | { ok: true }
   | {
       ok: false;
-      fieldErrors?: { name?: string; siteId?: string };
+      fieldErrors?: LocationFieldErrors;
       formError?: string;
     };
 

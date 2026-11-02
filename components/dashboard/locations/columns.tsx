@@ -12,6 +12,7 @@ import {
   RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
+import { timezoneLabel } from "@/lib/location-timezone";
 import type { LocationActions, LocationRow, LocationSortColumn } from "@/types/locations";
 import type { SortControl } from "@/types/sort";
 import { SortHeader } from "@/components/dashboard/sort-header";
@@ -71,6 +72,10 @@ export function createLocationColumns(
         <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />
       ),
       cell: ({ row }) => row.original.siteName,
+    }),
+    columnHelper.accessor("timezone", {
+      header: "Time zone",
+      cell: ({ row }) => timezoneLabel(row.original.timezone),
     }),
     columnHelper.accessor("deletedAt", {
       header: () => (

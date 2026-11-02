@@ -83,6 +83,7 @@ export async function listLocations(
       name: location.name,
       siteId: location.siteId,
       siteName: site.name,
+      timezone: location.timezone,
       deletedAt: location.deletedAt,
     })
     .from(location)

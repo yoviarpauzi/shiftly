@@ -1,4 +1,8 @@
-import type { BulkSelectionMode, LocationRow } from "@/types/locations";
+import type {
+  BulkSelectionMode,
+  LocationFieldErrors,
+  LocationRow,
+} from "@/types/locations";
 
 export const DUPLICATE_NAME_MESSAGE = "Name is already used in this site";
 
@@ -61,6 +65,21 @@ export function canDeleteLocation({
 // A bare string renders nothing in FieldError, so the message is wrapped here.
 export function nameFieldError(message: string | undefined) {
   return message ? { message } : undefined;
+}
+
+// Keeps the first message for each field, so a form shows one error per field.
+export function locationFieldErrors(
+  issues: { path: PropertyKey[]; message: string }[],
+): LocationFieldErrors {
+  const errors: LocationFieldErrors = {};
+
+  for (const issue of issues) {
+    const field = String(issue.path[0]) as keyof LocationFieldErrors;
+
+    errors[field] ??= issue.message;
+  }
+
+  return errors;
 }
 
 function locationsWord(count: number) {

@@ -23,6 +23,7 @@ import {
   canDeleteLocation,
   DUPLICATE_NAME_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
+  locationFieldErrors,
   RESTORE_CONFLICT_MESSAGE,
 } from "./location-rules";
 
@@ -34,13 +35,14 @@ export async function createLocation(input: LocationInput): Promise<LocationActi
   const parsed = locationSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: { name: parsed.error.issues[0].message } };
+    return { ok: false, fieldErrors: locationFieldErrors(parsed.error.issues) };
   }
 
   try {
     await db.insert(location).values({
       name: parsed.data.name,
       siteId: resolveSiteId(access, parsed.data.siteId),
+      timezone: parsed.data.timezone,
     });
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -64,7 +66,7 @@ export async function updateLocation(
   const parsed = locationSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: { name: parsed.error.issues[0].message } };
+    return { ok: false, fieldErrors: locationFieldErrors(parsed.error.issues) };
   }
 
   try {
@@ -73,6 +75,7 @@ export async function updateLocation(
       .set({
         name: parsed.data.name,
         siteId: resolveSiteId(access, parsed.data.siteId),
+        timezone: parsed.data.timezone,
       })
       .where(
         and(

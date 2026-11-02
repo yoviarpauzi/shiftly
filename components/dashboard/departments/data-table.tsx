@@ -181,7 +181,7 @@ export function DepartmentsDataTable({
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <DepartmentsSearch total={data.total} />
+          <DepartmentsSearch />
           <DepartmentsStatusFilter status={status} />
           {locationChoice.mode === "pick" && pickSite && (
             <DepartmentsSelectFilter

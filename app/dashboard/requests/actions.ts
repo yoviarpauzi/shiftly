@@ -9,7 +9,7 @@ import { position } from "@/database/schema/position-schema";
 import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
-import { jakartaDate } from "@/lib/jakarta-date";
+import { jakartaDate } from "@/lib/indonesia-date";
 import type {
   RequestAccess,
   RequestActionResult,

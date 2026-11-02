@@ -22,7 +22,7 @@ import {
   subDepartmentsFor,
 } from "@/app/dashboard/requests/request-form-options";
 import { requestFieldErrors } from "@/app/dashboard/requests/request-rules";
-import { jakartaDate } from "@/lib/jakarta-date";
+import { jakartaDate } from "@/lib/indonesia-date";
 import type { RequestFieldErrors, RequestFormProps } from "@/types/requests";
 import { RequestLineFields } from "@/components/dashboard/requests/request-line-fields";
 import { Button, buttonVariants } from "@/components/ui/button";

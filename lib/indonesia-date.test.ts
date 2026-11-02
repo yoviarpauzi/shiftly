@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jakartaDate } from "./jakarta-date";
+import { jakartaDate } from "./indonesia-date";
 
 describe("jakartaDate", () => {
   it("rolls over to the next day at 17:00 UTC", () => {

@@ -1,4 +1,4 @@
-import { jakartaDate } from "@/lib/jakarta-date";
+import { jakartaDate } from "@/lib/indonesia-date";
 
 // YYYYMM of the creation moment in Asia/Jakarta, not of the request date.
 export function poPeriod(now: Date): string {

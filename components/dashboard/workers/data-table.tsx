@@ -319,7 +319,12 @@ export function WorkersDataTable({
         open={formOpen}
         onOpenChange={setFormOpen}
       />
-      <ImportWorkersDialog key={importKey} open={importOpen} onOpenChange={setImportOpen} />
+      {/* The prefix keeps this key apart from formKey, since both counters start at 0 and share a parent. */}
+      <ImportWorkersDialog
+        key={`import-${importKey}`}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
       <BulkDeleteWorkersDialog
         workers={selectedWorkers}
         open={bulkDeleting}

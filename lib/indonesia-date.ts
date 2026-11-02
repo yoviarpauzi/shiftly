@@ -1,33 +1,24 @@
-const JAKARTA_DATE = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Jakarta",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+import { LOCATION_TIMEZONES, type LocationTimezone } from "@/validation/location";
 
-const MAKASAR_DATA = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Makassar",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const DATE_FORMATTERS = new Map(
+  LOCATION_TIMEZONES.map((timeZone) => [
+    timeZone,
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }),
+  ]),
+);
 
-const JAYAPURA_DATE = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Asia/Jayapura",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+// The calendar date in the given zone as YYYY-MM-DD, whatever the server time zone is.
+export function dateInZone(timeZone: LocationTimezone, now: Date = new Date()): string {
+  const formatter = DATE_FORMATTERS.get(timeZone);
 
-// The calendar date in Asia/Jakarta as YYYY-MM-DD, whatever the server time zone is.
-export function jakartaDate(now: Date = new Date()): string {
-  return JAKARTA_DATE.format(now);
-}
+  if (!formatter) {
+    throw new Error(`Unsupported time zone: ${timeZone}`);
+  }
 
-export function makasarDate(now: Date = new Date()): string {
-  return MAKASAR_DATA.format(now);
-}
-
-export function jayapuraDate(now: Date = new Date()): string {
-  return JAYAPURA_DATE.format(now);
+  return formatter.format(now);
 }

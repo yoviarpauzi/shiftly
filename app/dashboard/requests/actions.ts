@@ -14,7 +14,7 @@ import {
 } from "@/database/schema/request-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
-import { jakartaDate } from "@/lib/indonesia-date";
+import { dateInZone } from "@/lib/indonesia-date";
 import type {
   RequestAccess,
   RequestActionResult,
@@ -30,6 +30,7 @@ import {
   type RequestInput,
   type RequestUpdateInput,
 } from "@/validation/request";
+import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import { parseRequestId } from "@/validation/request-id";
 import { nextPoSequence } from "./po-counter";
 import { formatPoNumber, poPeriod } from "./po-number";
@@ -134,7 +135,7 @@ async function insertLines(tx: Transaction, requestId: string, lines: RequestLin
 export async function createRequest(input: RequestInput): Promise<RequestActionResult> {
   const { user, access } = await requireRequestUser();
 
-  const parsed = createRequestSchema(jakartaDate()).safeParse(input);
+  const parsed = createRequestSchema(dateInZone(DEFAULT_LOCATION_TIMEZONE)).safeParse(input);
 
   if (!parsed.success) {
     return { ok: false, fieldErrors: requestFieldErrors(parsed.error.issues) };
@@ -183,7 +184,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
     }
 
     // Issued inside this transaction, so a failed insert rolls the number back with it.
-    const period = poPeriod(new Date());
+    const period = poPeriod(new Date(), DEFAULT_LOCATION_TIMEZONE);
     const sequence = await nextPoSequence(tx, target.siteId, period);
     const poNumber = formatPoNumber(target.siteCode, period, sequence);
 
@@ -253,7 +254,7 @@ export async function updateRequest(
     }
 
     // A stored date that has since passed may be kept. Only a new date must not be in the past.
-    const minDate = input?.startDate !== current.startDate ? jakartaDate() : null;
+    const minDate = input?.startDate !== current.startDate ? dateInZone(DEFAULT_LOCATION_TIMEZONE) : null;
     const parsed = updateRequestSchema(minDate).safeParse(input);
 
     if (!parsed.success) {

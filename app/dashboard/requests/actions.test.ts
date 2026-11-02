@@ -274,7 +274,7 @@ describe("createRequest", () => {
   it("creates a daily request as approved with the next PO number, then its lines", async () => {
     actAs(adminA);
     seedLocationChoices();
-    const period = poPeriod(new Date());
+    const period = poPeriod(new Date(), "Asia/Jakarta");
 
     const res = await createRequest(createInput);
 
@@ -367,7 +367,7 @@ describe("createRequest", () => {
 
     expect(res).toMatchObject({
       ok: true,
-      poNumber: formatPoNumber("NSL", poPeriod(new Date()), 12),
+      poNumber: formatPoNumber("NSL", poPeriod(new Date(), "Asia/Jakarta"), 12),
     });
     expect(writes()[0].values).toMatchObject({ type: "weekly", status: "pending" });
   });

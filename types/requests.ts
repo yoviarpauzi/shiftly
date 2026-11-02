@@ -1,3 +1,4 @@
+import type { db } from "@/lib/db";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 
@@ -83,4 +84,14 @@ export type RequestActions = {
   onCancel: (request: RequestRow) => void;
   onApprove: (request: RequestRow) => void;
   onReject: (request: RequestRow) => void;
+};
+
+export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export type RequestActor = {
+  id: string;
+  name: string;
+  role: string | null;
+  siteId?: string | null;
+  locationId?: string | null;
 };

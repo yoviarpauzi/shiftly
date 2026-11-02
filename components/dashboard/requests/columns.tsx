@@ -7,9 +7,6 @@ import Link from "next/link";
 import {
   BanIcon,
   CheckIcon,
-  CircleCheckIcon,
-  CircleXIcon,
-  ClockIcon,
   EllipsisIcon,
   EyeIcon,
   XIcon,
@@ -18,7 +15,6 @@ import type {
   RequestActions,
   RequestRow,
   RequestSortColumn,
-  RequestStatus,
   RequestType,
 } from "@/types/requests";
 import type { SortControl } from "@/types/sort";
@@ -28,7 +24,7 @@ import {
   formatRequestDates,
 } from "@/app/dashboard/requests/request-rules";
 import { SortHeader } from "@/components/dashboard/sort-header";
-import { Badge } from "@/components/ui/badge";
+import { RequestStatusBadge } from "@/components/dashboard/requests/request-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -48,40 +44,6 @@ const TYPE_LABELS: Record<RequestType, string> = {
   daily: "Daily",
   weekly: "Weekly",
 };
-
-// Each status differs in variant and icon, so the badge does not rely on color alone.
-function StatusBadge({ status }: { status: RequestStatus }) {
-  switch (status) {
-    case "pending":
-      return (
-        <Badge variant="secondary">
-          <ClockIcon />
-          Pending
-        </Badge>
-      );
-    case "approved":
-      return (
-        <Badge variant="outline">
-          <CircleCheckIcon className="fill-green-500 dark:fill-green-400" />
-          Approved
-        </Badge>
-      );
-    case "rejected":
-      return (
-        <Badge variant="destructive">
-          <CircleXIcon />
-          Rejected
-        </Badge>
-      );
-    case "cancelled":
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          <BanIcon />
-          Cancelled
-        </Badge>
-      );
-  }
-}
 
 export function createRequestColumns(
   { onOpen, onCancel, onApprove, onReject }: RequestActions,
@@ -133,7 +95,7 @@ export function createRequestColumns(
       header: () => (
         <SortHeader label="Status" column="status" sort={sort} onSort={onSort} />
       ),
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      cell: ({ row }) => <RequestStatusBadge status={row.original.status} />,
     }),
     columnHelper.accessor("lineCount", {
       header: () => <span className="block text-right">Lines</span>,

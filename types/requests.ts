@@ -123,3 +123,37 @@ export type RequestActor = {
   siteId?: string | null;
   locationId?: string | null;
 };
+
+export type RequestFormProps = {
+  request: RequestDetail | null;
+  choices: RequestChoices;
+  readOnly: boolean;
+};
+
+// The form's own state. An empty string is an unchosen type, date, location, department, or
+// position, and NaN is an empty headcount. The zod schema turns these into RequestInput on submit.
+export type RequestFormValues = {
+  type: RequestType | "";
+  startDate: string;
+  locationId: string;
+  note: string;
+  lines: RequestLineInput[];
+};
+
+export type RequestOption = { id: string; name: string };
+
+export type RequestLineFieldsProps = {
+  index: number;
+  line: RequestLineInput;
+  departments: RequestOption[];
+  subDepartments: RequestOption[];
+  positions: RequestOption[];
+  disabled: boolean;
+  canRemove: boolean;
+  // Hidden when the form is read-only.
+  showRemove: boolean;
+  onChange: (line: RequestLineInput) => void;
+  onRemove: () => void;
+};
+
+export type RequestStatusBadgeProps = { status: RequestStatus };

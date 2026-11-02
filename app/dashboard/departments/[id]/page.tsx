@@ -77,9 +77,14 @@ async function DepartmentDetail({
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold">{department.name}</h1>
-          <p className="text-sm text-muted-foreground">in {department.locationName}</p>
+          <p className="text-sm text-muted-foreground">
+            in {department.locationName}
+          </p>
         </div>
-        <EditDepartmentButton department={department} locationChoice={locationChoice} />
+        <EditDepartmentButton
+          department={department}
+          locationChoice={locationChoice}
+        />
       </div>
       <SubDepartmentTable
         departmentId={department.id}

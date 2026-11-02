@@ -34,7 +34,9 @@ const DEPARTMENTS_PATH = "/dashboard/departments";
 
 const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
-export async function createDepartment(input: DepartmentInput): Promise<DepartmentActionResult> {
+export async function createDepartment(
+  input: DepartmentInput,
+): Promise<DepartmentActionResult> {
   const access = await requireDepartmentManager();
 
   const parsed = departmentSchema.safeParse(input);
@@ -57,7 +59,10 @@ export async function createDepartment(input: DepartmentInput): Promise<Departme
     });
   } catch (error) {
     if (isDepartmentNameConflict(error)) {
-      return { ok: false, fieldErrors: { name: DUPLICATE_DEPARTMENT_NAME_MESSAGE } };
+      return {
+        ok: false,
+        fieldErrors: { name: DUPLICATE_DEPARTMENT_NAME_MESSAGE },
+      };
     }
 
     throw error;
@@ -99,7 +104,10 @@ export async function updateDepartment(
     }
   } catch (error) {
     if (isDepartmentNameConflict(error)) {
-      return { ok: false, fieldErrors: { name: DUPLICATE_DEPARTMENT_NAME_MESSAGE } };
+      return {
+        ok: false,
+        fieldErrors: { name: DUPLICATE_DEPARTMENT_NAME_MESSAGE },
+      };
     }
 
     throw error;
@@ -137,7 +145,12 @@ async function softDeleteDepartment(
     const [{ value: activeSubDepartments }] = await tx
       .select({ value: count() })
       .from(subDepartment)
-      .where(and(eq(subDepartment.departmentId, id), isNull(subDepartment.deletedAt)));
+      .where(
+        and(
+          eq(subDepartment.departmentId, id),
+          isNull(subDepartment.deletedAt),
+        ),
+      );
 
     const verdict = canDeleteDepartment({ activeSubDepartments });
 
@@ -154,7 +167,9 @@ async function softDeleteDepartment(
   });
 }
 
-export async function deleteDepartment(id: string): Promise<DepartmentActionResult> {
+export async function deleteDepartment(
+  id: string,
+): Promise<DepartmentActionResult> {
   const access = await requireDepartmentManager();
 
   const result = await softDeleteDepartment(id, access);
@@ -168,7 +183,10 @@ export async function deleteDepartment(id: string): Promise<DepartmentActionResu
 }
 
 // Restores one department. The caller has already passed requireDepartmentManager().
-async function restoreOne(id: string, access: DepartmentAccess): Promise<DepartmentActionResult> {
+async function restoreOne(
+  id: string,
+  access: DepartmentAccess,
+): Promise<DepartmentActionResult> {
   const [target] = await db
     .select({ id: department.id, locationDeletedAt: location.deletedAt })
     .from(department)
@@ -185,7 +203,9 @@ async function restoreOne(id: string, access: DepartmentAccess): Promise<Departm
     return { ok: false, formError: DEPARTMENT_NOT_FOUND_MESSAGE };
   }
 
-  const verdict = canRestoreDepartment({ locationDeleted: target.locationDeletedAt !== null });
+  const verdict = canRestoreDepartment({
+    locationDeleted: target.locationDeletedAt !== null,
+  });
 
   if (!verdict.ok) {
     return { ok: false, formError: verdict.formError };
@@ -218,7 +238,9 @@ async function restoreOne(id: string, access: DepartmentAccess): Promise<Departm
   return { ok: true };
 }
 
-export async function restoreDepartment(id: string): Promise<DepartmentActionResult> {
+export async function restoreDepartment(
+  id: string,
+): Promise<DepartmentActionResult> {
   const access = await requireDepartmentManager();
 
   const result = await restoreOne(id, access);
@@ -232,7 +254,9 @@ export async function restoreDepartment(id: string): Promise<DepartmentActionRes
 }
 
 // Each department is checked on its own, so some can be deleted while others are blocked.
-export async function deleteDepartments(ids: string[]): Promise<DepartmentBulkDeleteResult> {
+export async function deleteDepartments(
+  ids: string[],
+): Promise<DepartmentBulkDeleteResult> {
   const access = await requireDepartmentManager();
 
   const deletedIds: string[] = [];
@@ -259,7 +283,9 @@ export async function deleteDepartments(ids: string[]): Promise<DepartmentBulkDe
 }
 
 // Each department is checked on its own, so some can be restored while others are blocked.
-export async function restoreDepartments(ids: string[]): Promise<DepartmentBulkRestoreResult> {
+export async function restoreDepartments(
+  ids: string[],
+): Promise<DepartmentBulkRestoreResult> {
   const access = await requireDepartmentManager();
 
   const restoredIds: string[] = [];

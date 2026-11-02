@@ -10,6 +10,8 @@ import type {
   RequestStatus,
   RequestType,
 } from "@/types/requests";
+import { dateInZone } from "@/lib/indonesia-date";
+import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import { statusAfterEdit } from "./request-rules";
 
 // Matches the max in the lines schema.
@@ -23,6 +25,21 @@ function sevenOf(value: number): number[] {
 
 function toOption({ id, name }: RequestOption): RequestOption {
   return { id, name };
+}
+
+// The earliest start date the form accepts: today in the chosen location's zone. Before a
+// location is chosen, or for an unknown one, it is Jakarta's today, the loosest bound. The server
+// checks the exact zone again.
+export function minStartDateFor(
+  choices: RequestChoices,
+  locationId: string,
+  now: Date = new Date(),
+): string {
+  const zone =
+    choices.locations.find((row) => row.id === locationId)?.timezone ??
+    DEFAULT_LOCATION_TIMEZONE;
+
+  return dateInZone(zone, now);
 }
 
 export function locationsFor(choices: RequestChoices, siteId: string): RequestOption[] {

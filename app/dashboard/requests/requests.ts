@@ -217,7 +217,12 @@ export async function getRequest(
 // departments and sub-departments, and the active positions of those sites.
 export async function requestChoicesFor(access: RequestAccess): Promise<RequestChoices> {
   const locations = await db
-    .select({ id: location.id, name: location.name, siteId: location.siteId })
+    .select({
+      id: location.id,
+      name: location.name,
+      siteId: location.siteId,
+      timezone: location.timezone,
+    })
     .from(location)
     .where(
       and(

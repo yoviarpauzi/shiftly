@@ -2,6 +2,7 @@ import type { db } from "@/lib/db";
 import type { SiteOption } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
+import type { LocationTimezone } from "@/validation/location";
 
 export type RequestType = "daily" | "weekly";
 
@@ -67,7 +68,7 @@ export type RequestListParams = PageParams & {
 
 export type RequestChoices = {
   sites: { id: string; name: string }[];
-  locations: { id: string; name: string; siteId: string }[];
+  locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
   departments: { id: string; name: string; locationId: string }[];
   subDepartments: { id: string; name: string; departmentId: string }[];
   positions: { id: string; name: string; siteId: string }[];

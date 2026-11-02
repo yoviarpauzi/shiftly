@@ -26,6 +26,7 @@ import {
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
+  minStartDateFor,
 } from "./request-form-options";
 
 const SITE_A = "a0000000-0000-4000-8000-000000000000";
@@ -47,9 +48,9 @@ const choices: RequestChoices = {
     { id: SITE_B, name: "Site B" },
   ],
   locations: [
-    { id: LOC_A1, name: "A1", siteId: SITE_A },
-    { id: LOC_A2, name: "A2", siteId: SITE_A },
-    { id: LOC_B1, name: "B1", siteId: SITE_B },
+    { id: LOC_A1, name: "A1", siteId: SITE_A, timezone: "Asia/Jakarta" },
+    { id: LOC_A2, name: "A2", siteId: SITE_A, timezone: "Asia/Jakarta" },
+    { id: LOC_B1, name: "B1", siteId: SITE_B, timezone: "Asia/Makassar" },
   ],
   departments: [
     { id: DEPT_A1, name: "Kitchen", locationId: LOC_A1 },
@@ -423,5 +424,25 @@ describe("withSiteError", () => {
     withSiteError(input, "", true);
 
     expect(input).toEqual(errors);
+  });
+});
+
+describe("minStartDateFor", () => {
+  // 2026-11-30 23:30 in Jakarta, already 2026-12-01 00:30 in Makassar.
+  const now = new Date("2026-11-30T16:30:00Z");
+
+  it("uses the chosen location's zone", () => {
+    expect(minStartDateFor(choices, LOC_A1, now)).toBe("2026-11-30");
+    expect(minStartDateFor(choices, LOC_B1, now)).toBe("2026-12-01");
+  });
+
+  it("falls back to Jakarta before a location is chosen", () => {
+    expect(minStartDateFor(choices, "", now)).toBe("2026-11-30");
+  });
+
+  it("falls back to Jakarta for a location that is not in the choices", () => {
+    expect(minStartDateFor(choices, "ffffffff-0000-4000-8000-000000000000", now)).toBe(
+      "2026-11-30",
+    );
   });
 });

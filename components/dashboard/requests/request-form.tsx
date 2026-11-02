@@ -16,6 +16,7 @@ import {
   departmentsFor,
   linesAfterLocationChange,
   locationsFor,
+  minStartDateFor,
   positionsFor,
   requestFormDefaults,
   returnsToPending,
@@ -27,7 +28,6 @@ import {
   linesHeadcountsError,
   requestFieldErrors,
 } from "@/app/dashboard/requests/request-rules";
-import { dateInZone } from "@/lib/indonesia-date";
 import type {
   RequestFormFieldErrors,
   RequestFormProps,
@@ -54,7 +54,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import { createRequestSchema, updateRequestSchema } from "@/validation/request";
 
 const REQUESTS_PATH = "/dashboard/requests";
@@ -106,7 +105,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
         const input = submitted(value);
         const parsed = request
           ? updateRequestSchema(null).safeParse(input)
-          : createRequestSchema(dateInZone(DEFAULT_LOCATION_TIMEZONE)).safeParse(input);
+          : createRequestSchema(minStartDateFor(choices, value.locationId)).safeParse(input);
 
         if (!parsed.success) {
           const errors = requestFieldErrors(parsed.error.issues);

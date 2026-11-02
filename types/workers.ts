@@ -40,6 +40,8 @@ export type WorkerListParams = PageParams & {
   siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
+  // null means every position. A worker matches when it has this position.
+  positionId: string | null;
   sort: SortCriterion<WorkerSortColumn>[];
 };
 
@@ -119,4 +121,9 @@ export type WorkerPositionPickerProps = {
   id?: string;
   disabled?: boolean;
   invalid?: boolean;
+};
+
+export type WorkersPositionFilterProps = {
+  positions: WorkerFormOption[];
+  value: string | null;
 };

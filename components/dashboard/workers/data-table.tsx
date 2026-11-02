@@ -24,6 +24,7 @@ import { BulkDeleteWorkersDialog } from "@/components/dashboard/workers/bulk-del
 import { createWorkerColumns, features } from "@/components/dashboard/workers/columns";
 import { DeleteWorkerDialog } from "@/components/dashboard/workers/delete-worker-dialog";
 import { WorkerFormDialog } from "@/components/dashboard/workers/worker-form-dialog";
+import { WorkersPositionFilter } from "@/components/dashboard/workers/workers-position-filter";
 import { WorkersSearch } from "@/components/dashboard/workers/workers-search";
 import { WorkersSelectFilter } from "@/components/dashboard/workers/workers-select-filter";
 import { WorkersStatusFilter } from "@/components/dashboard/workers/workers-status-filter";
@@ -55,6 +56,8 @@ export function WorkersDataTable({
   siteId,
   locations,
   locationId,
+  positions,
+  positionId,
 }: {
   data: WorkerPage;
   status: WorkerStatus;
@@ -63,6 +66,8 @@ export function WorkersDataTable({
   siteId: string | null;
   locations: WorkerFormOption[];
   locationId: string | null;
+  positions: WorkerFormOption[];
+  positionId: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -177,7 +182,7 @@ export function WorkersDataTable({
               ]}
               ariaLabel="Filter workers by site"
               className="h-9 w-48"
-              resets={["location"]}
+              resets={["location", "position"]}
             />
           )}
           {locations.length > 0 && (
@@ -191,6 +196,9 @@ export function WorkersDataTable({
               ariaLabel="Filter workers by location"
               className="h-9 w-48"
             />
+          )}
+          {positions.length > 0 && (
+            <WorkersPositionFilter positions={positions} value={positionId} />
           )}
         </div>
         <Button onClick={() => openForm(null)}>
@@ -266,7 +274,7 @@ export function WorkersDataTable({
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   {query
                     ? `No workers match "${query}"`
-                    : siteId || locationId
+                    : siteId || locationId || positionId
                       ? "No workers match the filters"
                       : status === "deleted"
                         ? "No deleted workers"

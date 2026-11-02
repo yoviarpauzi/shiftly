@@ -2,6 +2,7 @@ import { WorkersDataTable } from "@/components/dashboard/workers/data-table";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";
 import { parseWorkerLocation } from "@/validation/worker-location";
+import { parseWorkerPosition } from "@/validation/worker-position";
 import { parseWorkerSite } from "@/validation/worker-site";
 import { parseWorkerStatus } from "@/validation/worker-status";
 import { requireWorkerManager } from "./worker-guard";
@@ -32,11 +33,19 @@ export default async function Page({
       ? []
       : options.locations.filter((location) => !siteId || location.siteId === siteId);
   const locationId = parseWorkerLocation(params.location, locations);
+  // Positions belong to a site, so superadmin picks a site first. HO and admin site only get their own
+  // site's positions from the options.
+  const positions =
+    access.siteId === null && !siteId
+      ? []
+      : options.positions.filter((position) => !siteId || position.siteId === siteId);
+  const positionId = parseWorkerPosition(params.position, positions);
   const workers = await listWorkers(access, {
     ...parsePageParams(params),
     status,
     siteId,
     locationId,
+    positionId,
     sort,
   });
 
@@ -56,6 +65,8 @@ export default async function Page({
         siteId={siteId}
         locations={locations}
         locationId={locationId}
+        positions={positions}
+        positionId={positionId}
       />
     </div>
   );

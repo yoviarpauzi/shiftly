@@ -4,6 +4,7 @@ import {
   asc,
   count,
   eq,
+  exists,
   ilike,
   inArray,
   isNotNull,
@@ -59,9 +60,9 @@ export function workerScopeFilter(access: WorkerAccess): SQL | undefined {
 // The site and location filters narrow inside the scope, so they can never widen it.
 function workerFilter(
   access: WorkerAccess,
-  { query, status, siteId, locationId }: Pick<
+  { query, status, siteId, locationId, positionId }: Pick<
     WorkerListParams,
-    "query" | "status" | "siteId" | "locationId"
+    "query" | "status" | "siteId" | "locationId" | "positionId"
   >,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
@@ -72,15 +73,29 @@ function workerFilter(
     status === "deleted" ? isNotNull(worker.deletedAt) : undefined,
     siteId ? eq(worker.siteId, siteId) : undefined,
     locationId ? eq(worker.locationId, locationId) : undefined,
+    // exists, not a join, so a worker is counted once however many positions it has.
+    positionId
+      ? exists(
+          db
+            .select({ one: sql`1` })
+            .from(workerPosition)
+            .where(
+              and(
+                eq(workerPosition.workerId, worker.id),
+                eq(workerPosition.positionId, positionId),
+              ),
+            ),
+        )
+      : undefined,
     query ? or(ilike(worker.name, pattern), ilike(worker.employeeId, pattern)) : undefined,
   );
 }
 
 export async function listWorkers(
   access: WorkerAccess,
-  { page, pageSize, query, status, siteId, locationId, sort }: WorkerListParams,
+  { page, pageSize, query, status, siteId, locationId, positionId, sort }: WorkerListParams,
 ): Promise<WorkerPage> {
-  const filter = workerFilter(access, { query, status, siteId, locationId });
+  const filter = workerFilter(access, { query, status, siteId, locationId, positionId });
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the worker table alone, so the joins do not inflate the total.

@@ -12,6 +12,7 @@ import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
 import type {
+  WorkerFormOption,
   WorkerFormOptions,
   WorkerPage,
   WorkerRow,
@@ -24,6 +25,7 @@ import { createWorkerColumns, features } from "@/components/dashboard/workers/co
 import { DeleteWorkerDialog } from "@/components/dashboard/workers/delete-worker-dialog";
 import { WorkerFormDialog } from "@/components/dashboard/workers/worker-form-dialog";
 import { WorkersSearch } from "@/components/dashboard/workers/workers-search";
+import { WorkersSelectFilter } from "@/components/dashboard/workers/workers-select-filter";
 import { WorkersStatusFilter } from "@/components/dashboard/workers/workers-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,11 +52,17 @@ export function WorkersDataTable({
   status,
   sort,
   options,
+  siteId,
+  locations,
+  locationId,
 }: {
   data: WorkerPage;
   status: WorkerStatus;
   sort: SortCriterion<WorkerSortColumn>[];
   options: WorkerFormOptions;
+  siteId: string | null;
+  locations: WorkerFormOption[];
+  locationId: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -156,9 +164,34 @@ export function WorkersDataTable({
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <WorkersSearch />
           <WorkersStatusFilter status={status} />
+          {options.siteChoice.mode === "pick" && (
+            <WorkersSelectFilter
+              param="site"
+              value={siteId ?? "all"}
+              options={[
+                { value: "all", label: "All sites" },
+                ...options.siteChoice.sites.map((site) => ({ value: site.id, label: site.name })),
+              ]}
+              ariaLabel="Filter workers by site"
+              className="h-9 w-48"
+              resets={["location"]}
+            />
+          )}
+          {locations.length > 0 && (
+            <WorkersSelectFilter
+              param="location"
+              value={locationId ?? "all"}
+              options={[
+                { value: "all", label: "All locations" },
+                ...locations.map((location) => ({ value: location.id, label: location.name })),
+              ]}
+              ariaLabel="Filter workers by location"
+              className="h-9 w-48"
+            />
+          )}
         </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />
@@ -233,9 +266,11 @@ export function WorkersDataTable({
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   {query
                     ? `No workers match "${query}"`
-                    : status === "deleted"
-                      ? "No deleted workers"
-                      : "No workers yet"}
+                    : siteId || locationId
+                      ? "No workers match the filters"
+                      : status === "deleted"
+                        ? "No deleted workers"
+                        : "No workers yet"}
                 </TableCell>
               </TableRow>
             )}

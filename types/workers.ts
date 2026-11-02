@@ -36,6 +36,10 @@ export type WorkerPage = {
 
 export type WorkerListParams = PageParams & {
   status: WorkerStatus;
+  // null means every site the actor can see.
+  siteId: string | null;
+  // null means every location the actor can see.
+  locationId: string | null;
   sort: SortCriterion<WorkerSortColumn>[];
 };
 
@@ -93,4 +97,16 @@ export type BulkDeleteWorkersDialogProps = {
 export type DeleteWorkerDialogProps = {
   worker: WorkerRow | null;
   onOpenChange: (open: boolean) => void;
+};
+
+export type WorkerFilterOption = { value: string; label: string };
+
+export type WorkersSelectFilterProps = {
+  param: string;
+  value: string;
+  options: WorkerFilterOption[];
+  ariaLabel: string;
+  className: string;
+  // Other params to drop when this filter changes, such as a location that belongs to the old site.
+  resets?: string[];
 };

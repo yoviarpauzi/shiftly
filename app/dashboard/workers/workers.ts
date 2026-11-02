@@ -30,7 +30,6 @@ import type {
   WorkerPage,
   WorkerPositionTag,
   WorkerSortColumn,
-  WorkerStatus,
 } from "@/types/workers";
 
 const DEFAULT_SORT: SortCriterion<WorkerSortColumn>[] = [
@@ -57,10 +56,13 @@ export function workerScopeFilter(access: WorkerAccess): SQL | undefined {
 }
 
 // Matches name or employee ID case-insensitively. An empty query matches every worker in the status.
+// The site and location filters narrow inside the scope, so they can never widen it.
 function workerFilter(
   access: WorkerAccess,
-  query: string,
-  status: WorkerStatus,
+  { query, status, siteId, locationId }: Pick<
+    WorkerListParams,
+    "query" | "status" | "siteId" | "locationId"
+  >,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
@@ -68,15 +70,17 @@ function workerFilter(
     workerScopeFilter(access),
     status === "active" ? isNull(worker.deletedAt) : undefined,
     status === "deleted" ? isNotNull(worker.deletedAt) : undefined,
+    siteId ? eq(worker.siteId, siteId) : undefined,
+    locationId ? eq(worker.locationId, locationId) : undefined,
     query ? or(ilike(worker.name, pattern), ilike(worker.employeeId, pattern)) : undefined,
   );
 }
 
 export async function listWorkers(
   access: WorkerAccess,
-  { page, pageSize, query, status, sort }: WorkerListParams,
+  { page, pageSize, query, status, siteId, locationId, sort }: WorkerListParams,
 ): Promise<WorkerPage> {
-  const filter = workerFilter(access, query, status);
+  const filter = workerFilter(access, { query, status, siteId, locationId });
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the worker table alone, so the joins do not inflate the total.

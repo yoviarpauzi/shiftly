@@ -76,7 +76,7 @@ describe("shiftSchema", () => {
 
 describe("shiftUpdateSchema", () => {
   it("accepts input without a site id", () => {
-    const { siteId: _siteId, ...update } = base;
+    const update = { number: 1, name: "Morning", startTime: "06:00", endTime: "14:00" };
 
     expect(shiftUpdateSchema.safeParse(update).success).toBe(true);
   });

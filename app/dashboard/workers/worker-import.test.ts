@@ -251,6 +251,13 @@ describe("resolveImportRows", () => {
     expect(result).toMatchObject({ action: "create", endContract: "2026-12-31", errors: [] });
   });
 
+  it("reads a late-evening UTC date cell by its UTC day, not the local day", () => {
+    // 23:00 UTC on 31 December is already 1 January at UTC+7, so local day parts would give 2027-01-01.
+    const result = resolveOne({ end_contract: new Date(Date.UTC(2026, 11, 31, 23, 0)) });
+
+    expect(result.endContract).toBe("2026-12-31");
+  });
+
   it("requires an end of contract, without hiding other errors", () => {
     expect(resolveOne({ end_contract: null }).errors).toEqual(["End of contract is required"]);
     expect(resolveOne({ end_contract: "   " }).errors).toEqual(["End of contract is required"]);

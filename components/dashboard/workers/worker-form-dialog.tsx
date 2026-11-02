@@ -60,6 +60,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
       siteId: initialSiteId,
       locationId: defaultLocationId(worker, options, initialSiteId),
       positionIds: worker?.positions.map((position) => position.id) ?? ([] as string[]),
+      endContract: worker?.endContract ?? "",
     },
     validators: {
       onSubmit: ({ value }) => {
@@ -97,6 +98,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
               siteId: nameFieldError(result.fieldErrors?.siteId),
               locationId: nameFieldError(result.fieldErrors?.locationId),
               positionIds: nameFieldError(result.fieldErrors?.positionIds),
+              endContract: nameFieldError(result.fieldErrors?.endContract),
             },
           },
         });
@@ -307,6 +309,29 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                       );
                     }}
                   </form.Subscribe>
+                  <form.Field name="endContract">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
+
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor={field.name}>End of contract</FieldLabel>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            type="date"
+                            required
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                            disabled={isSubmitting}
+                            aria-invalid={isInvalid || undefined}
+                          />
+                          {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
                 </FieldGroup>
                 {formError && (
                   <p role="alert" className="text-sm text-destructive">

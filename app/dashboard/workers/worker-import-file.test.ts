@@ -174,6 +174,19 @@ describe("buildImportTemplate", () => {
       expect(result.rows).toHaveLength(1);
       expect(result.rows[0].cells.employee_id).toBe("EMP-001");
       expect(result.rows[0].cells.end_contract).toBeInstanceOf(Date);
+
+      const lookups: ImportLookups = {
+        sites: [{ id: "s1", name: "Alpha" }],
+        locations: [{ id: "l1", siteId: "s1", name: "Gudang" }],
+        positions: [
+          { id: "p1", siteId: "s1", name: "Operator" },
+          { id: "p2", siteId: "s1", name: "Driver" },
+        ],
+        existing: [],
+      };
+      const [row] = resolveImportRows(result.rows, lookups, { siteId: null, locationId: null });
+
+      expect(row).toMatchObject({ action: "create", endContract: "2026-12-31", errors: [] });
     }
   });
 

@@ -112,6 +112,7 @@ export async function listWorkers(
       siteName: site.name,
       locationId: worker.locationId,
       locationName: location.name,
+      endContract: worker.endContract,
       deletedAt: worker.deletedAt,
     })
     .from(worker)

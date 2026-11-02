@@ -1,5 +1,6 @@
 import { isNull, relations, sql } from "drizzle-orm";
 import {
+  date,
   index,
   pgTable,
   primaryKey,
@@ -24,6 +25,8 @@ export const worker = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => location.id, { onDelete: "restrict" }),
+    // No default: every write sends the date. Rows that existed on 2026-11-02 got 2026-12-31.
+    endContract: date("end_contract", { mode: "string" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

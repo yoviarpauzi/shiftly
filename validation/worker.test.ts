@@ -11,7 +11,19 @@ const valid = {
   siteId: SITE,
   locationId: LOCATION,
   positionIds: [POSITION],
+  endContract: "2026-12-31",
 };
+
+const REQUIRED = "End of contract is required";
+const NOT_A_DATE = "End of contract must be a real date like 2026-12-31";
+
+function endContractErrors(input: unknown) {
+  const parsed = workerSchema.safeParse(input);
+
+  expect(parsed.success).toBe(false);
+
+  return parsed.error!.issues.filter((issue) => issue.path[0] === "endContract");
+}
 
 describe("workerSchema", () => {
   it("accepts a complete worker", () => {
@@ -48,5 +60,35 @@ describe("workerSchema", () => {
     const parsed = workerSchema.parse({ ...valid, positionIds: [POSITION, POSITION] });
 
     expect(parsed.positionIds).toEqual([POSITION]);
+  });
+
+  it("accepts an end of contract and trims it", () => {
+    expect(workerSchema.parse(valid).endContract).toBe("2026-12-31");
+    expect(workerSchema.parse({ ...valid, endContract: " 2026-12-31 " }).endContract).toBe(
+      "2026-12-31",
+    );
+  });
+
+  it("requires an end of contract", () => {
+    const missing: Partial<typeof valid> = { ...valid };
+    delete missing.endContract;
+
+    for (const input of [missing, { ...valid, endContract: "" }, { ...valid, endContract: "   " }]) {
+      const issues = endContractErrors(input);
+
+      expect(issues).toHaveLength(1);
+      expect(issues[0].message).toBe(REQUIRED);
+      expect(issues[0].path).toEqual(["endContract"]);
+    }
+  });
+
+  it("rejects an end of contract that is not a real YYYY-MM-DD date", () => {
+    for (const endContract of ["2026-02-30", "11/02/2026", "2026-1-5"]) {
+      const issues = endContractErrors({ ...valid, endContract });
+
+      expect(issues).toHaveLength(1);
+      expect(issues[0].message).toBe(NOT_A_DATE);
+      expect(issues[0].path).toEqual(["endContract"]);
+    }
   });
 });

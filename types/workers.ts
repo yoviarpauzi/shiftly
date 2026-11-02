@@ -24,6 +24,8 @@ export type WorkerRow = {
   locationId: string;
   locationName: string;
   positions: WorkerPositionTag[];
+  // YYYY-MM-DD, as stored.
+  endContract: string;
   deletedAt: Date | null;
 };
 
@@ -60,6 +62,7 @@ export type WorkerFieldErrors = {
   siteId?: string;
   locationId?: string;
   positionIds?: string;
+  endContract?: string;
 };
 
 export type WorkerActionResult =

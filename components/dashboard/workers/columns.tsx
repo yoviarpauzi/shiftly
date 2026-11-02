@@ -119,6 +119,10 @@ export function createWorkerColumns(
       header: () => <span>Positions</span>,
       cell: ({ row }) => <PositionTags positions={row.original.positions} />,
     }),
+    columnHelper.accessor("endContract", {
+      header: () => <span>Contract end</span>,
+      cell: ({ row }) => row.original.endContract,
+    }),
     columnHelper.accessor("deletedAt", {
       header: () => (
         <div className="pl-8">

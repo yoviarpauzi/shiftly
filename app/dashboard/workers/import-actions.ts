@@ -172,6 +172,7 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
               name: row.name,
               siteId: row.siteId,
               locationId: row.locationId,
+              endContract: row.endContract,
             })
             .returning({ id: worker.id });
 
@@ -184,6 +185,7 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
               name: row.name,
               siteId: row.siteId,
               locationId: row.locationId,
+              endContract: row.endContract,
             })
             .where(
               and(

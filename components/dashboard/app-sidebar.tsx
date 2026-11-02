@@ -60,12 +60,6 @@ const data = {
       roles: ["superadmin", "ho"],
     },
     {
-      title: "Shift",
-      url: "/dashboard/shifts",
-      icon: <ClockIcon />,
-      roles: ["superadmin", "ho", "admin_site"],
-    },
-    {
       title: "Department",
       url: "/dashboard/departments",
       icon: <FolderTreeIcon />,
@@ -81,6 +75,12 @@ const data = {
       title: "Worker",
       url: "/dashboard/workers",
       icon: <HardHatIcon />,
+      roles: ["superadmin", "ho", "admin_site"],
+    },
+    {
+      title: "Shift",
+      url: "/dashboard/shifts",
+      icon: <ClockIcon />,
       roles: ["superadmin", "ho", "admin_site"],
     },
   ],

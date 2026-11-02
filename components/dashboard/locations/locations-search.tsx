@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 const SEARCH_DELAY_MS = 300;
 
 // Copy of components/dashboard/sites/sites-search.tsx, with location wording.
-export function LocationsSearch({ total }: { total: number }) {
+export function LocationsSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

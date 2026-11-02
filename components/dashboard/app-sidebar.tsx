@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 
-import { NavDocuments } from "@/components/dashboard/nav-documents";
 import { NavMain } from "@/components/dashboard/nav-main";
 import { NavSecondary } from "@/components/dashboard/nav-secondary";
 import { NavUser } from "@/components/dashboard/nav-user";
@@ -22,9 +21,6 @@ import {
   UsersIcon,
   Building2Icon,
   Settings2Icon,
-  DatabaseIcon,
-  FileChartColumnIcon,
-  FileIcon,
   MapPinIcon,
   BriefcaseIcon,
   HardHatIcon,
@@ -95,23 +91,6 @@ const data = {
       icon: <Settings2Icon />,
     },
   ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: <DatabaseIcon />,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: <FileChartColumnIcon />,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: <FileIcon />,
-    },
-  ],
 };
 export function AppSidebar({
   user,
@@ -152,7 +131,6 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

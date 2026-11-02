@@ -41,5 +41,10 @@ export function canDecideRequest(user: UserScope, request: { siteId: string }): 
     return true;
   }
 
-  return user.role === "ho" && !!user.siteId && user.siteId === request.siteId;
+  return (
+    user.role === "ho" &&
+    !!user.siteId &&
+    !user.locationId &&
+    user.siteId === request.siteId
+  );
 }

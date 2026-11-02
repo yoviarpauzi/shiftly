@@ -103,6 +103,14 @@ describe("canDecideRequest", () => {
     );
   });
 
+  it("does not let HO with a location decide, matching requestAccessFor", () => {
+    expect(
+      canDecideRequest(user({ role: "ho", siteId: SITE_A, locationId: LOCATION_1 }), {
+        siteId: SITE_A,
+      }),
+    ).toBe(false);
+  });
+
   it("does not let HO without a site decide", () => {
     expect(canDecideRequest(user({ role: "ho" }), { siteId: SITE_A })).toBe(false);
   });

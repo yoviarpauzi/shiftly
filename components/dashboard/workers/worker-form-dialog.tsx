@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/departments/department-rules";
 import { createWorker, updateWorker } from "@/app/dashboard/workers/actions";
 import type { WorkerFormDialogProps, WorkerFormOptions, WorkerRow } from "@/types/workers";
+import { WorkerPositionPicker } from "@/components/dashboard/workers/worker-position-picker";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -289,33 +289,14 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                                       {siteId ? "No positions in this site yet" : "Choose a site first"}
                                     </p>
                                   ) : (
-                                    <div className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
-                                      {positions.map((position) => {
-                                        const checked = field.state.value.includes(position.id);
-
-                                        return (
-                                          <label
-                                            key={position.id}
-                                            className="flex items-center gap-2 text-sm"
-                                          >
-                                            <Checkbox
-                                              checked={checked}
-                                              disabled={isSubmitting}
-                                              onCheckedChange={(value) =>
-                                                field.handleChange(
-                                                  value
-                                                    ? [...field.state.value, position.id]
-                                                    : field.state.value.filter(
-                                                        (id) => id !== position.id,
-                                                      ),
-                                                )
-                                              }
-                                            />
-                                            {position.name}
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
+                                    <WorkerPositionPicker
+                                      id={field.name}
+                                      positions={positions}
+                                      value={field.state.value}
+                                      onValueChange={field.handleChange}
+                                      disabled={isSubmitting}
+                                      invalid={isInvalid}
+                                    />
                                   )}
                                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
                                 </Field>

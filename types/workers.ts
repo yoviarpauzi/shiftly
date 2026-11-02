@@ -110,3 +110,13 @@ export type WorkersSelectFilterProps = {
   // Other params to drop when this filter changes, such as a location that belongs to the old site.
   resets?: string[];
 };
+
+export type WorkerPositionPickerProps = {
+  positions: WorkerFormOption[];
+  // Position ids. The picker shows their names.
+  value: string[];
+  onValueChange: (ids: string[]) => void;
+  id?: string;
+  disabled?: boolean;
+  invalid?: boolean;
+};

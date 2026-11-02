@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  DAILY_HEADCOUNT_MESSAGE,
+  HEADCOUNT_LENGTH_MESSAGE,
+  WEEKLY_HEADCOUNT_MESSAGE,
   canCancelRequest,
   canDecideStatus,
+  dayLabels,
   formatRequestDates,
+  headcountsError,
   initialStatus,
   lineScopeError,
+  linesHeadcountsError,
   requestFieldErrors,
   requestLocationsFor,
   siteCodeMissingMessage,
@@ -195,5 +201,115 @@ describe("requestLocationsFor", () => {
 
   it("offers every location when the actor has no site to pick", () => {
     expect(requestLocationsFor(LOCATIONS, null, false)).toEqual(LOCATIONS);
+  });
+});
+
+describe("headcountsError", () => {
+  it("has the exact messages", () => {
+    expect(DAILY_HEADCOUNT_MESSAGE).toBe("Headcount must be between 1 and 999");
+    expect(WEEKLY_HEADCOUNT_MESSAGE).toBe(
+      "Each line needs at least one day with a headcount above 0",
+    );
+    expect(HEADCOUNT_LENGTH_MESSAGE).toBe("Headcount does not match the request type");
+  });
+
+  it("accepts a daily headcount from 1 to 999", () => {
+    expect(headcountsError("daily", [1])).toBeNull();
+    expect(headcountsError("daily", [999])).toBeNull();
+  });
+
+  it("rejects a daily headcount of 0", () => {
+    expect(headcountsError("daily", [0])).toBe(DAILY_HEADCOUNT_MESSAGE);
+  });
+
+  it("rejects a daily line that does not have exactly one number", () => {
+    expect(headcountsError("daily", [2, 2])).toBe(HEADCOUNT_LENGTH_MESSAGE);
+    expect(headcountsError("daily", [])).toBe(HEADCOUNT_LENGTH_MESSAGE);
+  });
+
+  it("accepts a weekly line with at least one day above 0", () => {
+    expect(headcountsError("weekly", [0, 0, 5, 0, 0, 0, 0])).toBeNull();
+    expect(headcountsError("weekly", [1, 1, 1, 1, 1, 1, 1])).toBeNull();
+  });
+
+  it("rejects a weekly line where every day is 0", () => {
+    expect(headcountsError("weekly", [0, 0, 0, 0, 0, 0, 0])).toBe(WEEKLY_HEADCOUNT_MESSAGE);
+  });
+
+  it("rejects a weekly line that does not have exactly seven numbers", () => {
+    expect(headcountsError("weekly", [3])).toBe(HEADCOUNT_LENGTH_MESSAGE);
+    expect(headcountsError("weekly", [1, 1, 1, 1, 1, 1])).toBe(HEADCOUNT_LENGTH_MESSAGE);
+  });
+});
+
+describe("linesHeadcountsError", () => {
+  it("returns null for no lines", () => {
+    expect(linesHeadcountsError("weekly", [])).toBeNull();
+  });
+
+  it("returns null when every line is valid", () => {
+    expect(
+      linesHeadcountsError("weekly", [
+        { headcounts: [1, 0, 0, 0, 0, 0, 0] },
+        { headcounts: [2, 2, 2, 2, 2, 2, 2] },
+      ]),
+    ).toBeNull();
+    expect(linesHeadcountsError("daily", [{ headcounts: [4] }, { headcounts: [1] }])).toBeNull();
+  });
+
+  it("returns the message of the first failing line", () => {
+    expect(
+      linesHeadcountsError("weekly", [
+        { headcounts: [1, 1, 1, 1, 1, 1, 1] },
+        { headcounts: [0, 0, 0, 0, 0, 0, 0] },
+        { headcounts: [1] },
+      ]),
+    ).toBe(WEEKLY_HEADCOUNT_MESSAGE);
+  });
+});
+
+describe("dayLabels", () => {
+  const FALLBACK = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
+
+  it("labels the seven days from the start date", () => {
+    expect(dayLabels("2026-11-02")).toEqual([
+      "Mon 2 Nov",
+      "Tue 3 Nov",
+      "Wed 4 Nov",
+      "Thu 5 Nov",
+      "Fri 6 Nov",
+      "Sat 7 Nov",
+      "Sun 8 Nov",
+    ]);
+  });
+
+  it("crosses a month end", () => {
+    expect(dayLabels("2026-11-29")).toEqual([
+      "Sun 29 Nov",
+      "Mon 30 Nov",
+      "Tue 1 Dec",
+      "Wed 2 Dec",
+      "Thu 3 Dec",
+      "Fri 4 Dec",
+      "Sat 5 Dec",
+    ]);
+  });
+
+  it("crosses a leap day", () => {
+    expect(dayLabels("2028-02-27")).toEqual([
+      "Sun 27 Feb",
+      "Mon 28 Feb",
+      "Tue 29 Feb",
+      "Wed 1 Mar",
+      "Thu 2 Mar",
+      "Fri 3 Mar",
+      "Sat 4 Mar",
+    ]);
+  });
+
+  it("falls back to numbered days for an empty, malformed or impossible date", () => {
+    expect(dayLabels("")).toEqual(FALLBACK);
+    expect(dayLabels("2026-02-30")).toEqual(FALLBACK);
+    expect(dayLabels("11/02/2026")).toEqual(FALLBACK);
   });
 });

@@ -33,6 +33,34 @@ const UNKNOWN_POSITION_MESSAGE = "Choose a position from this site";
 
 const WEEK_LAST_DAY_OFFSET = 6;
 
+const DAYS_IN_WEEK = 7;
+
+export const DAILY_HEADCOUNT_MESSAGE = "Headcount must be between 1 and 999";
+
+export const WEEKLY_HEADCOUNT_MESSAGE =
+  "Each line needs at least one day with a headcount above 0";
+
+export const HEADCOUNT_LENGTH_MESSAGE = "Headcount does not match the request type";
+
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 // A daily request is approved on save. A weekly request waits for HO.
 export function initialStatus(type: RequestType): "approved" | "pending" {
   return type === "weekly" ? "pending" : "approved";
@@ -73,6 +101,68 @@ export function formatRequestDates(type: RequestType, startDate: string): string
   const end = new Date(Date.UTC(year, month - 1, day + WEEK_LAST_DAY_OFFSET));
 
   return `${startDate} - ${end.toISOString().slice(0, 10)}`;
+}
+
+// A daily line has one headcount of at least 1. A weekly line has seven, one per day from the
+// start date, and at least one of them above 0. The shape (integers, 0 to 999) is checked by the
+// schema, so this only covers the rules that depend on the request type.
+export function headcountsError(type: RequestType, headcounts: number[]): string | null {
+  const expectedLength = type === "weekly" ? DAYS_IN_WEEK : 1;
+
+  if (headcounts.length !== expectedLength) {
+    return HEADCOUNT_LENGTH_MESSAGE;
+  }
+
+  if (type === "weekly") {
+    return headcounts.some((headcount) => headcount > 0) ? null : WEEKLY_HEADCOUNT_MESSAGE;
+  }
+
+  return headcounts[0] >= 1 ? null : DAILY_HEADCOUNT_MESSAGE;
+}
+
+// Returns the first line's problem, or null when every line is valid.
+export function linesHeadcountsError(
+  type: RequestType,
+  lines: { headcounts: number[] }[],
+): string | null {
+  for (const line of lines) {
+    const error = headcountsError(type, line.headcounts);
+
+    if (error) {
+      return error;
+    }
+  }
+
+  return null;
+}
+
+// Seven column labels such as "Mon 2 Nov" from a YYYY-MM-DD start date. An empty or impossible date
+// gives "Day 1" to "Day 7". Only UTC getters and fixed names are used, so the labels do not depend
+// on the server time zone or locale.
+export function dayLabels(startDate: string): string[] {
+  const fallback = Array.from({ length: DAYS_IN_WEEK }, (_, index) => `Day ${index + 1}`);
+  const match = ISO_DATE_PATTERN.exec(startDate);
+
+  if (!match) {
+    return fallback;
+  }
+
+  const [year, month, day] = match.slice(1).map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    start.getUTCFullYear() !== year ||
+    start.getUTCMonth() !== month - 1 ||
+    start.getUTCDate() !== day
+  ) {
+    return fallback;
+  }
+
+  return Array.from({ length: DAYS_IN_WEEK }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1, day + index));
+
+    return `${WEEKDAY_NAMES[date.getUTCDay()]} ${date.getUTCDate()} ${MONTH_NAMES[date.getUTCMonth()]}`;
+  });
 }
 
 // Checks every line against the choices the actor may use: departments of the location (with their

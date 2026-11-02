@@ -11,6 +11,24 @@ export const SITE_DELETED_MESSAGE = "Restore the site first";
 
 const POSITION_NAME_CONSTRAINT = "position_siteId_lowerName_active_unique";
 
+// A worker keeps its positions, so a position in use has to be removed from the workers first.
+export function canDeletePosition({
+  activeWorkers,
+}: {
+  activeWorkers: number;
+}): { ok: true } | { ok: false; formError: string } {
+  if (activeWorkers === 0) {
+    return { ok: true };
+  }
+
+  const who = activeWorkers === 1 ? "1 active worker" : `${activeWorkers} active workers`;
+
+  return {
+    ok: false,
+    formError: `This position is assigned to ${who}. Remove it from them first.`,
+  };
+}
+
 // A position lives under a site, so it cannot come back while that site is deleted.
 export function canRestorePosition({
   siteDeleted,

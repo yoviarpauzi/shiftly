@@ -2,9 +2,10 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { position } from "@/database/schema/position-schema";
 import { site } from "@/database/schema/site-schema";
+import { worker, workerPosition } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type {
   PositionAccess,
@@ -21,6 +22,7 @@ import {
 import { canWriteToSite } from "./position-access";
 import { requirePositionManager } from "./position-guard";
 import {
+  canDeletePosition,
   canRestorePosition,
   DUPLICATE_POSITION_NAME_MESSAGE,
   isPositionNameConflict,
@@ -113,22 +115,40 @@ export async function updatePosition(
   return { ok: true };
 }
 
-// Soft-deletes one position. The caller has already passed requirePositionManager().
+// Soft-deletes one position unless an active worker still has it. The caller has already passed
+// requirePositionManager(). The row lock stops a worker from being given this position until the
+// check has run, because saving a worker takes a share lock on its positions.
 async function softDeletePosition(
   id: string,
   access: PositionAccess,
 ): Promise<PositionActionResult> {
-  const deleted = await db
-    .update(position)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(position.id, id), isNull(position.deletedAt), positionScopeFilter(access)))
-    .returning({ id: position.id });
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ id: position.id })
+      .from(position)
+      .where(and(eq(position.id, id), isNull(position.deletedAt), positionScopeFilter(access)))
+      .for("update");
 
-  if (deleted.length === 0) {
-    return { ok: false, formError: POSITION_NOT_FOUND_MESSAGE };
-  }
+    if (!target) {
+      return { ok: false as const, formError: POSITION_NOT_FOUND_MESSAGE };
+    }
 
-  return { ok: true };
+    const [{ value: activeWorkers }] = await tx
+      .select({ value: count() })
+      .from(workerPosition)
+      .innerJoin(worker, eq(worker.id, workerPosition.workerId))
+      .where(and(eq(workerPosition.positionId, id), isNull(worker.deletedAt)));
+
+    const verdict = canDeletePosition({ activeWorkers });
+
+    if (!verdict.ok) {
+      return { ok: false as const, formError: verdict.formError };
+    }
+
+    await tx.update(position).set({ deletedAt: new Date() }).where(eq(position.id, id));
+
+    return { ok: true as const };
+  });
 }
 
 export async function deletePosition(id: string): Promise<PositionActionResult> {

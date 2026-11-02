@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bulkPositionDeleteMessage,
   bulkPositionRestoreMessage,
+  canDeletePosition,
   canRestorePosition,
   isPositionNameConflict,
 } from "./position-rules";
@@ -81,5 +82,25 @@ describe("bulkPositionRestoreMessage", () => {
 
   it("reports both outcomes when some positions were blocked", () => {
     expect(bulkPositionRestoreMessage(1, 1)).toBe("1 position restored, 1 could not be restored");
+  });
+});
+
+describe("canDeletePosition", () => {
+  it("allows deleting a position no active worker has", () => {
+    expect(canDeletePosition({ activeWorkers: 0 })).toEqual({ ok: true });
+  });
+
+  it("blocks deleting a position one active worker has", () => {
+    expect(canDeletePosition({ activeWorkers: 1 })).toEqual({
+      ok: false,
+      formError: "This position is assigned to 1 active worker. Remove it from them first.",
+    });
+  });
+
+  it("uses the plural for several workers", () => {
+    expect(canDeletePosition({ activeWorkers: 4 })).toEqual({
+      ok: false,
+      formError: "This position is assigned to 4 active workers. Remove it from them first.",
+    });
   });
 });

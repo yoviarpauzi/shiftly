@@ -166,7 +166,7 @@ export async function getRequest(
     return null;
   }
 
-  const lines = await db
+  const lineRows = await db
     .select({
       departmentId: rosterRequestLine.departmentId,
       subDepartmentId: rosterRequestLine.subDepartmentId,
@@ -176,6 +176,8 @@ export async function getRequest(
     .from(rosterRequestLine)
     .where(eq(rosterRequestLine.requestId, id))
     .orderBy(asc(rosterRequestLine.id));
+  // The column is optional until the day table replaces it, and the migration copied every existing line, so null cannot occur today. Task 3 removes this read.
+  const lines = lineRows.map((line) => ({ ...line, headcount: line.headcount ?? 0 }));
 
   return {
     ...row,

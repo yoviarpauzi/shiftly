@@ -65,8 +65,9 @@ export async function readImportSheet(
   return { ok: true, rows };
 }
 
-// The header, one example worker with a real date cell for the end of contract, and empty text cells in the employee ID column for every row the
-// import accepts, so Excel keeps IDs such as 00123 as typed.
+// The header, one example worker with a real date cell for the end of contract, and empty text
+// cells in the employee ID column for every row the import accepts, so Excel keeps IDs such as
+// 00123 as typed.
 export function buildImportTemplate(): Promise<Buffer> {
   const textCell = { type: String, format: "@" };
   const data: SheetData = [

@@ -32,6 +32,7 @@ import {
   FileIcon,
   MapPinIcon,
   BriefcaseIcon,
+  HardHatIcon,
 } from "lucide-react";
 
 const data = {
@@ -54,6 +55,12 @@ const data = {
       roles: ["superadmin", "ho"],
     },
     {
+      title: "Users",
+      url: "/dashboard/users",
+      icon: <UsersIcon />,
+      roles: ["superadmin", "ho"],
+    },
+    {
       title: "Department",
       url: "/dashboard/departments",
       icon: <FolderTreeIcon />,
@@ -66,10 +73,10 @@ const data = {
       roles: ["superadmin", "ho", "admin_site"],
     },
     {
-      title: "Users",
-      url: "/dashboard/users",
-      icon: <UsersIcon />,
-      roles: ["superadmin", "ho"],
+      title: "Worker",
+      url: "/dashboard/workers",
+      icon: <HardHatIcon />,
+      roles: ["superadmin", "ho", "admin_site"],
     },
   ],
   navClouds: [

@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 
 const TEMPLATE_URL = "/dashboard/workers/import/template";
 
+const UNEXPECTED_ERROR_MESSAGE = "Something went wrong. Try again.";
+
 function summaryText({ summary }: ImportPreview) {
   const errors = `${summary.error} ${summary.error === 1 ? "error" : "errors"}`;
 
@@ -87,6 +89,8 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
 
         toast.success(`${result.created} created, ${result.updated} updated`);
         onOpenChange(false);
+      } catch {
+        setFormError(UNEXPECTED_ERROR_MESSAGE);
       } finally {
         setIsSaving(false);
       }
@@ -112,6 +116,8 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
       } else {
         setFormError(result.formError);
       }
+    } catch {
+      setFormError(UNEXPECTED_ERROR_MESSAGE);
     } finally {
       setIsChecking(false);
     }
@@ -170,6 +176,11 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
                       accept=".xlsx"
                       disabled={isBusy}
                       aria-invalid={fileError !== null || undefined}
+                      // Picking the same path again fires no change event, so a fixed file would keep its old
+                      // preview. Clearing the value first makes every pick a change.
+                      onClick={(event) => {
+                        event.currentTarget.value = "";
+                      }}
                       onChange={(event) => {
                         const file = event.target.files?.[0] ?? null;
 

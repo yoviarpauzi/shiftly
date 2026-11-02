@@ -1,7 +1,7 @@
 import { readSheet } from "read-excel-file/node";
 import writeXlsxFile, { type SheetData } from "write-excel-file/node";
 import { IMPORT_COLUMNS, type ImportCell, type ImportColumn, type ImportRawRow } from "@/types/worker-import";
-import { checkImportHeaders, IMPORT_MAX_ROWS } from "@/validation/worker-import";
+import { checkImportHeaders, checkImportZip, IMPORT_MAX_ROWS } from "@/validation/worker-import";
 
 const NOT_A_WORKBOOK_MESSAGE = "The file is not a valid .xlsx workbook";
 
@@ -17,6 +17,12 @@ export async function readImportSheet(
   bytes: Buffer,
 ): Promise<{ ok: true; rows: ImportRawRow[] } | { ok: false; formError: string }> {
   let sheet: ImportCell[][];
+
+  const zipError = checkImportZip(bytes);
+
+  if (zipError) {
+    return { ok: false, formError: zipError };
+  }
 
   try {
     sheet = (await readSheet(bytes)) as ImportCell[][];

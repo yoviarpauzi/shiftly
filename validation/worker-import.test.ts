@@ -3,8 +3,11 @@ import {
   checkImportFileBytes,
   checkImportFileMeta,
   checkImportHeaders,
+  checkImportZip,
   IMPORT_MAX_BYTES,
+  IMPORT_MAX_EXPANDED_BYTES,
 } from "./worker-import";
+import { fakeZip } from "./zip-fixture";
 
 describe("checkImportFileMeta", () => {
   it("accepts a .xlsx file at the size limit", () => {
@@ -69,5 +72,38 @@ describe("checkImportHeaders", () => {
     const result = checkImportHeaders([1, null, true, new Date(0)]);
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("checkImportZip", () => {
+  const half = IMPORT_MAX_EXPANDED_BYTES / 2;
+
+  it("accepts a workbook that unzips to exactly the limit", () => {
+    expect(checkImportZip(fakeZip([half, half]))).toBeNull();
+  });
+
+  it("rejects a workbook that unzips to more than the limit", () => {
+    expect(checkImportZip(fakeZip([half, half + 1]))).toContain("unzipped");
+  });
+
+  it("rejects one huge entry", () => {
+    expect(checkImportZip(fakeZip([4_000_000_000]))).toContain("unzipped");
+  });
+
+  it("rejects zip64 markers it cannot read", () => {
+    expect(checkImportZip(fakeZip([10], { entries: 0xffff }))).toContain("unzipped");
+    expect(checkImportZip(fakeZip([10], { cdOffset: 0xffffffff }))).toContain("unzipped");
+  });
+
+  it("rejects bytes without an end record", () => {
+    expect(checkImportZip(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBe(
+      "The file is not a valid .xlsx workbook",
+    );
+  });
+
+  it("rejects a central directory shorter than its end record claims", () => {
+    expect(checkImportZip(fakeZip([10], { entries: 5 }))).toBe(
+      "The file is not a valid .xlsx workbook",
+    );
   });
 });

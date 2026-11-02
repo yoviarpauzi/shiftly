@@ -42,7 +42,8 @@ async function readUpload(
 ): Promise<{ ok: true; rows: ImportRawRow[] } | { ok: false; formError: string }> {
   const file = formData.get("file");
 
-  if (!(file instanceof File)) {
+  // FormData holds a string or a File, so this does not depend on which File class the decoder built.
+  if (file === null || typeof file === "string") {
     return { ok: false, formError: "Choose an .xlsx file" };
   }
 

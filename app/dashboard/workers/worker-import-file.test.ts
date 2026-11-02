@@ -1,6 +1,7 @@
 import writeXlsxFile, { type SheetData } from "write-excel-file/node";
 import { describe, expect, it } from "vitest";
-import { IMPORT_MAX_ROWS } from "@/validation/worker-import";
+import { IMPORT_MAX_EXPANDED_BYTES, IMPORT_MAX_ROWS } from "@/validation/worker-import";
+import { fakeZip } from "@/validation/zip-fixture";
 import { buildImportTemplate, readImportSheet } from "./worker-import-file";
 
 const HEADER = ["employee_id", "name", "site", "location", "positions"];
@@ -101,6 +102,12 @@ describe("readImportSheet", () => {
     const result = await readImportSheet(await xlsx([["employee_id", "name"], ["EMP-1", "Budi"]]));
 
     expect(result).toEqual({ ok: false, formError: "Missing columns: site, location, positions" });
+  });
+
+  it("rejects a workbook that would unzip past the limit before reading it", async () => {
+    const result = await readImportSheet(Buffer.from(fakeZip([IMPORT_MAX_EXPANDED_BYTES + 1])));
+
+    expect(result).toEqual({ ok: false, formError: "The file is too large once unzipped" });
   });
 
   it("rejects bytes that are not a workbook", async () => {

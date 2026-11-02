@@ -31,7 +31,76 @@ export function checkImportFileMeta({ name, size }: { name: string; size: number
 export function checkImportFileBytes(bytes: Uint8Array): string | null {
   const isZip = ZIP_SIGNATURE.every((byte, index) => bytes[index] === byte);
 
-  return isZip ? null : "The file is not a valid .xlsx workbook";
+  return isZip ? null : NOT_A_WORKBOOK_MESSAGE;
+}
+
+// A few KB of zip can inflate to gigabytes, and the reader unzips everything before it looks at a row.
+// Generous for a sheet of 500 rows, small enough that the server never holds a bomb in memory.
+export const IMPORT_MAX_EXPANDED_BYTES = 20_000_000;
+
+const NOT_A_WORKBOOK_MESSAGE = "The file is not a valid .xlsx workbook";
+
+const TOO_LARGE_UNZIPPED_MESSAGE = "The file is too large once unzipped";
+
+const END_RECORD_SIGNATURE = 0x06054b50;
+
+const ENTRY_SIGNATURE = 0x02014b50;
+
+const END_RECORD_LENGTH = 22;
+
+const ENTRY_HEADER_LENGTH = 46;
+
+// Adds up the unzipped size every entry declares in the zip's central directory, without unzipping.
+// A zip64 marker is refused because a real workbook of this size never needs it.
+export function checkImportZip(bytes: Uint8Array): string | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const earliest = Math.max(0, bytes.length - END_RECORD_LENGTH - 0xffff);
+  let end = -1;
+
+  for (let at = bytes.length - END_RECORD_LENGTH; at >= earliest; at -= 1) {
+    if (view.getUint32(at, true) === END_RECORD_SIGNATURE) {
+      end = at;
+      break;
+    }
+  }
+
+  if (end < 0) {
+    return NOT_A_WORKBOOK_MESSAGE;
+  }
+
+  const entries = view.getUint16(end + 10, true);
+  let position = view.getUint32(end + 16, true);
+
+  if (entries === 0xffff || position === 0xffffffff) {
+    return TOO_LARGE_UNZIPPED_MESSAGE;
+  }
+
+  let total = 0;
+
+  for (let entry = 0; entry < entries; entry += 1) {
+    if (
+      position + ENTRY_HEADER_LENGTH > bytes.length ||
+      view.getUint32(position, true) !== ENTRY_SIGNATURE
+    ) {
+      return NOT_A_WORKBOOK_MESSAGE;
+    }
+
+    const size = view.getUint32(position + 24, true);
+
+    total += size;
+
+    if (size === 0xffffffff || total > IMPORT_MAX_EXPANDED_BYTES) {
+      return TOO_LARGE_UNZIPPED_MESSAGE;
+    }
+
+    const nameLength = view.getUint16(position + 28, true);
+    const extraLength = view.getUint16(position + 30, true);
+    const commentLength = view.getUint16(position + 32, true);
+
+    position += ENTRY_HEADER_LENGTH + nameLength + extraLength + commentLength;
+  }
+
+  return null;
 }
 
 export function checkImportHeaders(

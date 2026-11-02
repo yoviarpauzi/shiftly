@@ -59,12 +59,13 @@ export function requestScopeFilter(access: RequestAccess): SQL | undefined {
 // Matches the PO number case-insensitively. An empty query matches every request in the filters.
 function requestFilter(
   access: RequestAccess,
-  { query, status, type, locationId }: RequestListParams,
+  { query, status, type, siteId, locationId }: RequestListParams,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     requestScopeFilter(access),
+    siteId ? eq(rosterRequest.siteId, siteId) : undefined,
     locationId ? eq(rosterRequest.locationId, locationId) : undefined,
     status !== "all" ? eq(rosterRequest.status, status) : undefined,
     type !== "all" ? eq(rosterRequest.type, type) : undefined,

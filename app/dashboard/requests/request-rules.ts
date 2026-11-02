@@ -114,3 +114,17 @@ export function requestFieldErrors(
 
   return errors;
 }
+
+// Superadmin picks a site first, so until then there are no locations to filter by. HO has one
+// site, so its locations are listed as they are.
+export function requestLocationsFor(
+  locations: { id: string; name: string; siteId: string }[],
+  siteId: string | null,
+  pickSite: boolean,
+): { id: string; name: string; siteId: string }[] {
+  if (pickSite && !siteId) {
+    return [];
+  }
+
+  return locations.filter((location) => !siteId || location.siteId === siteId);
+}

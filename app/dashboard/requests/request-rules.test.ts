@@ -6,6 +6,7 @@ import {
   initialStatus,
   lineScopeError,
   requestFieldErrors,
+  requestLocationsFor,
   siteCodeMissingMessage,
   statusAfterEdit,
 } from "./request-rules";
@@ -170,5 +171,29 @@ describe("siteCodeMissingMessage", () => {
 
     expect(message).toContain("Nestle Kejayan");
     expect(message).toContain("Add a code to the site before creating requests");
+  });
+});
+
+describe("requestLocationsFor", () => {
+  const LOCATIONS = [
+    { id: "loc-1", name: "Gate 1", siteId: "site-a" },
+    { id: "loc-2", name: "Gate 2", siteId: "site-a" },
+    { id: "loc-3", name: "Pier", siteId: "site-b" },
+  ];
+
+  it("offers no locations to a site picker until a site is chosen", () => {
+    expect(requestLocationsFor(LOCATIONS, null, true)).toEqual([]);
+  });
+
+  it("offers only the locations of the chosen site", () => {
+    expect(requestLocationsFor(LOCATIONS, "site-a", true)).toEqual([
+      LOCATIONS[0],
+      LOCATIONS[1],
+    ]);
+    expect(requestLocationsFor(LOCATIONS, "site-b", true)).toEqual([LOCATIONS[2]]);
+  });
+
+  it("offers every location when the actor has no site to pick", () => {
+    expect(requestLocationsFor(LOCATIONS, null, false)).toEqual(LOCATIONS);
   });
 });

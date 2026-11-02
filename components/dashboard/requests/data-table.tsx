@@ -22,6 +22,7 @@ import {
 import { RejectRequestDialog } from "@/components/dashboard/requests/reject-request-dialog";
 import { RequestsLocationFilter } from "@/components/dashboard/requests/requests-location-filter";
 import { RequestsSearch } from "@/components/dashboard/requests/requests-search";
+import { RequestsSiteFilter } from "@/components/dashboard/requests/requests-site-filter";
 import { RequestsStatusFilter } from "@/components/dashboard/requests/requests-status-filter";
 import { RequestsTypeFilter } from "@/components/dashboard/requests/requests-type-filter";
 import { buttonVariants } from "@/components/ui/button";
@@ -38,6 +39,9 @@ export function RequestsDataTable({
   data,
   status,
   type,
+  pickSite,
+  siteId,
+  sites,
   locationId,
   locations,
   sort,
@@ -99,7 +103,11 @@ export function RequestsDataTable({
   }
 
   const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
-  const filtered = status !== "all" || type !== "all" || locationId !== null;
+  const filtered =
+    status !== "all" ||
+    type !== "all" ||
+    siteId !== null ||
+    locationId !== null;
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -108,7 +116,8 @@ export function RequestsDataTable({
           <RequestsSearch />
           <RequestsStatusFilter status={status} />
           <RequestsTypeFilter type={type} />
-          {locations.length > 1 && (
+          {pickSite && <RequestsSiteFilter siteId={siteId} sites={sites} />}
+          {(!pickSite || siteId !== null) && locations.length > 1 && (
             <RequestsLocationFilter
               locationId={locationId}
               locations={locations}

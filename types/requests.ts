@@ -1,4 +1,5 @@
 import type { db } from "@/lib/db";
+import type { SiteOption } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 
@@ -55,6 +56,8 @@ export type RequestPage = {
 export type RequestListParams = PageParams & {
   status: RequestStatusFilter;
   type: RequestTypeFilter;
+  // null means every site the actor can see.
+  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<RequestSortColumn>[];
@@ -93,7 +96,12 @@ export type RequestsDataTableProps = {
   data: RequestPage;
   status: RequestStatusFilter;
   type: RequestTypeFilter;
+  // True for a superadmin with more than one site. HO and admin site get no site filter.
+  pickSite: boolean;
+  siteId: string | null;
+  sites: SiteOption[];
   locationId: string | null;
+  // The locations the location filter offers, already narrowed to the chosen site.
   locations: RequestLocationOption[];
   sort: SortCriterion<RequestSortColumn>[];
   // True for superadmin and HO. The server checks again in the action.
@@ -103,6 +111,11 @@ export type RequestsDataTableProps = {
 export type RequestStatusFilterProps = { status: RequestStatusFilter };
 
 export type RequestTypeFilterProps = { type: RequestTypeFilter };
+
+export type RequestSiteFilterProps = {
+  siteId: string | null;
+  sites: SiteOption[];
+};
 
 export type RequestLocationFilterProps = {
   locationId: string | null;

@@ -1,6 +1,8 @@
 import type {
   RequestChoices,
   RequestDetail,
+  RequestFieldErrors,
+  RequestFormFieldErrors,
   RequestFormLine,
   RequestFormValues,
   RequestLineInput,
@@ -182,6 +184,27 @@ export function requestFormDefaults(
     locationId: onlyLocationId(choices, siteId),
     lines: [blankLine()],
   };
+}
+
+export const SITE_REQUIRED_MESSAGE = "Choose a site";
+
+// With no site chosen the location select is disabled, so its error would sit under a field the
+// user cannot use. When the site picker shows, that error moves onto the site. A fixed-text site
+// has no place for an error, so nothing moves then.
+export function withSiteError(
+  errors: RequestFieldErrors,
+  siteId: string,
+  pickSite: boolean,
+): RequestFormFieldErrors {
+  if (!pickSite || siteId !== "" || !errors.locationId) {
+    return errors;
+  }
+
+  const moved: RequestFormFieldErrors = { ...errors, siteId: SITE_REQUIRED_MESSAGE };
+
+  delete moved.locationId;
+
+  return moved;
 }
 
 export function returnsToPending(request: Pick<RequestDetail, "type" | "status">): boolean {

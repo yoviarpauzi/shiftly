@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { RequestChoices, RequestDetail, RequestFormLine } from "@/types/requests";
+import type {
+  RequestChoices,
+  RequestDetail,
+  RequestFieldErrors,
+  RequestFormLine,
+} from "@/types/requests";
 import {
   MAX_REQUEST_LINES,
+  SITE_REQUIRED_MESSAGE,
   afterSiteChange,
   blankLine,
   canAddLine,
@@ -19,6 +25,7 @@ import {
   returnsToPending,
   subDepartmentsFor,
   toRequestLineInputs,
+  withSiteError,
 } from "./request-form-options";
 
 const SITE_A = "a0000000-0000-4000-8000-000000000000";
@@ -378,5 +385,43 @@ describe("status helpers", () => {
     expect(isReadOnlyStatus("cancelled")).toBe(true);
     expect(isReadOnlyStatus("pending")).toBe(false);
     expect(isReadOnlyStatus("approved")).toBe(false);
+  });
+});
+
+describe("withSiteError", () => {
+  const errors: RequestFieldErrors = {
+    locationId: "Choose a location",
+    lines: "Add at least one line",
+  };
+
+  it("moves the location error onto the site when the site picker shows and no site is chosen", () => {
+    const next = withSiteError(errors, "", true);
+
+    expect(SITE_REQUIRED_MESSAGE).toBe("Choose a site");
+    expect(next).toEqual({ siteId: "Choose a site", lines: "Add at least one line" });
+    expect("locationId" in next).toBe(false);
+  });
+
+  it("keeps a location error on the location once a site is chosen", () => {
+    expect(withSiteError(errors, SITE_A, true)).toEqual(errors);
+  });
+
+  it("leaves the errors alone when the site is fixed text, which cannot show an error", () => {
+    expect(withSiteError(errors, "", false)).toEqual(errors);
+  });
+
+  it("adds nothing when there is no location error", () => {
+    const other: RequestFieldErrors = { type: "Choose a type" };
+
+    expect(withSiteError(other, "", true)).toEqual(other);
+    expect(withSiteError({}, "", true)).toEqual({});
+  });
+
+  it("does not change the errors it is given", () => {
+    const input: RequestFieldErrors = { ...errors };
+
+    withSiteError(input, "", true);
+
+    expect(input).toEqual(errors);
   });
 });

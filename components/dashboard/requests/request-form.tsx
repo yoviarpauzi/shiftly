@@ -21,6 +21,7 @@ import {
   returnsToPending,
   subDepartmentsFor,
   toRequestLineInputs,
+  withSiteError,
 } from "@/app/dashboard/requests/request-form-options";
 import {
   linesHeadcountsError,
@@ -28,7 +29,7 @@ import {
 } from "@/app/dashboard/requests/request-rules";
 import { jakartaDate } from "@/lib/indonesia-date";
 import type {
-  RequestFieldErrors,
+  RequestFormFieldErrors,
   RequestFormProps,
   RequestFormValues,
 } from "@/types/requests";
@@ -66,10 +67,11 @@ function fieldError(message: string | undefined) {
   return message ? { message } : undefined;
 }
 
-function errorFields(errors: RequestFieldErrors) {
+function errorFields(errors: RequestFormFieldErrors) {
   return {
     type: fieldError(errors.type),
     startDate: fieldError(errors.startDate),
+    siteId: fieldError(errors.siteId),
     locationId: fieldError(errors.locationId),
     lines: fieldError(errors.lines),
   };
@@ -92,6 +94,9 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
     lines: toRequestLineInputs(lineType(value), value.lines),
   });
 
+  // Exactly when the Site field below renders its picker.
+  const pickSite = !request && choices.sites.length > 1;
+
   const form = useForm({
     defaultValues,
     // On edit the server decides the date rule: a stored date that has passed may be kept.
@@ -103,7 +108,9 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
           : createRequestSchema(jakartaDate()).safeParse(input);
 
         if (!parsed.success) {
-          return { fields: errorFields(requestFieldErrors(parsed.error.issues)) };
+          const errors = requestFieldErrors(parsed.error.issues);
+
+          return { fields: errorFields(withSiteError(errors, value.siteId, pickSite)) };
         }
 
         // A create without a type has already failed the schema above.
@@ -277,8 +284,10 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                       );
                     }
 
+                    const isInvalid = field.state.meta.errors.length > 0;
+
                     return (
-                      <Field>
+                      <Field data-invalid={isInvalid || undefined}>
                         <FieldLabel htmlFor={field.name}>Site</FieldLabel>
                         <Select
                           value={field.state.value || null}
@@ -297,7 +306,11 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                           }))}
                           disabled={disabled}
                         >
-                          <SelectTrigger id={field.name} className="w-full">
+                          <SelectTrigger
+                            id={field.name}
+                            className="w-full"
+                            aria-invalid={isInvalid || undefined}
+                          >
                             <SelectValue placeholder="Choose a site" />
                           </SelectTrigger>
                           <SelectContent>
@@ -310,6 +323,9 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                             </SelectGroup>
                           </SelectContent>
                         </Select>
+                        {isInvalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
                       </Field>
                     );
                   }}

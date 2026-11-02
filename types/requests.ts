@@ -77,6 +77,9 @@ export type RequestField = "type" | "startDate" | "locationId" | "lines";
 
 export type RequestFieldErrors = Partial<Record<RequestField, string>>;
 
+// The server never reports a site error, so only the form adds one.
+export type RequestFormFieldErrors = RequestFieldErrors & { siteId?: string };
+
 export type RequestActionResult =
   | { ok: true; id?: string; poNumber?: string }
   | {

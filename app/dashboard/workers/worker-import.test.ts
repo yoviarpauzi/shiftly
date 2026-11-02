@@ -1,0 +1,268 @@
+import { describe, expect, it } from "vitest";
+import type { ImportCell, ImportColumn, ImportLookups, ImportRawRow } from "@/types/worker-import";
+import type { WorkerAccess } from "@/types/workers";
+import { importEmployeeIds, resolveImportRows, summarizeImport } from "./worker-import";
+
+const EVERYWHERE: WorkerAccess = { siteId: null, locationId: null };
+
+const lookups: ImportLookups = {
+  sites: [
+    { id: "s1", name: "Alpha" },
+    { id: "s2", name: "Beta" },
+  ],
+  locations: [
+    { id: "l1", siteId: "s1", name: "Gudang" },
+    { id: "l2", siteId: "s1", name: "Kantor" },
+    { id: "l3", siteId: "s2", name: "Pabrik" },
+  ],
+  positions: [
+    { id: "p1", siteId: "s1", name: "Operator" },
+    { id: "p2", siteId: "s1", name: "Driver" },
+    { id: "p3", siteId: "s2", name: "Operator" },
+  ],
+  existing: [],
+};
+
+const existingWorker = { id: "w1", employeeId: "EMP-1", siteId: "s1", locationId: "l1" };
+
+function row(
+  rowNumber: number,
+  cells: Partial<Record<ImportColumn, ImportCell>> = {},
+): ImportRawRow {
+  return {
+    rowNumber,
+    cells: {
+      employee_id: "EMP-1",
+      name: "Budi",
+      site: "Alpha",
+      location: "Gudang",
+      positions: "",
+      ...cells,
+    },
+  };
+}
+
+function resolveOne(
+  cells: Partial<Record<ImportColumn, ImportCell>>,
+  options: { lookups?: ImportLookups; access?: WorkerAccess } = {},
+) {
+  return resolveImportRows([row(2, cells)], options.lookups ?? lookups, options.access ?? EVERYWHERE)[0];
+}
+
+describe("resolveImportRows", () => {
+  it("resolves a valid row as a create", () => {
+    const result = resolveOne({ positions: "Operator, Driver" });
+
+    expect(result).toMatchObject({
+      action: "create",
+      workerId: null,
+      siteId: "s1",
+      locationId: "l1",
+      positionIds: ["p1", "p2"],
+      errors: [],
+    });
+  });
+
+  it("matches names ignoring case and padding", () => {
+    const result = resolveOne({ site: " alpha ", location: "GUDANG", positions: "operator" });
+
+    expect(result).toMatchObject({
+      action: "create",
+      siteId: "s1",
+      locationId: "l1",
+      positionIds: ["p1"],
+    });
+  });
+
+  it("resolves an existing employee ID in scope as an update", () => {
+    const result = resolveOne(
+      { employee_id: "emp-1" },
+      { lookups: { ...lookups, existing: [existingWorker] } },
+    );
+
+    expect(result).toMatchObject({ action: "update", workerId: "w1" });
+  });
+
+  it("gives the same result when the same file is imported again", () => {
+    const withExisting = { ...lookups, existing: [existingWorker] };
+    const rows = [row(2, { positions: "Operator" }), row(3, { employee_id: "EMP-2", name: "Sari" })];
+
+    const first = resolveImportRows(rows, withExisting, EVERYWHERE);
+    const second = resolveImportRows(rows, withExisting, EVERYWHERE);
+
+    expect(second).toEqual(first);
+    expect(first.map((item) => item.action)).toEqual(["update", "create"]);
+    expect(first.flatMap((item) => item.errors)).toEqual([]);
+  });
+
+  it("rejects an employee ID that belongs to a worker out of scope", () => {
+    const result = resolveOne(
+      { site: "Beta", location: "Pabrik" },
+      {
+        access: { siteId: "s2", locationId: null },
+        lookups: { ...lookups, existing: [existingWorker] },
+      },
+    );
+
+    expect(result).toMatchObject({
+      action: "error",
+      errors: ["Employee ID is already used by another worker"],
+    });
+  });
+
+  it("flags an employee ID that repeats in the file, ignoring case", () => {
+    const [first, second] = resolveImportRows(
+      [row(2), row(3, { employee_id: "emp-1" })],
+      lookups,
+      EVERYWHERE,
+    );
+
+    expect(first.action).toBe("create");
+    expect(second).toMatchObject({ action: "error" });
+    expect(second.errors[0]).toContain("first in row 2");
+  });
+
+  it("treats an employee ID as new when only a deleted worker has it", () => {
+    // The loader leaves soft-deleted workers out of existing, as the unique index does.
+    expect(resolveOne({}).action).toBe("create");
+  });
+
+  it("gives an out-of-scope site the same message as an unknown site", () => {
+    const limited = { ...lookups, sites: [{ id: "s2", name: "Beta" }] };
+    const outOfScope = resolveOne({ site: "Alpha" }, { lookups: limited });
+    const unknown = resolveOne({ site: "Nowhere" }, { lookups: limited });
+
+    expect(outOfScope.errors).toEqual(["Site not found"]);
+    expect(unknown.errors).toEqual(outOfScope.errors);
+  });
+
+  it("rejects a location outside the list an admin site may use", () => {
+    const limited = { ...lookups, locations: [{ id: "l1", siteId: "s1", name: "Gudang" }] };
+    const result = resolveOne(
+      { location: "Kantor" },
+      { lookups: limited, access: { siteId: "s1", locationId: "l1" } },
+    );
+
+    expect(result.errors).toEqual(["Location not found in this site"]);
+  });
+
+  it("stops an admin site at the write guard when a lookup leaks another location", () => {
+    const result = resolveOne(
+      { location: "Kantor" },
+      { access: { siteId: "s1", locationId: "l1" } },
+    );
+
+    expect(result.action).toBe("error");
+    expect(result.errors).toContain("Site not found");
+  });
+
+  it("does not let HO move a worker to another site", () => {
+    const result = resolveOne(
+      { site: "Beta", location: "Pabrik" },
+      {
+        access: { siteId: "s1", locationId: null },
+        lookups: {
+          ...lookups,
+          sites: [{ id: "s1", name: "Alpha" }],
+          existing: [existingWorker],
+        },
+      },
+    );
+
+    expect(result.errors).toEqual(["Site not found"]);
+  });
+
+  it("rejects a location that belongs to another site", () => {
+    const result = resolveOne({ site: "Alpha", location: "Pabrik" });
+
+    expect(result.errors).toEqual(["Location not found in this site"]);
+  });
+
+  it("dedupes positions and ignores blanks, keeping the first spelling", () => {
+    const result = resolveOne({ positions: "Operator, operator,, Driver ," });
+
+    expect(result).toMatchObject({
+      positionIds: ["p1", "p2"],
+      positionNames: ["Operator", "Driver"],
+    });
+  });
+
+  it("allows an empty positions cell", () => {
+    const result = resolveOne({ positions: "" });
+
+    expect(result).toMatchObject({ action: "create", positionIds: [] });
+  });
+
+  it("names the positions that are not available", () => {
+    const result = resolveOne({ positions: "Operator, Ghost, Spare" });
+
+    expect(result.errors).toEqual(["Positions not available in this site: Ghost, Spare"]);
+  });
+
+  it("looks positions up inside the row's site", () => {
+    const result = resolveOne({ positions: "Operator" });
+
+    expect(result).toMatchObject({ positionIds: ["p1"] });
+  });
+
+  it("collects every error of a row", () => {
+    const result = resolveOne({ employee_id: "", name: "", site: "Nowhere" });
+
+    expect(result.errors).toEqual([
+      "Employee ID is required",
+      "Name is required",
+      "Site not found",
+    ]);
+  });
+
+  it("turns numeric cells into text", () => {
+    expect(resolveOne({ employee_id: 12345 }).employeeId).toBe("12345");
+  });
+
+  it("rejects boolean and date cells in text columns", () => {
+    expect(resolveOne({ name: true }).errors).toEqual(["name must be text"]);
+    expect(resolveOne({ employee_id: new Date(0) }).errors).toEqual(["employee_id must be text"]);
+  });
+
+  it("rejects a name over 100 characters", () => {
+    expect(resolveOne({ name: "x".repeat(101) }).errors).toEqual([
+      "Name must be 100 characters or fewer",
+    ]);
+  });
+
+  it("keeps the input order and is deterministic", () => {
+    const rows = [row(5, { employee_id: "A" }), row(3, { employee_id: "B" }), row(9, { employee_id: "C" })];
+
+    const first = resolveImportRows(rows, lookups, EVERYWHERE);
+
+    expect(first.map((item) => item.rowNumber)).toEqual([5, 3, 9]);
+    expect(resolveImportRows(rows, lookups, EVERYWHERE)).toEqual(first);
+  });
+});
+
+describe("summarizeImport", () => {
+  it("counts creates, updates, and errors", () => {
+    const rows = resolveImportRows(
+      [row(2), row(3, { employee_id: "EMP-2", site: "Nowhere" }), row(4, { employee_id: "EMP-1" })],
+      { ...lookups, existing: [existingWorker] },
+      EVERYWHERE,
+    );
+
+    // Row 2 and row 4 share EMP-1, so row 4 repeats the ID and is an error.
+    expect(summarizeImport(rows)).toEqual({ create: 0, update: 1, error: 2 });
+  });
+});
+
+describe("importEmployeeIds", () => {
+  it("lists the trimmed employee IDs the loader should look up", () => {
+    const rows = [
+      row(2, { employee_id: " A " }),
+      row(3, { employee_id: 12 }),
+      row(4, { employee_id: true }),
+      row(5, { employee_id: "" }),
+      row(6, { employee_id: null }),
+    ];
+
+    expect(importEmployeeIds(rows)).toEqual(["A", "12"]);
+  });
+});

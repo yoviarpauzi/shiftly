@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type RowSelectionState, useTable } from "@tanstack/react-table";
-import { PlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import { DownloadIcon, PlusIcon, RotateCcwIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { bulkSelectionMode } from "@/app/dashboard/departments/department-rules";
 import { restoreWorker, restoreWorkers } from "@/app/dashboard/workers/actions";
@@ -23,12 +23,13 @@ import { TablePagination } from "@/components/dashboard/pagination";
 import { BulkDeleteWorkersDialog } from "@/components/dashboard/workers/bulk-delete-workers-dialog";
 import { createWorkerColumns, features } from "@/components/dashboard/workers/columns";
 import { DeleteWorkerDialog } from "@/components/dashboard/workers/delete-worker-dialog";
+import { ImportWorkersDialog } from "@/components/dashboard/workers/import-workers-dialog";
 import { WorkerFormDialog } from "@/components/dashboard/workers/worker-form-dialog";
 import { WorkersPositionFilter } from "@/components/dashboard/workers/workers-position-filter";
 import { WorkersSearch } from "@/components/dashboard/workers/workers-search";
 import { WorkersSelectFilter } from "@/components/dashboard/workers/workers-select-filter";
 import { WorkersStatusFilter } from "@/components/dashboard/workers/workers-status-filter";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -37,6 +38,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+const IMPORT_TEMPLATE_URL = "/dashboard/workers/import/template";
 
 async function restoreWithToast(worker: WorkerRow) {
   const result = await restoreWorker(worker.id);
@@ -76,6 +79,8 @@ export function WorkersDataTable({
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [formKey, setFormKey] = React.useState(0);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importKey, setImportKey] = React.useState(0);
   const [editingWorker, setEditingWorker] = React.useState<WorkerRow | null>(null);
   const [deletingWorker, setDeletingWorker] = React.useState<WorkerRow | null>(null);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -87,6 +92,12 @@ export function WorkersDataTable({
     setEditingWorker(worker);
     setFormKey((key) => key + 1);
     setFormOpen(true);
+  }, []);
+
+  // A new key remounts the dialog, so each open starts without the last file.
+  const openImport = React.useCallback(() => {
+    setImportKey((key) => key + 1);
+    setImportOpen(true);
   }, []);
 
   // A header click changes the URL, so the server sorts the page. The page goes back to 1.
@@ -201,10 +212,24 @@ export function WorkersDataTable({
             <WorkersPositionFilter positions={positions} value={positionId} />
           )}
         </div>
-        <Button onClick={() => openForm(null)}>
-          <PlusIcon data-icon="inline-start" />
-          Add worker
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href={IMPORT_TEMPLATE_URL}
+            download
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            Template
+          </a>
+          <Button variant="outline" onClick={openImport}>
+            <UploadIcon data-icon="inline-start" />
+            Import
+          </Button>
+          <Button onClick={() => openForm(null)}>
+            <PlusIcon data-icon="inline-start" />
+            Add worker
+          </Button>
+        </div>
       </div>
       {selectionMode !== "none" && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted px-4 py-2">
@@ -303,6 +328,12 @@ export function WorkersDataTable({
         options={options}
         open={formOpen}
         onOpenChange={setFormOpen}
+      />
+      {/* The prefix keeps this key apart from formKey, since both counters start at 0 and share a parent. */}
+      <ImportWorkersDialog
+        key={`import-${importKey}`}
+        open={importOpen}
+        onOpenChange={setImportOpen}
       />
       <BulkDeleteWorkersDialog
         workers={selectedWorkers}

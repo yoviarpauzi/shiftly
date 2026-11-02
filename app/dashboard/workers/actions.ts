@@ -6,7 +6,7 @@ import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
 import { site } from "@/database/schema/site-schema";
-import { worker, workerPosition } from "@/database/schema/worker-schema";
+import { worker } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type {
   WorkerAccess,
@@ -32,11 +32,10 @@ import {
   WORKER_NOT_FOUND_MESSAGE,
   WORKER_RESTORE_CONFLICT_MESSAGE,
 } from "./worker-rules";
+import { replacePositions, type Transaction } from "./worker-write";
 import { workerScopeFilter } from "./workers";
 
 const WORKERS_PATH = "/dashboard/workers";
-
-type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const FIELD_KEYS: (keyof WorkerFieldErrors)[] = [
   "employeeId",
@@ -133,20 +132,6 @@ async function checkTargets(
   }
 
   return { ok: true };
-}
-
-async function replacePositions(
-  tx: Transaction,
-  workerId: string,
-  positionIds: string[],
-) {
-  await tx.delete(workerPosition).where(eq(workerPosition.workerId, workerId));
-
-  if (positionIds.length > 0) {
-    await tx
-      .insert(workerPosition)
-      .values(positionIds.map((positionId) => ({ workerId, positionId })));
-  }
 }
 
 export async function createWorker(

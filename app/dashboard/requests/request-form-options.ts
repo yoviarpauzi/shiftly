@@ -72,7 +72,6 @@ export function requestFormDefaults(
       type: request.type,
       startDate: request.startDate,
       locationId: request.locationId,
-      note: request.note ?? "",
       lines: request.lines,
     };
   }
@@ -81,7 +80,6 @@ export function requestFormDefaults(
     type: "",
     startDate: "",
     locationId: choices.locations.length === 1 ? choices.locations[0].id : "",
-    note: "",
     lines: [blankLine()],
   };
 }

@@ -193,11 +193,10 @@ const createInput = {
   type: "daily" as const,
   startDate: FUTURE,
   locationId: LOCATION_A,
-  note: "Night cover",
   lines: [line],
 };
 
-const updateInput = { startDate: FUTURE, note: null, lines: [line] };
+const updateInput = { startDate: FUTURE, lines: [line] };
 
 function seedLocationChoices() {
   fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL" }];
@@ -265,10 +264,10 @@ describe("createRequest", () => {
       siteId: SITE_A,
       locationId: LOCATION_A,
       status: "approved",
-      note: "Night cover",
       createdBy: "admin-a",
       updatedBy: "admin-a",
     });
+    expect(writes()[0].values).not.toHaveProperty("note");
     expect(writes()[1].values).toEqual([
       {
         requestId: "request-new",
@@ -405,9 +404,9 @@ describe("updateRequest", () => {
     expect(locked?.lock).toBe("update");
     expect(whereParams(locked?.where)).toEqual([REQUEST_ID, SITE_A]);
 
+    expect(requestUpdate()?.set).not.toHaveProperty("note");
     expect(requestUpdate()?.set).toEqual({
       startDate: FUTURE,
-      note: null,
       status: "pending",
       updatedBy: "ho-a",
       decidedBy: null,
@@ -427,7 +426,6 @@ describe("updateRequest", () => {
     expect(res).toEqual({ ok: true });
     expect(requestUpdate()?.set).toEqual({
       startDate: FUTURE,
-      note: null,
       status: "approved",
       updatedBy: "super-1",
     });

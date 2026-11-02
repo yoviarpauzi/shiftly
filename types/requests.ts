@@ -40,7 +40,6 @@ export type RequestRow = {
 };
 
 export type RequestDetail = RequestRow & {
-  note: string | null;
   rejectReason: string | null;
   lines: RequestLineInput[];
 };
@@ -67,7 +66,7 @@ export type RequestChoices = {
   positions: { id: string; name: string; siteId: string }[];
 };
 
-export type RequestField = "type" | "startDate" | "locationId" | "note" | "lines";
+export type RequestField = "type" | "startDate" | "locationId" | "lines";
 
 export type RequestFieldErrors = Partial<Record<RequestField, string>>;
 
@@ -136,7 +135,6 @@ export type RequestFormValues = {
   type: RequestType | "";
   startDate: string;
   locationId: string;
-  note: string;
   lines: RequestLineInput[];
 };
 

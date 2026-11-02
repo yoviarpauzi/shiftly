@@ -48,7 +48,6 @@ export const rosterRequest = pgTable(
       .references(() => location.id, { onDelete: "restrict" }),
     // pending, approved, rejected, or cancelled.
     status: text("status").notNull(),
-    note: text("note"),
     rejectReason: text("reject_reason"),
     createdBy: text("created_by")
       .notNull()

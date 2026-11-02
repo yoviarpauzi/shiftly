@@ -162,7 +162,6 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
         siteId: target.siteId,
         locationId: target.id,
         status: initialStatus(data.type),
-        note: data.note,
         createdBy: user.id,
         updatedBy: user.id,
       })
@@ -180,7 +179,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
   return result;
 }
 
-// Start date, note, and lines change. Type and location are fixed after creation.
+// Start date and lines change. Type and location are fixed after creation.
 export async function updateRequest(
   id: string,
   input: RequestUpdateInput,
@@ -240,7 +239,6 @@ export async function updateRequest(
       .update(rosterRequest)
       .set({
         startDate: data.startDate,
-        note: data.note,
         status: nextStatus,
         updatedBy: user.id,
         ...(clearsDecision ? { decidedBy: null, decidedAt: null, rejectReason: null } : {}),

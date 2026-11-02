@@ -19,7 +19,6 @@ const base = {
   type: "daily",
   startDate: "2026-11-02",
   locationId: LOCATION_ID,
-  note: "Extra hands for the dock",
   lines: [line],
 };
 
@@ -121,34 +120,26 @@ describe("createRequestSchema", () => {
     ).toEqual([]);
   });
 
-  it("accepts a note of 500 characters and rejects 501", () => {
-    expect(issues({ note: "a".repeat(500) })).toEqual([]);
-    expect(paths({ note: "a".repeat(501) })).toEqual([["note"]]);
-  });
+  it("drops a note key from the output", () => {
+    const result = createRequestSchema(MIN_DATE).safeParse({ ...base, note: "Extra hands" });
 
-  it("turns a blank note into null", () => {
-    const result = createRequestSchema(MIN_DATE).safeParse({ ...base, note: "  " });
-    expect(result.success && result.data.note).toBeNull();
-  });
-
-  it("trims a note", () => {
-    const result = createRequestSchema(MIN_DATE).safeParse({ ...base, note: "  dock  " });
-    expect(result.success && result.data.note).toBe("dock");
-  });
-
-  it("turns a missing note into null", () => {
-    const { note: _note, ...rest } = base;
-    void _note;
-    const result = createRequestSchema(MIN_DATE).safeParse(rest);
-    expect(result.success && result.data.note).toBeNull();
+    expect(result.success).toBe(true);
+    expect(result.success && "note" in result.data).toBe(false);
   });
 });
 
 describe("updateRequestSchema", () => {
-  const updateBase = { startDate: "2026-11-02", note: null, lines: [line] };
+  const updateBase = { startDate: "2026-11-02", lines: [line] };
 
-  it("accepts startDate, note, and lines without a type or location", () => {
+  it("accepts startDate and lines without a type or location", () => {
     expect(updateRequestSchema(MIN_DATE).safeParse(updateBase).success).toBe(true);
+  });
+
+  it("drops a note key from the output", () => {
+    const result = updateRequestSchema(MIN_DATE).safeParse({ ...updateBase, note: "Extra hands" });
+
+    expect(result.success).toBe(true);
+    expect(result.success && "note" in result.data).toBe(false);
   });
 
   it("applies the date rule", () => {

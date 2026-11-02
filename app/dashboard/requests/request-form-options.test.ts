@@ -60,7 +60,6 @@ const detail: RequestDetail = {
   locationName: "A1",
   lineCount: 1,
   createdByName: "Admin",
-  note: null,
   rejectReason: null,
   lines: [
     { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, headcount: 3 },
@@ -150,7 +149,6 @@ describe("requestFormDefaults", () => {
     expect(values.type).toBe("");
     expect(values.startDate).toBe("");
     expect(values.locationId).toBe("");
-    expect(values.note).toBe("");
     expect(values.lines).toHaveLength(1);
   });
 
@@ -165,15 +163,8 @@ describe("requestFormDefaults", () => {
       type: "weekly",
       startDate: "2026-11-09",
       locationId: LOC_A1,
-      note: "",
       lines: detail.lines,
     });
-  });
-
-  it("keeps a stored note", () => {
-    expect(requestFormDefaults({ ...detail, note: "Night cover" }, choices).note).toBe(
-      "Night cover",
-    );
   });
 });
 

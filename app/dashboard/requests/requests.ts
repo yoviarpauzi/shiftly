@@ -151,7 +151,6 @@ export async function getRequest(
       locationId: rosterRequest.locationId,
       locationName: location.name,
       createdByName: user.name,
-      note: rosterRequest.note,
       rejectReason: rosterRequest.rejectReason,
     })
     .from(rosterRequest)

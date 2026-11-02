@@ -44,7 +44,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
 import { createRequestSchema, updateRequestSchema } from "@/validation/request";
 
 const REQUESTS_PATH = "/dashboard/requests";
@@ -58,7 +57,6 @@ function errorFields(errors: RequestFieldErrors) {
     type: fieldError(errors.type),
     startDate: fieldError(errors.startDate),
     locationId: fieldError(errors.locationId),
-    note: fieldError(errors.note),
     lines: fieldError(errors.lines),
   };
 }
@@ -66,6 +64,8 @@ function errorFields(errors: RequestFieldErrors) {
 export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  // Set once a create succeeds and never reset, so the button stays off until navigation completes.
+  const [created, setCreated] = useState(false);
   // Read once, so a refresh after saving does not hand the form new defaults.
   const [defaultValues] = useState(() => requestFormDefaults(request, choices));
 
@@ -106,6 +106,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
       }
 
       if (!request) {
+        setCreated(true);
         toast.success(`Request ${result.poNumber} created`);
         router.push(`${REQUESTS_PATH}/${result.id}`);
         return;
@@ -133,6 +134,8 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
       onSubmit={(event) => {
         event.preventDefault();
         event.stopPropagation();
+        // Enter in a field submits too, so the guard is here as well as on the button.
+        if (created) return;
         void form.handleSubmit();
       }}
     >
@@ -280,29 +283,6 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                     );
                   }}
                 </form.Field>
-                <form.Field name="note">
-                  {(field) => {
-                    const isInvalid = field.state.meta.errors.length > 0;
-
-                    return (
-                      <Field data-invalid={isInvalid || undefined}>
-                        <FieldLabel htmlFor={field.name}>Note</FieldLabel>
-                        <Textarea
-                          id={field.name}
-                          name={field.name}
-                          value={field.state.value}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                          maxLength={500}
-                          placeholder="Optional"
-                          disabled={disabled}
-                          aria-invalid={isInvalid || undefined}
-                        />
-                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                      </Field>
-                    );
-                  }}
-                </form.Field>
               </FieldGroup>
               <form.Field name="lines" mode="array">
                 {(field) => {
@@ -361,7 +341,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                   Back to requests
                 </Link>
                 {!readOnly && (
-                  <Button type="submit" disabled={isSubmitting}>
+                  <Button type="submit" disabled={isSubmitting || created}>
                     {isSubmitting && <Spinner data-icon="inline-start" />}
                     {isEdit ? "Save changes" : "Create request"}
                   </Button>

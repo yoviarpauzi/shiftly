@@ -25,13 +25,6 @@ const startDateField = (minDate: string | null) =>
       "Start date cannot be in the past",
     );
 
-const noteField = z
-  .string()
-  .trim()
-  .max(500, "Note must be 500 characters or fewer")
-  .nullish()
-  .transform((value) => (value ? value : null));
-
 const lineSchema = z.object({
   departmentId: z.string({ error: "Choose a department" }).uuid("Choose a department"),
   subDepartmentId: z.string().uuid("Choose a sub-department").nullable(),
@@ -75,7 +68,6 @@ export const rejectReasonSchema = z
 export const updateRequestSchema = (minDate: string | null) =>
   z.object({
     startDate: startDateField(minDate),
-    note: noteField,
     lines: linesField,
   });
 

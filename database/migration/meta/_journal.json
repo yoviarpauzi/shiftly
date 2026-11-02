@@ -78,6 +78,13 @@
       "when": 1793602620414,
       "tag": "0010_roster_request",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793604924467,
+      "tag": "0011_drop_request_note",
+      "breakpoints": true
     }
   ]
 }

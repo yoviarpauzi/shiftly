@@ -1,0 +1,1 @@
+ALTER TABLE "roster_request" DROP COLUMN "note";

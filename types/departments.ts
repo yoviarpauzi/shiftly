@@ -29,6 +29,8 @@ export type DepartmentPage = {
 
 export type DepartmentListParams = PageParams & {
   status: DepartmentStatus;
+  // null means every site the actor can see.
+  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<DepartmentSortColumn>[];
@@ -37,6 +39,7 @@ export type DepartmentListParams = PageParams & {
 export type DepartmentLocationOption = {
   id: string;
   name: string;
+  siteId: string;
   siteName: string;
 };
 
@@ -166,4 +169,16 @@ export type DeleteSubDepartmentDialogProps = {
 export type EditDepartmentButtonProps = {
   department: DepartmentRow;
   locationChoice: DepartmentLocationChoice;
+};
+
+export type DepartmentFilterOption = { value: string; label: string };
+
+export type DepartmentsSelectFilterProps = {
+  param: string;
+  value: string;
+  options: DepartmentFilterOption[];
+  ariaLabel: string;
+  className: string;
+  // Other params to drop when this filter changes, such as a location that belongs to the old site.
+  resets?: string[];
 };

@@ -75,12 +75,19 @@ function departmentFilter(
   access: DepartmentAccess,
   query: string,
   status: DepartmentStatus,
+  siteId: string | null,
   locationId: string | null,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     departmentScopeFilter(access),
+    siteId
+      ? inArray(
+          department.locationId,
+          db.select({ id: location.id }).from(location).where(eq(location.siteId, siteId)),
+        )
+      : undefined,
     locationId ? eq(department.locationId, locationId) : undefined,
     status === "active" ? isNull(department.deletedAt) : undefined,
     status === "deleted" ? isNotNull(department.deletedAt) : undefined,
@@ -90,9 +97,9 @@ function departmentFilter(
 
 export async function listDepartments(
   access: DepartmentAccess,
-  { page, pageSize, query, status, locationId, sort }: DepartmentListParams,
+  { page, pageSize, query, status, siteId, locationId, sort }: DepartmentListParams,
 ): Promise<DepartmentPage> {
-  const filter = departmentFilter(access, query, status, locationId);
+  const filter = departmentFilter(access, query, status, siteId, locationId);
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the department table alone, so the location join does not inflate the total.
@@ -133,7 +140,7 @@ export async function departmentLocationChoiceFor(
 ): Promise<DepartmentLocationChoice> {
   if (access.locationId) {
     const [own] = await db
-      .select({ id: location.id, name: location.name, siteName: site.name })
+      .select({ id: location.id, name: location.name, siteId: site.id, siteName: site.name })
       .from(location)
       .innerJoin(site, eq(site.id, location.siteId))
       .where(and(eq(location.id, access.locationId), isNull(location.deletedAt)));
@@ -146,7 +153,7 @@ export async function departmentLocationChoiceFor(
   }
 
   const locations = await db
-    .select({ id: location.id, name: location.name, siteName: site.name })
+    .select({ id: location.id, name: location.name, siteId: site.id, siteName: site.name })
     .from(location)
     .innerJoin(site, eq(site.id, location.siteId))
     .where(

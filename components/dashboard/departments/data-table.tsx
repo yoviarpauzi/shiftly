@@ -12,12 +12,14 @@ import {
 import {
   bulkRestoreMessage,
   bulkSelectionMode,
+  departmentSitesFrom,
 } from "@/app/dashboard/departments/department-rules";
 import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
 import type {
   DepartmentLocationChoice,
+  DepartmentLocationOption,
   DepartmentPage,
   DepartmentRow,
   DepartmentSortColumn,
@@ -31,8 +33,8 @@ import {
 } from "@/components/dashboard/departments/columns";
 import { DeleteDepartmentDialog } from "@/components/dashboard/departments/delete-department-dialog";
 import { DepartmentFormDialog } from "@/components/dashboard/departments/department-form-dialog";
-import { DepartmentsLocationFilter } from "@/components/dashboard/departments/departments-location-filter";
 import { DepartmentsSearch } from "@/components/dashboard/departments/departments-search";
+import { DepartmentsSelectFilter } from "@/components/dashboard/departments/departments-select-filter";
 import { DepartmentsStatusFilter } from "@/components/dashboard/departments/departments-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,12 +59,20 @@ async function restoreWithToast(department: DepartmentRow) {
 export function DepartmentsDataTable({
   data,
   status,
+  pickSite,
+  siteId,
+  locations,
   locationId,
   locationChoice,
   sort,
 }: {
   data: DepartmentPage;
   status: DepartmentStatus;
+  // Only superadmin picks a site, so HO gets no site filter.
+  pickSite: boolean;
+  siteId: string | null;
+  // The locations the location filter offers, already narrowed to the chosen site.
+  locations: DepartmentLocationOption[];
   locationId: string | null;
   locationChoice: DepartmentLocationChoice;
   sort: SortCriterion<DepartmentSortColumn>[];
@@ -173,10 +183,35 @@ export function DepartmentsDataTable({
         <div className="flex items-center gap-2">
           <DepartmentsSearch total={data.total} />
           <DepartmentsStatusFilter status={status} />
-          {locationChoice.mode === "pick" && (
-            <DepartmentsLocationFilter
-              locationId={locationId}
-              locations={locationChoice.locations}
+          {locationChoice.mode === "pick" && pickSite && (
+            <DepartmentsSelectFilter
+              param="site"
+              value={siteId ?? "all"}
+              options={[
+                { value: "all", label: "All sites" },
+                ...departmentSitesFrom(locationChoice.locations).map((site) => ({
+                  value: site.id,
+                  label: site.name,
+                })),
+              ]}
+              ariaLabel="Filter departments by site"
+              className="h-9 w-48"
+              resets={["location"]}
+            />
+          )}
+          {locationChoice.mode === "pick" && (!pickSite || siteId !== null) && (
+            <DepartmentsSelectFilter
+              param="location"
+              value={locationId ?? "all"}
+              options={[
+                { value: "all", label: "All locations" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                })),
+              ]}
+              ariaLabel="Filter departments by location"
+              className="h-9 w-48"
             />
           )}
         </div>

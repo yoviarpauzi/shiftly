@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { DepartmentRow, SubDepartmentRow } from "@/types/departments";
+import type {
+  DepartmentLocationOption,
+  DepartmentRow,
+  SubDepartmentRow,
+} from "@/types/departments";
 import {
   DEPARTMENT_DELETED_MESSAGE,
   LOCATION_DELETED_MESSAGE,
@@ -11,6 +15,8 @@ import {
   canDeleteDepartment,
   canRestoreDepartment,
   canRestoreSubDepartment,
+  departmentLocationsFor,
+  departmentSitesFrom,
   isDepartmentNameConflict,
   isSubDepartmentNameConflict,
   nameFieldError,
@@ -256,5 +262,45 @@ describe("bulkSubDepartmentRestoreMessage", () => {
     expect(bulkSubDepartmentRestoreMessage(0, 2)).toBe(
       "2 sub-departments could not be restored",
     );
+  });
+});
+
+const locationOption = (id: string, siteId: string, siteName: string): DepartmentLocationOption => ({
+  id,
+  name: `Location ${id}`,
+  siteId,
+  siteName,
+});
+
+const LOCATIONS = [
+  locationOption("loc-1", "site-a", "Site A"),
+  locationOption("loc-2", "site-a", "Site A"),
+  locationOption("loc-3", "site-b", "Site B"),
+];
+
+describe("departmentSitesFrom", () => {
+  it("lists each site once, in the order its first location appears", () => {
+    expect(departmentSitesFrom(LOCATIONS)).toEqual([
+      { id: "site-a", name: "Site A" },
+      { id: "site-b", name: "Site B" },
+    ]);
+  });
+
+  it("returns no sites when there are no locations", () => {
+    expect(departmentSitesFrom([])).toEqual([]);
+  });
+});
+
+describe("departmentLocationsFor", () => {
+  it("offers no locations to a site picker until a site is chosen", () => {
+    expect(departmentLocationsFor(LOCATIONS, null, true)).toEqual([]);
+  });
+
+  it("offers only the locations of the chosen site", () => {
+    expect(departmentLocationsFor(LOCATIONS, "site-b", true)).toEqual([LOCATIONS[2]]);
+  });
+
+  it("offers every location when the actor has no site to pick", () => {
+    expect(departmentLocationsFor(LOCATIONS, null, false)).toEqual(LOCATIONS);
   });
 });

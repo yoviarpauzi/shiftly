@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { DepartmentLocationOption } from "@/types/departments";
+import type { DepartmentsSelectFilterProps } from "@/types/departments";
 import {
   Select,
   SelectContent,
@@ -11,34 +11,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ALL_LOCATIONS = "all";
+// The "all" option removes the param, so the URL only carries filters that are set.
+const ALL = "all";
 
-export function DepartmentsLocationFilter({
-  locationId,
-  locations,
-}: {
-  locationId: string | null;
-  locations: DepartmentLocationOption[];
-}) {
+export function DepartmentsSelectFilter({
+  param,
+  value,
+  options,
+  ariaLabel,
+  className,
+  resets = [],
+}: DepartmentsSelectFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const options = [
-    { value: ALL_LOCATIONS, label: "All locations" },
-    ...locations.map((location) => ({
-      value: location.id,
-      label: `${location.name} (${location.siteName})`,
-    })),
-  ];
-
-  function setLocation(next: string) {
+  function setValue(next: string) {
     const params = new URLSearchParams(searchParams.toString());
 
-    if (next === ALL_LOCATIONS) {
-      params.delete("location");
+    if (next === ALL) {
+      params.delete(param);
     } else {
-      params.set("location", next);
+      params.set(param, next);
+    }
+    for (const name of resets) {
+      params.delete(name);
     }
     params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
@@ -46,15 +43,15 @@ export function DepartmentsLocationFilter({
 
   return (
     <Select
-      value={locationId ?? ALL_LOCATIONS}
-      onValueChange={(value) => {
-        if (value) {
-          setLocation(value);
+      value={value}
+      onValueChange={(next) => {
+        if (next) {
+          setValue(next);
         }
       }}
       items={options}
     >
-      <SelectTrigger aria-label="Filter departments by location" className="h-9 w-56">
+      <SelectTrigger aria-label={ariaLabel} className={className}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

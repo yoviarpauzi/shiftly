@@ -10,7 +10,7 @@ const SEARCH_DELAY_MS = 300;
 
 // Copy of components/dashboard/users/users-search.tsx, with site wording.
 // Unify the two once a third list needs the same search.
-export function SitesSearch({ total }: { total: number }) {
+export function SitesSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -82,12 +82,6 @@ export function SitesSearch({ total }: { total: number }) {
           </button>
         )}
       </div>
-      {query !== "" && (
-        <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "site matches" : "sites match"} &ldquo;
-          {query}&rdquo;
-        </p>
-      )}
     </div>
   );
 }

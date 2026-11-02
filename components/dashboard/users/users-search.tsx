@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 
 const SEARCH_DELAY_MS = 300;
 
-export function UsersSearch({ total }: { total: number }) {
+export function UsersSearch() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -80,12 +80,6 @@ export function UsersSearch({ total }: { total: number }) {
           </button>
         )}
       </div>
-      {query !== "" && (
-        <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "user matches" : "users match"} &ldquo;
-          {query}&rdquo;
-        </p>
-      )}
     </div>
   );
 }

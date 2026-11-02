@@ -154,7 +154,7 @@ export function SitesDataTable({
     <div className="flex w-full flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <SitesSearch total={data.total} />
+          <SitesSearch />
           <SitesStatusFilter status={status} />
         </div>
         <Button onClick={() => openForm(null)}>

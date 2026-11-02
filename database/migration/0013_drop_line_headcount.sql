@@ -1,0 +1,1 @@
+ALTER TABLE "roster_request_line" DROP COLUMN "headcount";

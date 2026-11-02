@@ -92,8 +92,6 @@ export const rosterRequestLine = pgTable(
     positionId: uuid("position_id")
       .notNull()
       .references(() => position.id, { onDelete: "restrict" }),
-    // Replaced by rosterRequestLineDay and dropped once nothing reads it.
-    headcount: integer("headcount"),
   },
   (table) => [
     // A null sub-department is folded to the zero uuid so two such lines still collide.

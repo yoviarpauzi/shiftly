@@ -26,6 +26,7 @@ import type {
 } from "@/types/requests";
 import {
   createRequestSchema,
+  START_DATE_PAST_MESSAGE,
   updateRequestSchema,
   type RequestInput,
   type RequestUpdateInput,
@@ -135,6 +136,9 @@ async function insertLines(tx: Transaction, requestId: string, lines: RequestLin
 export async function createRequest(input: RequestInput): Promise<RequestActionResult> {
   const { user, access } = await requireRequestUser();
 
+  // Jakarta is the westernmost zone, so its date is never ahead of another zone's. A date before
+  // it is past everywhere and is refused here, before any read. The location's own zone is checked
+  // once the location is loaded.
   const parsed = createRequestSchema(dateInZone(DEFAULT_LOCATION_TIMEZONE)).safeParse(input);
 
   if (!parsed.success) {
@@ -152,12 +156,15 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
   // be deleted between this check and the insert. The location id comes from the client, so it is
   // loaded and checked against the caller's access, and the site id is taken from the row.
   const result = await db.transaction(async (tx): Promise<RequestActionResult> => {
+    const now = new Date();
+
     const [target] = await tx
       .select({
         id: location.id,
         siteId: location.siteId,
         siteName: site.name,
         siteCode: site.code,
+        timezone: location.timezone,
       })
       .from(location)
       .innerJoin(site, eq(site.id, location.siteId))
@@ -174,6 +181,10 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
       return { ok: false, formError: siteCodeMissingMessage(target.siteName) };
     }
 
+    if (data.startDate < dateInZone(target.timezone, now)) {
+      return { ok: false, fieldErrors: { startDate: START_DATE_PAST_MESSAGE } };
+    }
+
     const lineError = lineScopeError(
       data.lines,
       await lineChoices(tx, target.id, target.siteId),
@@ -184,7 +195,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
     }
 
     // Issued inside this transaction, so a failed insert rolls the number back with it.
-    const period = poPeriod(new Date(), DEFAULT_LOCATION_TIMEZONE);
+    const period = poPeriod(now, target.timezone);
     const sequence = await nextPoSequence(tx, target.siteId, period);
     const poNumber = formatPoNumber(target.siteCode, period, sequence);
 
@@ -237,10 +248,13 @@ export async function updateRequest(
         startDate: rosterRequest.startDate,
         siteId: rosterRequest.siteId,
         locationId: rosterRequest.locationId,
+        timezone: location.timezone,
       })
       .from(rosterRequest)
+      // No deletedAt filter: a request keeps its location, and so its zone, after a soft delete.
+      .innerJoin(location, eq(location.id, rosterRequest.locationId))
       .where(and(eq(rosterRequest.id, id), requestScopeFilter(access)))
-      .for("update");
+      .for("update", { of: rosterRequest });
 
     if (!current) {
       return { ok: false, formError: REQUEST_NOT_FOUND_MESSAGE };
@@ -254,7 +268,8 @@ export async function updateRequest(
     }
 
     // A stored date that has since passed may be kept. Only a new date must not be in the past.
-    const minDate = input?.startDate !== current.startDate ? dateInZone(DEFAULT_LOCATION_TIMEZONE) : null;
+    const minDate =
+      input?.startDate !== current.startDate ? dateInZone(current.timezone) : null;
     const parsed = updateRequestSchema(minDate).safeParse(input);
 
     if (!parsed.success) {

@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { isCalendarDate } from "./calendar-date";
 
+export const START_DATE_PAST_MESSAGE = "Start date cannot be in the past";
+
 // minDate is YYYY-MM-DD. Both sides are zero padded, so a string compare is a date compare.
 const startDateField = (minDate: string | null) =>
   z
@@ -9,7 +11,7 @@ const startDateField = (minDate: string | null) =>
     .refine(isCalendarDate, "Start date must be a real date like 2026-11-02")
     .refine(
       (value) => minDate === null || !isCalendarDate(value) || value >= minDate,
-      "Start date cannot be in the past",
+      START_DATE_PAST_MESSAGE,
     );
 
 // One number for a daily line, seven for a weekly one. Which length the type needs, and the daily

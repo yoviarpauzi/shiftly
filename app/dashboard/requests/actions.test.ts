@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { department, subDepartment } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
@@ -11,6 +11,7 @@ import {
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
 import type { RequestAccess, RequestActor } from "@/types/requests";
+import { START_DATE_PAST_MESSAGE } from "@/validation/request";
 import { formatPoNumber, poPeriod } from "./po-number";
 import {
   DAILY_HEADCOUNT_MESSAGE,
@@ -221,8 +222,10 @@ const updateInput = { startDate: FUTURE, lines: [weeklyLine] };
 
 const dailyUpdateInput = { startDate: FUTURE, lines: [line] };
 
-function seedLocationChoices() {
-  fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL" }];
+function seedLocationChoices(timezone = "Asia/Jakarta") {
+  fake.rows.location = [
+    { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL", timezone },
+  ];
   fake.rows.departments = [{ id: DEPT_A }];
   fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
   fake.rows.positions = [{ id: POSITION_A }];
@@ -236,6 +239,7 @@ function storedRequest(overrides: Record<string, unknown> = {}) {
     startDate: FUTURE,
     siteId: SITE_A,
     locationId: LOCATION_A,
+    timezone: "Asia/Jakarta",
     ...overrides,
   };
 }
@@ -261,6 +265,16 @@ beforeEach(() => {
   actAs(superadmin);
   vi.mocked(revalidatePath).mockClear();
 });
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// 2026-11-30 23:30 in Jakarta, and already 2026-12-01 00:30 in Makassar and Jayapura.
+function freezeAtJakartaMonthEnd() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-30T16:30:00Z"));
+}
 
 describe("request actions module", () => {
   it("opens with the use server directive so client components can call it", () => {
@@ -470,6 +484,72 @@ describe("createRequest", () => {
   });
 });
 
+describe("createRequest in the location's time zone", () => {
+  it("accepts today in a Jakarta location and issues the Jakarta month", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Jakarta");
+
+    const res = await createRequest({ ...createInput, startDate: "2026-11-30" });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(counterCalls().map((call) => call.values)).toEqual([
+      { siteId: SITE_A, period: "202611" },
+    ]);
+  });
+
+  it("refuses a date that is already past in the location's zone and writes nothing", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Makassar");
+
+    const res = await createRequest({ ...createInput, startDate: "2026-11-30" });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: { startDate: START_DATE_PAST_MESSAGE },
+    });
+    expect(writes()).toEqual([]);
+    expect(counterCalls()).toEqual([]);
+  });
+
+  it("accepts today in a Makassar location and issues the next month", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Makassar");
+
+    const res = await createRequest({ ...createInput, startDate: "2026-12-01" });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(counterCalls().map((call) => call.values)).toEqual([
+      { siteId: SITE_A, period: "202612" },
+    ]);
+  });
+
+  it("issues different periods for two locations at the same instant", async () => {
+    freezeAtJakartaMonthEnd();
+
+    seedLocationChoices("Asia/Jakarta");
+    await createRequest({ ...createInput, startDate: "2026-12-01" });
+    seedLocationChoices("Asia/Makassar");
+    await createRequest({ ...createInput, startDate: "2026-12-01" });
+
+    expect(counterCalls().map((call) => (call.values as { period: string }).period)).toEqual([
+      "202611",
+      "202612",
+    ]);
+  });
+
+  it("still refuses a date before Jakarta's today without reading anything", async () => {
+    freezeAtJakartaMonthEnd();
+
+    const res = await createRequest({ ...createInput, startDate: "2026-11-29" });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: { startDate: START_DATE_PAST_MESSAGE },
+    });
+    expect(fake.calls).toEqual([]);
+  });
+});
+
 describe("updateRequest", () => {
   it("sends an approved weekly back to pending and clears the decision", async () => {
     actAs(hoA);
@@ -626,6 +706,42 @@ describe("updateRequest", () => {
       fieldErrors: { lines: "Choose a sub-department of the selected department" },
     });
     expect(writes()).toEqual([]);
+  });
+});
+
+describe("updateRequest in the location's time zone", () => {
+  it("checks a changed date against the stored location's zone", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Makassar");
+    fake.rows.request = [storedRequest({ startDate: "2026-11-29", timezone: "Asia/Makassar" })];
+
+    const res = await updateRequest(REQUEST_ID, { ...updateInput, startDate: "2026-11-30" });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: { startDate: START_DATE_PAST_MESSAGE },
+    });
+    expect(writes()).toEqual([]);
+  });
+
+  it("accepts the same date when the stored location is in Jakarta", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Jakarta");
+    fake.rows.request = [storedRequest({ startDate: "2026-11-29", timezone: "Asia/Jakarta" })];
+
+    const res = await updateRequest(REQUEST_ID, { ...updateInput, startDate: "2026-11-30" });
+
+    expect(res).toEqual({ ok: true });
+  });
+
+  it("still accepts an unchanged past date for a Makassar location", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Makassar");
+    fake.rows.request = [storedRequest({ startDate: "2026-11-30", timezone: "Asia/Makassar" })];
+
+    const res = await updateRequest(REQUEST_ID, { ...updateInput, startDate: "2026-11-30" });
+
+    expect(res).toEqual({ ok: true });
   });
 });
 

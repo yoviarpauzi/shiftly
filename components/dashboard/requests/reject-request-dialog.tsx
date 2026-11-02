@@ -4,7 +4,8 @@ import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
 import { rejectRequest } from "@/app/dashboard/requests/actions";
-import type { RequestDialogProps } from "@/types/requests";
+import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
+import type { RequestActionResult, RequestDialogProps } from "@/types/requests";
 import { rejectReasonSchema } from "@/validation/request";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +52,15 @@ export function RejectRequestDialog({
 
       setFormError(null);
 
-      const result = await rejectRequest(request.id, value.reason);
+      let result: RequestActionResult;
+
+      try {
+        result = await rejectRequest(request.id, value.reason);
+      } catch {
+        // TanStack Form resets isSubmitting itself, but would rethrow into an unhandled rejection.
+        setFormError(ACTION_FAILED_MESSAGE);
+        return;
+      }
 
       if (!result.ok) {
         // The dialog stays open, so the reason is kept and HO can fix it or close.

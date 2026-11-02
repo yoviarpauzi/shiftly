@@ -7,6 +7,9 @@ import type {
 
 export const REQUEST_NOT_FOUND_MESSAGE = "Request not found";
 
+// Shown by a client component when a request action throws instead of returning a result.
+export const ACTION_FAILED_MESSAGE = "Something went wrong. Try again.";
+
 export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
 export function siteCodeMissingMessage(siteName: string): string {

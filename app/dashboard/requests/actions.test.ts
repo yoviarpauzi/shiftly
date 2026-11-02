@@ -675,3 +675,23 @@ describe("rejectRequest", () => {
     expect(res).toEqual({ ok: false, formError: NOT_PENDING_MESSAGE });
   });
 });
+
+describe("a request id that is not a uuid", () => {
+  const calls = [
+    ["updateRequest", () => updateRequest("x", updateInput)],
+    ["cancelRequest", () => cancelRequest("x")],
+    ["approveRequest", () => approveRequest("x")],
+    ["rejectRequest", () => rejectRequest("x", "No")],
+  ] as const;
+
+  it.each(calls)("%s returns not found and issues no database call", async (_name, run) => {
+    fake.rows.request = [storedRequest()];
+
+    const res = await run();
+
+    expect(res).toEqual({ ok: false, formError: REQUEST_NOT_FOUND_MESSAGE });
+    expect(fake.calls).toEqual([]);
+    expect(counterCalls()).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});

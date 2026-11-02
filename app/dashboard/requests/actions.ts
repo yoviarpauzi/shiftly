@@ -25,6 +25,7 @@ import {
   type RequestInput,
   type RequestUpdateInput,
 } from "@/validation/request";
+import { parseRequestId } from "@/validation/request-id";
 import { nextPoSequence } from "./po-counter";
 import { formatPoNumber, poPeriod } from "./po-number";
 import { canDecideRequest, canWriteToLocation } from "./request-access";
@@ -186,6 +187,11 @@ export async function updateRequest(
 ): Promise<RequestActionResult> {
   const { user, access } = await requireRequestUser();
 
+  // A malformed id would make Postgres throw, so it is refused before any query.
+  if (!parseRequestId(id)) {
+    return { ok: false, formError: REQUEST_NOT_FOUND_MESSAGE };
+  }
+
   const result = await db.transaction(async (tx): Promise<RequestActionResult> => {
     // The row lock makes a concurrent approve, reject, or cancel wait, so the status read here is
     // still the status when the edit commits.
@@ -258,8 +264,13 @@ export async function updateRequest(
   return result;
 }
 
-// The scoped read tells a missing or hidden request apart from one in the wrong status.
+// The scoped read tells a missing or hidden request apart from one in the wrong status. An id that
+// is not a uuid is the same as a missing one, and never reaches the database.
 async function findScopedRequest(access: RequestAccess, id: string) {
+  if (!parseRequestId(id)) {
+    return null;
+  }
+
   const [row] = await db
     .select({ id: rosterRequest.id, siteId: rosterRequest.siteId })
     .from(rosterRequest)

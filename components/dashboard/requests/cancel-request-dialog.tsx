@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { cancelRequest } from "@/app/dashboard/requests/actions";
-import type { RequestDialogProps } from "@/types/requests";
+import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
+import type { RequestActionResult, RequestDialogProps } from "@/types/requests";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -39,9 +40,16 @@ export function CancelRequestDialog({
     setFormError(null);
     setIsSubmitting(true);
 
-    const result = await cancelRequest(request.id);
+    let result: RequestActionResult;
 
-    setIsSubmitting(false);
+    try {
+      result = await cancelRequest(request.id);
+    } catch {
+      setFormError(ACTION_FAILED_MESSAGE);
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
 
     if (!result.ok) {
       setFormError(result.formError ?? null);

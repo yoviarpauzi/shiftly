@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type RowSelectionState, useTable } from "@tanstack/react-table";
-import { PlusIcon, RotateCcwIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import { DownloadIcon, PlusIcon, RotateCcwIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { bulkSelectionMode } from "@/app/dashboard/departments/department-rules";
 import { restoreWorker, restoreWorkers } from "@/app/dashboard/workers/actions";
@@ -29,7 +29,7 @@ import { WorkersPositionFilter } from "@/components/dashboard/workers/workers-po
 import { WorkersSearch } from "@/components/dashboard/workers/workers-search";
 import { WorkersSelectFilter } from "@/components/dashboard/workers/workers-select-filter";
 import { WorkersStatusFilter } from "@/components/dashboard/workers/workers-status-filter";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -38,6 +38,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+const IMPORT_TEMPLATE_URL = "/dashboard/workers/import/template";
 
 async function restoreWithToast(worker: WorkerRow) {
   const result = await restoreWorker(worker.id);
@@ -211,6 +213,14 @@ export function WorkersDataTable({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href={IMPORT_TEMPLATE_URL}
+            download
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <DownloadIcon data-icon="inline-start" />
+            Template
+          </a>
           <Button variant="outline" onClick={openImport}>
             <UploadIcon data-icon="inline-start" />
             Import

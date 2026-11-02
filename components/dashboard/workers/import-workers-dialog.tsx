@@ -8,7 +8,7 @@ import { commitWorkerImport, previewWorkerImport } from "@/app/dashboard/workers
 import type { ImportPreview, ImportWorkersDialogProps } from "@/types/worker-import";
 import { checkImportFileMeta, IMPORT_MAX_ROWS } from "@/validation/worker-import";
 import { createImportColumns, importFeatures } from "@/components/dashboard/workers/import-columns";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -29,9 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-
-const TEMPLATE_URL = "/dashboard/workers/import/template";
 
 const UNEXPECTED_ERROR_MESSAGE = "Something went wrong. Try again.";
 
@@ -153,13 +150,6 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
               already used updates that worker and replaces its positions. Type employee IDs as text so
               leading zeros stay.
             </DialogDescription>
-            <a
-              href={TEMPLATE_URL}
-              download
-              className={cn(buttonVariants({ variant: "link", size: "sm" }), "w-fit px-0")}
-            >
-              Download template
-            </a>
           </DialogHeader>
           <FieldGroup>
             <form.Field name="file">

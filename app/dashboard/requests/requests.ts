@@ -16,7 +16,11 @@ import { department, subDepartment } from "@/database/schema/department-schema";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
+import {
+  rosterRequest,
+  rosterRequestLine,
+  rosterRequestLineDay,
+} from "@/database/schema/request-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
@@ -168,16 +172,37 @@ export async function getRequest(
 
   const lineRows = await db
     .select({
+      id: rosterRequestLine.id,
       departmentId: rosterRequestLine.departmentId,
       subDepartmentId: rosterRequestLine.subDepartmentId,
       positionId: rosterRequestLine.positionId,
-      headcount: rosterRequestLine.headcount,
     })
     .from(rosterRequestLine)
     .where(eq(rosterRequestLine.requestId, id))
     .orderBy(asc(rosterRequestLine.id));
-  // The column is optional until the day table replaces it, and the migration copied every existing line, so null cannot occur today. Task 3 removes this read.
-  const lines = lineRows.map((line) => ({ ...line, headcount: line.headcount ?? 0 }));
+
+  // Ordered by line and then day offset, so each line's numbers come back in day order whatever
+  // order they were inserted in.
+  const dayRows = await db
+    .select({ lineId: rosterRequestLineDay.lineId, headcount: rosterRequestLineDay.headcount })
+    .from(rosterRequestLineDay)
+    .innerJoin(rosterRequestLine, eq(rosterRequestLine.id, rosterRequestLineDay.lineId))
+    .where(eq(rosterRequestLine.requestId, id))
+    .orderBy(asc(rosterRequestLineDay.lineId), asc(rosterRequestLineDay.dayOffset));
+
+  const headcountsByLine = new Map<string, number[]>();
+
+  for (const day of dayRows) {
+    const headcounts = headcountsByLine.get(day.lineId) ?? [];
+
+    headcounts.push(day.headcount);
+    headcountsByLine.set(day.lineId, headcounts);
+  }
+
+  const lines = lineRows.map(({ id: lineId, ...line }) => ({
+    ...line,
+    headcounts: headcountsByLine.get(lineId) ?? [],
+  }));
 
   return {
     ...row,

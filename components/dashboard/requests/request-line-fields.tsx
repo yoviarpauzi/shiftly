@@ -2,8 +2,14 @@
 
 import { Trash2Icon } from "lucide-react";
 import type { RequestLineFieldsProps } from "@/types/requests";
-import { lineAfterDepartmentChange } from "@/app/dashboard/requests/request-form-options";
+import {
+  lineAfterDayChange,
+  lineAfterDepartmentChange,
+  lineAfterPerDayToggle,
+} from "@/app/dashboard/requests/request-form-options";
+import { dayLabels } from "@/app/dashboard/requests/request-rules";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,10 +23,21 @@ import {
 
 const NO_SUB_DEPARTMENT = "None";
 
+// An empty or non-numeric field becomes NaN, so the schema reports it instead of reading 0.
+function numberFromInput(value: string): number {
+  return value === "" ? Number.NaN : Number(value);
+}
+
+function inputFromNumber(value: number): number | "" {
+  return Number.isNaN(value) ? "" : value;
+}
+
 // One row of the lines section. The parent array field owns the value and its errors.
 export function RequestLineFields({
   index,
   line,
+  type,
+  startDate,
   departments,
   subDepartments,
   positions,
@@ -32,6 +49,9 @@ export function RequestLineFields({
 }: RequestLineFieldsProps) {
   const id = (part: string) => `lines-${index}-${part}`;
   const rowLabel = `Line ${index + 1}`;
+  const isWeekly = type === "weekly";
+  // A weekly line set per day sends the day numbers, so the single number is not used meanwhile.
+  const usesDays = isWeekly && line.perDay;
 
   return (
     <div
@@ -126,15 +146,11 @@ export function RequestLineFields({
           min={1}
           max={999}
           step={1}
-          value={Number.isNaN(line.headcount) ? "" : line.headcount}
+          value={inputFromNumber(line.headcount)}
           onChange={(event) =>
-            onChange({
-              ...line,
-              headcount: event.target.value === "" ? Number.NaN : Number(event.target.value),
-            })
+            onChange({ ...line, headcount: numberFromInput(event.target.value) })
           }
-          disabled={disabled}
-         
+          disabled={disabled || usesDays}
         />
       </Field>
       {showRemove && (
@@ -149,6 +165,49 @@ export function RequestLineFields({
         >
           <Trash2Icon />
         </Button>
+      )}
+      {isWeekly && (
+        <div className="col-span-full flex flex-col gap-3">
+          <Field orientation="horizontal">
+            <Checkbox
+              id={id("per-day")}
+              checked={line.perDay}
+              onCheckedChange={(checked) => onChange(lineAfterPerDayToggle(line, checked))}
+              disabled={disabled}
+            />
+            <FieldLabel htmlFor={id("per-day")} className="font-normal">
+              Set headcount per day
+            </FieldLabel>
+          </Field>
+          {line.perDay && (
+            <div
+              role="group"
+              aria-label={`${rowLabel} headcount per day`}
+              className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"
+            >
+              {dayLabels(startDate).map((label, dayIndex) => (
+                <Field key={dayIndex}>
+                  <FieldLabel htmlFor={id(`day-${dayIndex}`)}>{label}</FieldLabel>
+                  <Input
+                    id={id(`day-${dayIndex}`)}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={999}
+                    step={1}
+                    value={inputFromNumber(line.dayHeadcounts[dayIndex])}
+                    onChange={(event) =>
+                      onChange(
+                        lineAfterDayChange(line, dayIndex, numberFromInput(event.target.value)),
+                      )
+                    }
+                    disabled={disabled}
+                  />
+                </Field>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

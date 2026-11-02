@@ -23,7 +23,8 @@ export type RequestLineInput = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
-  headcount: number;
+  // One number for a daily request, seven for a weekly one (index = day offset from the start date).
+  headcounts: number[];
 };
 
 export type RequestRow = {
@@ -144,8 +145,22 @@ export type RequestFormProps = {
   readOnly: boolean;
 };
 
+// One line in the form. headcount is the single number a daily line sends, and a weekly line
+// repeats for every day while perDay is off. dayHeadcounts always holds seven numbers, used only
+// when a weekly line has perDay on. NaN is an empty number. toRequestLineInputs turns this into a
+// RequestLineInput on submit.
+export type RequestFormLine = {
+  departmentId: string;
+  subDepartmentId: string | null;
+  positionId: string;
+  headcount: number;
+  perDay: boolean;
+  dayHeadcounts: number[];
+};
+
 // The form's own state. An empty string is an unchosen type, date, site, location, department, or
-// position, and NaN is an empty headcount. The zod schema turns these into RequestInput on submit.
+// position, and NaN is an empty headcount. On submit toRequestLineInputs converts the lines and
+// the zod schema turns the result into RequestInput.
 // The site only narrows the locations; it is not part of RequestInput, because the server reads
 // the site from the location.
 export type RequestFormValues = {
@@ -153,14 +168,18 @@ export type RequestFormValues = {
   startDate: string;
   siteId: string;
   locationId: string;
-  lines: RequestLineInput[];
+  lines: RequestFormLine[];
 };
 
 export type RequestOption = { id: string; name: string };
 
 export type RequestLineFieldsProps = {
   index: number;
-  line: RequestLineInput;
+  line: RequestFormLine;
+  // The per-day checkbox shows only for a weekly request.
+  type: RequestType | "";
+  // YYYY-MM-DD or empty. Labels the per-day fields.
+  startDate: string;
   departments: RequestOption[];
   subDepartments: RequestOption[];
   positions: RequestOption[];
@@ -168,7 +187,7 @@ export type RequestLineFieldsProps = {
   canRemove: boolean;
   // Hidden when the form is read-only.
   showRemove: boolean;
-  onChange: (line: RequestLineInput) => void;
+  onChange: (line: RequestFormLine) => void;
   onRemove: () => void;
 };
 

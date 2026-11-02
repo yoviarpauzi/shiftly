@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RequestChoices, RequestDetail } from "@/types/requests";
+import type { RequestChoices, RequestDetail, RequestFormLine } from "@/types/requests";
 import {
   MAX_REQUEST_LINES,
   afterSiteChange,
@@ -7,14 +7,18 @@ import {
   canAddLine,
   canRemoveLine,
   departmentsFor,
+  formLineFromInput,
   isReadOnlyStatus,
+  lineAfterDayChange,
   lineAfterDepartmentChange,
+  lineAfterPerDayToggle,
   linesAfterLocationChange,
   locationsFor,
   positionsFor,
   requestFormDefaults,
   returnsToPending,
   subDepartmentsFor,
+  toRequestLineInputs,
 } from "./request-form-options";
 
 const SITE_A = "a0000000-0000-4000-8000-000000000000";
@@ -69,9 +73,34 @@ const detail: RequestDetail = {
   createdByName: "Admin",
   rejectReason: null,
   lines: [
-    { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, headcount: 3 },
+    {
+      departmentId: DEPT_A1,
+      subDepartmentId: SUB_A1,
+      positionId: POS_A,
+      headcounts: [0, 3, 3, 0, 5, 5, 5],
+    },
+    {
+      departmentId: DEPT_A1_2,
+      subDepartmentId: null,
+      positionId: POS_A,
+      headcounts: [4, 4, 4, 4, 4, 4, 4],
+    },
   ],
 };
+
+const NAN_WEEK = Array.from({ length: 7 }, () => Number.NaN);
+
+function formLine(fields: Partial<RequestFormLine> = {}): RequestFormLine {
+  return {
+    departmentId: DEPT_A1,
+    subDepartmentId: SUB_A1,
+    positionId: POS_A,
+    headcount: 2,
+    perDay: false,
+    dayHeadcounts: [...NAN_WEEK],
+    ...fields,
+  };
+}
 
 describe("locationsFor", () => {
   it("returns only the locations of the site", () => {
@@ -146,6 +175,9 @@ describe("line rules", () => {
     expect(line.subDepartmentId).toBeNull();
     expect(line.positionId).toBe("");
     expect(Number.isNaN(line.headcount)).toBe(true);
+    expect(line.perDay).toBe(false);
+    expect(line.dayHeadcounts).toHaveLength(7);
+    expect(line.dayHeadcounts.every(Number.isNaN)).toBe(true);
   });
 
   it("replaces every line with one blank line when the location changes", () => {
@@ -156,13 +188,12 @@ describe("line rules", () => {
   });
 
   it("clears the sub-department when the department changes", () => {
-    const line = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, headcount: 2 };
+    const line = formLine({ perDay: true, dayHeadcounts: [1, 2, 3, 4, 5, 6, 7] });
 
     expect(lineAfterDepartmentChange(line, DEPT_A1_2)).toEqual({
+      ...line,
       departmentId: DEPT_A1_2,
       subDepartmentId: null,
-      positionId: POS_A,
-      headcount: 2,
     });
   });
 
@@ -228,8 +259,107 @@ describe("requestFormDefaults", () => {
       startDate: "2026-11-09",
       siteId: SITE_A,
       locationId: LOC_A1,
-      lines: detail.lines,
+      lines: detail.lines.map(formLineFromInput),
     });
+  });
+});
+
+describe("formLineFromInput", () => {
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+
+  it("opens a daily line as one number", () => {
+    const line = formLineFromInput({ ...ids, headcounts: [7] });
+
+    expect(line).toMatchObject({ ...ids, perDay: false, headcount: 7 });
+    expect(line.dayHeadcounts).toHaveLength(7);
+  });
+
+  it("opens seven equal numbers as one number", () => {
+    const line = formLineFromInput({ ...ids, headcounts: [4, 4, 4, 4, 4, 4, 4] });
+
+    expect(line).toMatchObject({ perDay: false, headcount: 4 });
+  });
+
+  it("opens seven different numbers per day with the first number above 0 as the single", () => {
+    const headcounts = [0, 3, 3, 0, 5, 5, 5];
+    const line = formLineFromInput({ ...ids, headcounts });
+
+    expect(line).toEqual({ ...ids, perDay: true, headcount: 3, dayHeadcounts: headcounts });
+  });
+
+  it("does not share the day array with the input", () => {
+    const headcounts = [0, 3, 3, 0, 5, 5, 5];
+    const line = formLineFromInput({ ...ids, headcounts });
+
+    expect(line.dayHeadcounts).not.toBe(headcounts);
+  });
+});
+
+describe("lineAfterPerDayToggle", () => {
+  it("fills all seven days with the single number when turned on", () => {
+    expect(lineAfterPerDayToggle(formLine({ headcount: 6 }), true)).toEqual(
+      formLine({ headcount: 6, perDay: true, dayHeadcounts: [6, 6, 6, 6, 6, 6, 6] }),
+    );
+  });
+
+  it("keeps the day numbers but turns per day off", () => {
+    const line = formLine({ perDay: true, dayHeadcounts: [1, 2, 3, 4, 5, 6, 7] });
+
+    expect(lineAfterPerDayToggle(line, false)).toEqual({ ...line, perDay: false });
+  });
+
+  it("fills seven empty days from an empty single number", () => {
+    const next = lineAfterPerDayToggle(formLine({ headcount: Number.NaN }), true);
+
+    expect(next.perDay).toBe(true);
+    expect(next.dayHeadcounts).toHaveLength(7);
+    expect(next.dayHeadcounts.every(Number.isNaN)).toBe(true);
+  });
+});
+
+describe("lineAfterDayChange", () => {
+  it("changes only the given day", () => {
+    const line = formLine({ perDay: true, dayHeadcounts: [1, 1, 1, 1, 1, 1, 1] });
+
+    expect(lineAfterDayChange(line, 2, 9)).toEqual({
+      ...line,
+      dayHeadcounts: [1, 1, 9, 1, 1, 1, 1],
+    });
+    expect(line.dayHeadcounts).toEqual([1, 1, 1, 1, 1, 1, 1]);
+  });
+});
+
+describe("toRequestLineInputs", () => {
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+  const perDay = formLine({ headcount: 5, perDay: true, dayHeadcounts: [0, 1, 2, 3, 4, 5, 6] });
+
+  it("sends one number for a daily line, even when per day was set", () => {
+    expect(toRequestLineInputs("daily", [formLine({ headcount: 5 }), perDay])).toEqual([
+      { ...ids, headcounts: [5] },
+      { ...ids, headcounts: [5] },
+    ]);
+  });
+
+  it("repeats the single number seven times for a weekly line", () => {
+    expect(toRequestLineInputs("weekly", [formLine({ headcount: 5 })])).toEqual([
+      { ...ids, headcounts: [5, 5, 5, 5, 5, 5, 5] },
+    ]);
+  });
+
+  it("sends the seven day numbers for a weekly line set per day", () => {
+    expect(toRequestLineInputs("weekly", [perDay])).toEqual([
+      { ...ids, headcounts: [0, 1, 2, 3, 4, 5, 6] },
+    ]);
+  });
+
+  it("treats an unchosen type like daily", () => {
+    expect(toRequestLineInputs("", [perDay])).toEqual([{ ...ids, headcounts: [5] }]);
+  });
+
+  it("keeps an empty number as NaN", () => {
+    const [input] = toRequestLineInputs("daily", [formLine({ headcount: Number.NaN })]);
+
+    expect(Number.isNaN(input.headcounts[0])).toBe(true);
   });
 });
 

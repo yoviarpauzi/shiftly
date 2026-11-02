@@ -12,8 +12,10 @@ const line = {
   departmentId: DEPARTMENT_ID,
   subDepartmentId: null,
   positionId: POSITION_ID,
-  headcount: 3,
+  headcounts: [3],
 };
+
+const WEEK = [0, 3, 3, 0, 5, 5, 5];
 
 const base = {
   type: "daily",
@@ -45,7 +47,7 @@ describe("createRequestSchema", () => {
   });
 
   it("accepts a valid weekly request", () => {
-    expect(issues({ type: "weekly" })).toEqual([]);
+    expect(issues({ type: "weekly", lines: [{ ...line, headcounts: WEEK }] })).toEqual([]);
   });
 
   it("rejects a type that is not daily or weekly", () => {
@@ -93,16 +95,71 @@ describe("createRequestSchema", () => {
     expect(paths({ lines: manyLines(51) })).toEqual([["lines"]]);
   });
 
-  it.each([0, 1000, 1.5, "2"])("rejects the headcount %s", (headcount) => {
-    expect(paths({ lines: [{ ...line, headcount }] })).toEqual([["lines", 0, "headcount"]]);
+  it.each([[[1]], [WEEK]])("accepts the headcounts %j", (headcounts) => {
+    expect(issues({ lines: [{ ...line, headcounts }] })).toEqual([]);
   });
 
-  it.each([1, 999])("accepts the headcount %s", (headcount) => {
-    expect(issues({ lines: [{ ...line, headcount }] })).toEqual([]);
+  it.each([[[]], [[1, 2]], [[1, 2, 3, 4, 5, 6, 7, 8]]])(
+    "rejects the headcounts %j as the wrong length",
+    (headcounts) => {
+      expect(issues({ lines: [{ ...line, headcounts }] })).toEqual([
+        {
+          path: ["lines", 0, "headcounts"],
+          message: "Headcount does not match the request type",
+        },
+      ]);
+    },
+  );
+
+  it.each([0, 999])("accepts the headcount %s at shape level", (headcount) => {
+    expect(issues({ lines: [{ ...line, headcounts: [headcount] }] })).toEqual([]);
+  });
+
+  it.each([
+    [-1, "Headcount must be between 0 and 999"],
+    [1000, "Headcount must be between 0 and 999"],
+    [1.5, "Headcount must be a whole number"],
+    [Number.NaN, "Headcount is required"],
+    ["2", "Headcount is required"],
+  ])("rejects the headcount %s", (headcount, message) => {
+    expect(issues({ lines: [{ ...line, headcounts: [headcount] }] })).toEqual([
+      { path: ["lines", 0, "headcounts", 0], message },
+    ]);
+  });
+
+  it("rejects a bad number on any day of a weekly line", () => {
+    const headcounts = [...WEEK];
+    headcounts[4] = 1000;
+
+    expect(paths({ type: "weekly", lines: [{ ...line, headcounts }] })).toEqual([
+      ["lines", 0, "headcounts", 4],
+    ]);
+  });
+
+  it("rejects missing headcounts", () => {
+    const withoutHeadcounts = {
+      departmentId: DEPARTMENT_ID,
+      subDepartmentId: null,
+      positionId: POSITION_ID,
+    };
+
+    expect(issues({ lines: [withoutHeadcounts] })).toEqual([
+      { path: ["lines", 0, "headcounts"], message: "Headcount is required" },
+    ]);
+  });
+
+  it("drops the old single headcount key", () => {
+    const result = createRequestSchema(MIN_DATE).safeParse({
+      ...base,
+      lines: [{ ...line, headcount: 3 }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.success && "headcount" in result.data.lines[0]).toBe(false);
   });
 
   it("rejects two lines with the same department, sub-department, and position", () => {
-    expect(paths({ lines: [line, { ...line, headcount: 5 }] })).toEqual([["lines"]]);
+    expect(paths({ lines: [line, { ...line, headcounts: [5] }] })).toEqual([["lines"]]);
   });
 
   it("rejects a duplicate that has the same set sub-department", () => {

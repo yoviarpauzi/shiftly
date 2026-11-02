@@ -20,10 +20,18 @@ import {
   requestFormDefaults,
   returnsToPending,
   subDepartmentsFor,
+  toRequestLineInputs,
 } from "@/app/dashboard/requests/request-form-options";
-import { requestFieldErrors } from "@/app/dashboard/requests/request-rules";
+import {
+  linesHeadcountsError,
+  requestFieldErrors,
+} from "@/app/dashboard/requests/request-rules";
 import { jakartaDate } from "@/lib/indonesia-date";
-import type { RequestFieldErrors, RequestFormProps } from "@/types/requests";
+import type {
+  RequestFieldErrors,
+  RequestFormProps,
+  RequestFormValues,
+} from "@/types/requests";
 import { RequestLineFields } from "@/components/dashboard/requests/request-line-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -75,20 +83,36 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
   // Read once, so a refresh after saving does not hand the form new defaults.
   const [defaultValues] = useState(() => requestFormDefaults(request, choices));
 
+  // The type is locked on edit, so the stored type decides how many days each line has.
+  const lineType = (value: RequestFormValues) => request?.type ?? value.type;
+
+  // The form lines turned into the headcounts the schema and the server take.
+  const submitted = (value: RequestFormValues) => ({
+    ...value,
+    lines: toRequestLineInputs(lineType(value), value.lines),
+  });
+
   const form = useForm({
     defaultValues,
     // On edit the server decides the date rule: a stored date that has passed may be kept.
     validators: {
       onSubmit: ({ value }) => {
+        const input = submitted(value);
         const parsed = request
-          ? updateRequestSchema(null).safeParse(value)
-          : createRequestSchema(jakartaDate()).safeParse(value);
+          ? updateRequestSchema(null).safeParse(input)
+          : createRequestSchema(jakartaDate()).safeParse(input);
 
-        if (parsed.success) {
-          return undefined;
+        if (!parsed.success) {
+          return { fields: errorFields(requestFieldErrors(parsed.error.issues)) };
         }
 
-        return { fields: errorFields(requestFieldErrors(parsed.error.issues)) };
+        // A create without a type has already failed the schema above.
+        const type = lineType(value);
+        const headcountError = type ? linesHeadcountsError(type, input.lines) : null;
+
+        return headcountError
+          ? { fields: errorFields({ lines: headcountError }) }
+          : undefined;
       },
     },
     onSubmit: async ({ value, formApi }) => {
@@ -96,12 +120,10 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
 
       // The validator above has passed, so these parses only convert the values. The date rule is
       // left to the server, which checks it again either way.
+      const input = submitted(value);
       const result = request
-        ? await updateRequest(
-            request.id,
-            updateRequestSchema(null).parse(value),
-          )
-        : await createRequest(createRequestSchema(null).parse(value));
+        ? await updateRequest(request.id, updateRequestSchema(null).parse(input))
+        : await createRequest(createRequestSchema(null).parse(input));
 
       if (!result.ok) {
         setFormError(result.formError ?? null);
@@ -133,6 +155,8 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
 
   const siteId = useStore(form.store, (state) => state.values.siteId);
   const locationId = useStore(form.store, (state) => state.values.locationId);
+  const type = useStore(form.store, (state) => state.values.type);
+  const startDate = useStore(form.store, (state) => state.values.startDate);
   const siteLocations = locationsFor(choices, siteId);
   const departments = departmentsFor(choices, locationId);
   const positions = positionsFor(choices, locationId);
@@ -398,6 +422,8 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                             key={index}
                             index={index}
                             line={line}
+                            type={type}
+                            startDate={startDate}
                             departments={departments}
                             subDepartments={subDepartmentsFor(
                               choices,

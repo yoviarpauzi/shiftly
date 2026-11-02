@@ -1,12 +1,17 @@
 "use server";
 
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { department, subDepartment } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
+import {
+  rosterRequest,
+  rosterRequestLine,
+  rosterRequestLineDay,
+} from "@/database/schema/request-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { jakartaDate } from "@/lib/indonesia-date";
@@ -34,6 +39,7 @@ import {
   initialStatus,
   LOCATION_NOT_FOUND_MESSAGE,
   lineScopeError,
+  linesHeadcountsError,
   NOT_CANCELLABLE_MESSAGE,
   NOT_EDITABLE_MESSAGE,
   NOT_PENDING_MESSAGE,
@@ -93,14 +99,36 @@ async function lineChoices(tx: Transaction, locationId: string, siteId: string) 
   };
 }
 
-function lineRows(requestId: string, lines: RequestLineInput[]) {
-  return lines.map((line) => ({
+// The line ids are made here rather than by the database, so each day row is tied to its line
+// without relying on the order an insert returns its rows in.
+function lineAndDayRows(requestId: string, lines: RequestLineInput[]) {
+  const lineRows = lines.map((line) => ({
+    id: randomUUID(),
     requestId,
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
-    headcount: line.headcount,
   }));
+
+  const dayRows = lines.flatMap((line, lineIndex) =>
+    line.headcounts.map((headcount, dayOffset) => ({
+      lineId: lineRows[lineIndex].id,
+      dayOffset,
+      headcount,
+    })),
+  );
+
+  return { lineRows, dayRows };
+}
+
+async function insertLines(tx: Transaction, requestId: string, lines: RequestLineInput[]) {
+  const { lineRows, dayRows } = lineAndDayRows(requestId, lines);
+
+  await tx.insert(rosterRequestLine).values(lineRows);
+
+  if (dayRows.length > 0) {
+    await tx.insert(rosterRequestLineDay).values(dayRows);
+  }
 }
 
 export async function createRequest(input: RequestInput): Promise<RequestActionResult> {
@@ -113,6 +141,11 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
   }
 
   const data = parsed.data;
+  const headcountError = linesHeadcountsError(data.type, data.lines);
+
+  if (headcountError) {
+    return { ok: false, fieldErrors: { lines: headcountError } };
+  }
 
   // The share lock conflicts with the update lock a location or site delete takes, so neither can
   // be deleted between this check and the insert. The location id comes from the client, so it is
@@ -168,7 +201,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
       })
       .returning({ id: rosterRequest.id });
 
-    await tx.insert(rosterRequestLine).values(lineRows(created.id, data.lines));
+    await insertLines(tx, created.id, data.lines);
 
     return { ok: true, id: created.id, poNumber };
   });
@@ -228,6 +261,12 @@ export async function updateRequest(
     }
 
     const data = parsed.data;
+    // The type is locked after creation, so the stored type decides how many days a line has.
+    const headcountError = linesHeadcountsError(current.type as RequestType, data.lines);
+
+    if (headcountError) {
+      return { ok: false, fieldErrors: { lines: headcountError } };
+    }
 
     const lineError = lineScopeError(
       data.lines,
@@ -251,8 +290,9 @@ export async function updateRequest(
       })
       .where(eq(rosterRequest.id, current.id));
 
+    // The old day rows go with their lines through the cascade.
     await tx.delete(rosterRequestLine).where(eq(rosterRequestLine.requestId, current.id));
-    await tx.insert(rosterRequestLine).values(lineRows(current.id, data.lines));
+    await insertLines(tx, current.id, data.lines);
 
     return { ok: true };
   });

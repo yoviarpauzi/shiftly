@@ -25,15 +25,27 @@ const startDateField = (minDate: string | null) =>
       "Start date cannot be in the past",
     );
 
+// One number for a daily line, seven for a weekly one. Which length the type needs, and the daily
+// minimum of 1, are checked by headcountsError, because this schema does not see the type.
+const HEADCOUNT_LENGTHS = [1, 7];
+
+// z.number refuses NaN, so an empty form field reports "Headcount is required".
+const headcountField = z
+  .number({ error: "Headcount is required" })
+  .int("Headcount must be a whole number")
+  .min(0, "Headcount must be between 0 and 999")
+  .max(999, "Headcount must be between 0 and 999");
+
 const lineSchema = z.object({
   departmentId: z.string({ error: "Choose a department" }).uuid("Choose a department"),
   subDepartmentId: z.string().uuid("Choose a sub-department").nullable(),
   positionId: z.string({ error: "Choose a position" }).uuid("Choose a position"),
-  headcount: z
-    .number({ error: "Headcount is required" })
-    .int("Headcount must be a whole number")
-    .min(1, "Headcount must be between 1 and 999")
-    .max(999, "Headcount must be between 1 and 999"),
+  headcounts: z
+    .array(headcountField, { error: "Headcount is required" })
+    .refine(
+      (headcounts) => HEADCOUNT_LENGTHS.includes(headcounts.length),
+      "Headcount does not match the request type",
+    ),
 });
 
 const linesField = z

@@ -40,7 +40,7 @@ const line = (fields: {
   departmentId: DEPT_A,
   subDepartmentId: null,
   positionId: POSITION,
-  headcount: 2,
+  headcounts: [2],
   ...fields,
 });
 
@@ -165,7 +165,7 @@ describe("requestFieldErrors", () => {
       requestFieldErrors([
         { path: ["startDate"], message: "first" },
         { path: ["startDate"], message: "second" },
-        { path: ["lines", 0, "headcount"], message: "lines message" },
+        { path: ["lines", 0, "headcounts", 0], message: "lines message" },
       ]),
     ).toEqual({ startDate: "first", lines: "lines message" });
   });

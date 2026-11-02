@@ -5,10 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { department, subDepartment } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
+import {
+  rosterRequest,
+  rosterRequestLine,
+  rosterRequestLineDay,
+} from "@/database/schema/request-schema";
 import type { RequestAccess, RequestActor } from "@/types/requests";
 import { formatPoNumber, poPeriod } from "./po-number";
 import {
+  DAILY_HEADCOUNT_MESSAGE,
+  HEADCOUNT_LENGTH_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
   NOT_CANCELLABLE_MESSAGE,
   NOT_EDITABLE_MESSAGE,
@@ -16,6 +22,7 @@ import {
   REASON_REQUIRED_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
   siteCodeMissingMessage,
+  WEEKLY_HEADCOUNT_MESSAGE,
 } from "./request-rules";
 
 // The database is replaced by a recorder. Every query is logged as a Call, and the result of a
@@ -187,7 +194,11 @@ function actAs(role: Role) {
 const FUTURE = "2099-01-05";
 const PAST = "2020-01-06";
 
-const line = { departmentId: DEPT_A, subDepartmentId: SUB_A, positionId: POSITION_A, headcount: 3 };
+const line = { departmentId: DEPT_A, subDepartmentId: SUB_A, positionId: POSITION_A, headcounts: [3] };
+
+const WEEK = [0, 3, 3, 0, 5, 5, 5];
+
+const weeklyLine = { ...line, headcounts: WEEK };
 
 const createInput = {
   type: "daily" as const,
@@ -196,7 +207,12 @@ const createInput = {
   lines: [line],
 };
 
-const updateInput = { startDate: FUTURE, lines: [line] };
+const weeklyCreateInput = { ...createInput, type: "weekly" as const, lines: [weeklyLine] };
+
+// The stored request is weekly unless a test says otherwise, so the default update is weekly too.
+const updateInput = { startDate: FUTURE, lines: [weeklyLine] };
+
+const dailyUpdateInput = { startDate: FUTURE, lines: [line] };
 
 function seedLocationChoices() {
   fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL" }];
@@ -222,6 +238,14 @@ const writes = () =>
 const counterCalls = () => fake.calls.filter((call) => call.op === "counter");
 const requestUpdate = () =>
   fake.calls.find((call) => call.op === "update" && call.table === rosterRequest);
+
+type LineRow = { id: string } & Record<string, unknown>;
+type DayRow = { lineId: string; dayOffset: number; headcount: number };
+
+const lineInserts = () =>
+  fake.calls.filter((call) => call.op === "insert" && call.table === rosterRequestLine);
+const dayInserts = () =>
+  fake.calls.filter((call) => call.op === "insert" && call.table === rosterRequestLineDay);
 
 beforeEach(() => {
   fake.calls = [];
@@ -256,7 +280,11 @@ describe("createRequest", () => {
       { op: "counter", tx: fake.tx, values: { siteId: SITE_A, period } },
     ]);
 
-    expect(writes().map((c) => c.table)).toEqual([rosterRequest, rosterRequestLine]);
+    expect(writes().map((c) => c.table)).toEqual([
+      rosterRequest,
+      rosterRequestLine,
+      rosterRequestLineDay,
+    ]);
     expect(writes()[0].values).toEqual({
       poNumber: `PO-NSL-${period}-0001`,
       type: "daily",
@@ -268,23 +296,67 @@ describe("createRequest", () => {
       updatedBy: "admin-a",
     });
     expect(writes()[0].values).not.toHaveProperty("note");
+    const [lineRow] = writes()[1].values as LineRow[];
     expect(writes()[1].values).toEqual([
       {
+        id: expect.any(String),
         requestId: "request-new",
         departmentId: DEPT_A,
         subDepartmentId: SUB_A,
         positionId: POSITION_A,
-        headcount: 3,
       },
     ]);
+    expect(writes()[2].values).toEqual([{ lineId: lineRow.id, dayOffset: 0, headcount: 3 }]);
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard/requests");
+  });
+
+  it("inserts seven day rows for each weekly line, tied to the id the line was inserted with", async () => {
+    seedLocationChoices();
+    const secondWeek = [1, 1, 1, 1, 1, 1, 2];
+    const second = { ...weeklyLine, subDepartmentId: null, headcounts: secondWeek };
+
+    const res = await createRequest({ ...weeklyCreateInput, lines: [weeklyLine, second] });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(lineInserts()).toHaveLength(1);
+    expect(dayInserts()).toHaveLength(1);
+
+    const lineRows = lineInserts()[0].values as LineRow[];
+    const dayRows = dayInserts()[0].values as DayRow[];
+    expect(lineRows).toHaveLength(2);
+    expect(lineRows.every((row) => !("headcount" in row))).toBe(true);
+    expect(new Set(lineRows.map((row) => row.id)).size).toBe(2);
+
+    expect(dayRows).toEqual([
+      ...WEEK.map((headcount, dayOffset) => ({ lineId: lineRows[0].id, dayOffset, headcount })),
+      ...secondWeek.map((headcount, dayOffset) => ({
+        lineId: lineRows[1].id,
+        dayOffset,
+        headcount,
+      })),
+    ]);
+  });
+
+  it.each([
+    ["a weekly line with every day 0", weeklyCreateInput, [0, 0, 0, 0, 0, 0, 0], WEEKLY_HEADCOUNT_MESSAGE],
+    ["a daily line with 0", createInput, [0], DAILY_HEADCOUNT_MESSAGE],
+    ["a daily line with seven numbers", createInput, WEEK, HEADCOUNT_LENGTH_MESSAGE],
+    ["a weekly line with one number", weeklyCreateInput, [3], HEADCOUNT_LENGTH_MESSAGE],
+  ])("refuses %s and writes nothing", async (_label, input, headcounts, message) => {
+    seedLocationChoices();
+
+    const res = await createRequest({ ...input, lines: [{ ...line, headcounts }] });
+
+    expect(res).toEqual({ ok: false, fieldErrors: { lines: message } });
+    expect(writes()).toEqual([]);
+    expect(counterCalls()).toEqual([]);
   });
 
   it("creates a weekly request as pending", async () => {
     seedLocationChoices();
     fake.sequence = 12;
 
-    const res = await createRequest({ ...createInput, type: "weekly" });
+    const res = await createRequest(weeklyCreateInput);
 
     expect(res).toMatchObject({
       ok: true,
@@ -421,7 +493,7 @@ describe("updateRequest", () => {
     seedLocationChoices();
     fake.rows.request = [storedRequest({ type: "daily", status: "approved" })];
 
-    const res = await updateRequest(REQUEST_ID, updateInput);
+    const res = await updateRequest(REQUEST_ID, dailyUpdateInput);
 
     expect(res).toEqual({ ok: true });
     expect(requestUpdate()?.set).toEqual({
@@ -435,23 +507,47 @@ describe("updateRequest", () => {
     seedLocationChoices();
     fake.rows.request = [storedRequest()];
 
-    await updateRequest(REQUEST_ID, { ...updateInput, lines: [{ ...line, headcount: 7 }] });
+    await updateRequest(REQUEST_ID, { ...updateInput, lines: [{ ...line, headcounts: [7, 7, 7, 7, 7, 7, 7] }] });
 
     expect(writes().map((c) => [c.op, c.table])).toEqual([
       ["update", rosterRequest],
       ["delete", rosterRequestLine],
       ["insert", rosterRequestLine],
+      ["insert", rosterRequestLineDay],
     ]);
     expect(whereParams(writes()[1].where)).toEqual([REQUEST_ID]);
+    const [lineRow] = writes()[2].values as LineRow[];
     expect(writes()[2].values).toEqual([
       {
+        id: expect.any(String),
         requestId: REQUEST_ID,
         departmentId: DEPT_A,
         subDepartmentId: SUB_A,
         positionId: POSITION_A,
-        headcount: 7,
       },
     ]);
+    // The old day rows go with the deleted lines through the cascade, so only 7 new rows exist.
+    expect(writes()[3].values).toEqual(
+      Array.from({ length: 7 }, (_, dayOffset) => ({ lineId: lineRow.id, dayOffset, headcount: 7 })),
+    );
+  });
+
+  it.each([
+    ["a weekly request with a one-number line", "weekly", [3], HEADCOUNT_LENGTH_MESSAGE],
+    ["a daily request with a seven-number line", "daily", WEEK, HEADCOUNT_LENGTH_MESSAGE],
+    ["a weekly request with every day 0", "weekly", [0, 0, 0, 0, 0, 0, 0], WEEKLY_HEADCOUNT_MESSAGE],
+    ["a daily request with 0", "daily", [0], DAILY_HEADCOUNT_MESSAGE],
+  ])("refuses %s using the stored type and writes nothing", async (_label, type, headcounts, message) => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest({ type })];
+
+    const res = await updateRequest(REQUEST_ID, {
+      ...updateInput,
+      lines: [{ ...line, headcounts }],
+    });
+
+    expect(res).toEqual({ ok: false, fieldErrors: { lines: message } });
+    expect(writes()).toEqual([]);
   });
 
   it("refuses a cancelled request and writes nothing", async () => {
@@ -505,7 +601,7 @@ describe("updateRequest", () => {
 
     const res = await updateRequest(REQUEST_ID, {
       ...updateInput,
-      lines: [{ ...line, subDepartmentId: POSITION_B }],
+      lines: [{ ...weeklyLine, subDepartmentId: POSITION_B }],
     });
 
     expect(res).toEqual({

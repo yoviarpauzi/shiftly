@@ -12,5 +12,8 @@ export default defineConfig({
     user: process.env.DB_USER!,
     password: process.env.DB_PASSWORD!,
     database: process.env.DB_NAME!,
+    // Without this, drizzle-kit turns SSL on, and the compose Postgres has none. The app connects
+    // the same way in lib/db.ts.
+    ssl: false,
   },
 });

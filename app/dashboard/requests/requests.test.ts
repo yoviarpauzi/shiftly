@@ -14,11 +14,12 @@ import type { RequestAccess } from "@/types/requests";
 // contract is pinned by rendering the recorded orderBy terms to SQL.
 type Call = {
   table?: unknown;
+  where?: SQL;
   orderBy?: SQL[];
 };
 
 const fake = vi.hoisted(() => ({
-  calls: [] as { table?: unknown; orderBy?: unknown[] }[],
+  calls: [] as { table?: unknown; where?: unknown; orderBy?: unknown[] }[],
   rows: {
     header: [] as unknown[],
     lines: [] as unknown[],
@@ -44,7 +45,10 @@ function builder(call: Call) {
       return chain;
     },
     innerJoin: () => chain,
-    where: () => chain,
+    where(condition: SQL) {
+      call.where = condition;
+      return chain;
+    },
     orderBy(...terms: SQL[]) {
       call.orderBy = terms;
       return chain;
@@ -114,6 +118,13 @@ function renderOrderBy(table: unknown): string {
   const terms = (call?.orderBy ?? []) as SQL[];
 
   return terms.map((term) => dialect.sqlToQuery(term).sql).join(", ");
+}
+
+// The WHERE of the header query, rendered to SQL text and bound parameters.
+function renderHeaderWhere(): { sql: string; params: unknown[] } {
+  const call = fake.calls.find((c) => c.table === rosterRequest);
+
+  return dialect.sqlToQuery(call?.where as SQL);
 }
 
 beforeEach(() => {
@@ -203,6 +214,43 @@ describe("getRequest", () => {
     expect(res?.lineCount).toBe(2);
     expect(res?.lines[0].headcounts).toEqual([]);
     expect(res?.lines[1].headcounts).toEqual([2, 2, 2, 2, 2, 0, 0]);
+  });
+
+  // A request outside the actor's scope must read as missing, so the header query itself has to
+  // carry the scope. The recorder cannot run a WHERE, so these tests read the condition it was given.
+  describe("scope of the header query", () => {
+    it("filters by the request id alone for a superadmin", async () => {
+      await getRequest({ siteId: null, locationId: null }, REQUEST_ID);
+
+      const where = renderHeaderWhere();
+
+      expect(where.params).toEqual([REQUEST_ID]);
+      expect(where.sql).toContain('"roster_request"."id" = $1');
+      expect(where.sql).not.toContain('"roster_request"."site_id"');
+      expect(where.sql).not.toContain('"roster_request"."location_id"');
+    });
+
+    it("adds the site of an HO to the request id", async () => {
+      await getRequest({ siteId: SITE_A, locationId: null }, REQUEST_ID);
+
+      const where = renderHeaderWhere();
+
+      expect(where.params).toEqual([REQUEST_ID, SITE_A]);
+      expect(where.sql).toContain('"roster_request"."id" = $1');
+      expect(where.sql).toContain('"roster_request"."site_id" = $2');
+      expect(where.sql).not.toContain('"roster_request"."location_id"');
+    });
+
+    it("adds the location of an admin site, and not its site, to the request id", async () => {
+      await getRequest({ siteId: SITE_A, locationId: LOCATION_A }, REQUEST_ID);
+
+      const where = renderHeaderWhere();
+
+      expect(where.params).toEqual([REQUEST_ID, LOCATION_A]);
+      expect(where.sql).toContain('"roster_request"."id" = $1');
+      expect(where.sql).toContain('"roster_request"."location_id" = $2');
+      expect(where.sql).not.toContain('"roster_request"."site_id"');
+    });
   });
 
   it("orders the day query by line, then day offset, and the lines query by line id", async () => {

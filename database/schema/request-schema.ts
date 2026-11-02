@@ -6,6 +6,7 @@ import {
   integer,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -91,13 +92,10 @@ export const rosterRequestLine = pgTable(
     positionId: uuid("position_id")
       .notNull()
       .references(() => position.id, { onDelete: "restrict" }),
-    headcount: integer("headcount").notNull(),
+    // Replaced by rosterRequestLineDay and dropped once nothing reads it.
+    headcount: integer("headcount"),
   },
   (table) => [
-    check(
-      "roster_request_line_headcount_check",
-      sql`${table.headcount} between 1 and 999`,
-    ),
     // A null sub-department is folded to the zero uuid so two such lines still collide.
     uniqueIndex("roster_request_line_unique").on(
       table.requestId,
@@ -106,6 +104,27 @@ export const rosterRequestLine = pgTable(
       table.positionId,
     ),
     index("roster_request_line_requestId_idx").on(table.requestId),
+  ],
+);
+
+// One headcount per day of a request line. dayOffset counts from the request's start date.
+export const rosterRequestLineDay = pgTable(
+  "roster_request_line_day",
+  {
+    lineId: uuid("line_id")
+      .notNull()
+      .references(() => rosterRequestLine.id, { onDelete: "cascade" }),
+    // 0 to 6. A daily request only has 0.
+    dayOffset: smallint("day_offset").notNull(),
+    headcount: integer("headcount").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.lineId, table.dayOffset] }),
+    check("roster_request_line_day_offset_check", sql`${table.dayOffset} between 0 and 6`),
+    check(
+      "roster_request_line_day_headcount_check",
+      sql`${table.headcount} between 0 and 999`,
+    ),
   ],
 );
 
@@ -121,7 +140,7 @@ export const rosterRequestRelations = relations(rosterRequest, ({ one, many }) =
   lines: many(rosterRequestLine),
 }));
 
-export const rosterRequestLineRelations = relations(rosterRequestLine, ({ one }) => ({
+export const rosterRequestLineRelations = relations(rosterRequestLine, ({ one, many }) => ({
   request: one(rosterRequest, {
     fields: [rosterRequestLine.requestId],
     references: [rosterRequest.id],
@@ -137,5 +156,13 @@ export const rosterRequestLineRelations = relations(rosterRequestLine, ({ one })
   position: one(position, {
     fields: [rosterRequestLine.positionId],
     references: [position.id],
+  }),
+  days: many(rosterRequestLineDay),
+}));
+
+export const rosterRequestLineDayRelations = relations(rosterRequestLineDay, ({ one }) => ({
+  line: one(rosterRequestLine, {
+    fields: [rosterRequestLineDay.lineId],
+    references: [rosterRequestLine.id],
   }),
 }));

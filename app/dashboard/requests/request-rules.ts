@@ -12,6 +12,10 @@ export const ACTION_FAILED_MESSAGE = "Something went wrong. Try again.";
 
 export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
+// The zone column is checked by the app only, so a hand edit can leave a value outside the list.
+export const INVALID_TIMEZONE_MESSAGE =
+  "This location has no valid time zone. Set one on the Locations page first.";
+
 export function siteCodeMissingMessage(siteName: string): string {
   return `${siteName} has no code yet. Add a code to the site before creating requests.`;
 }

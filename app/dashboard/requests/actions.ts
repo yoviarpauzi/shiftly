@@ -31,7 +31,7 @@ import {
   type RequestInput,
   type RequestUpdateInput,
 } from "@/validation/request";
-import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
+import { DEFAULT_LOCATION_TIMEZONE, locationTimezoneSchema } from "@/validation/location";
 import { parseRequestId } from "@/validation/request-id";
 import { nextPoSequence } from "./po-counter";
 import { formatPoNumber, poPeriod } from "./po-number";
@@ -39,6 +39,7 @@ import { canDecideRequest, canWriteToLocation } from "./request-access";
 import { requireRequestUser } from "./request-guard";
 import {
   initialStatus,
+  INVALID_TIMEZONE_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
   lineScopeError,
   linesHeadcountsError,
@@ -181,21 +182,33 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
       return { ok: false, formError: siteCodeMissingMessage(target.siteName) };
     }
 
-    if (data.startDate < dateInZone(target.timezone, now)) {
-      return { ok: false, fieldErrors: { startDate: START_DATE_PAST_MESSAGE } };
+    // The column is not checked by the database, so a hand edit can leave an unknown zone.
+    const zone = locationTimezoneSchema.safeParse(target.timezone);
+
+    if (!zone.success) {
+      return { ok: false, formError: INVALID_TIMEZONE_MESSAGE };
     }
 
+    // Both field errors come back together, so the user does not fix one and then meet the other.
+    const startDateError =
+      data.startDate < dateInZone(zone.data, now) ? START_DATE_PAST_MESSAGE : undefined;
     const lineError = lineScopeError(
       data.lines,
       await lineChoices(tx, target.id, target.siteId),
     );
 
-    if (lineError) {
-      return { ok: false, fieldErrors: { lines: lineError } };
+    if (startDateError || lineError) {
+      return {
+        ok: false,
+        fieldErrors: {
+          ...(startDateError && { startDate: startDateError }),
+          ...(lineError && { lines: lineError }),
+        },
+      };
     }
 
     // Issued inside this transaction, so a failed insert rolls the number back with it.
-    const period = poPeriod(now, target.timezone);
+    const period = poPeriod(now, zone.data);
     const sequence = await nextPoSequence(tx, target.siteId, period);
     const poNumber = formatPoNumber(target.siteCode, period, sequence);
 
@@ -268,8 +281,18 @@ export async function updateRequest(
     }
 
     // A stored date that has since passed may be kept. Only a new date must not be in the past.
-    const minDate =
-      input?.startDate !== current.startDate ? dateInZone(current.timezone) : null;
+    let minDate: string | null = null;
+
+    if (input?.startDate !== current.startDate) {
+      const zone = locationTimezoneSchema.safeParse(current.timezone);
+
+      if (!zone.success) {
+        return { ok: false, formError: INVALID_TIMEZONE_MESSAGE };
+      }
+
+      minDate = dateInZone(zone.data);
+    }
+
     const parsed = updateRequestSchema(minDate).safeParse(input);
 
     if (!parsed.success) {

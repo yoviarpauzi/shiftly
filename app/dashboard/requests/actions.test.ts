@@ -16,6 +16,7 @@ import { formatPoNumber, poPeriod } from "./po-number";
 import {
   DAILY_HEADCOUNT_MESSAGE,
   HEADCOUNT_LENGTH_MESSAGE,
+  INVALID_TIMEZONE_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
   NOT_CANCELLABLE_MESSAGE,
   NOT_EDITABLE_MESSAGE,
@@ -537,6 +538,26 @@ describe("createRequest in the location's time zone", () => {
     ]);
   });
 
+  it("reports a past start date and a line error together", async () => {
+    freezeAtJakartaMonthEnd();
+    seedLocationChoices("Asia/Makassar");
+
+    const res = await createRequest({
+      ...createInput,
+      startDate: "2026-11-30",
+      lines: [{ ...line, positionId: POSITION_B }],
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: {
+        startDate: START_DATE_PAST_MESSAGE,
+        lines: "Choose a position from this site",
+      },
+    });
+    expect(writes()).toEqual([]);
+  });
+
   it("still refuses a date before Jakarta's today without reading anything", async () => {
     freezeAtJakartaMonthEnd();
 
@@ -706,6 +727,37 @@ describe("updateRequest", () => {
       fieldErrors: { lines: "Choose a sub-department of the selected department" },
     });
     expect(writes()).toEqual([]);
+  });
+});
+
+describe("a location whose stored time zone is not allowed", () => {
+  it("refuses a create with a form error and writes nothing", async () => {
+    seedLocationChoices("Asia/Singapore");
+
+    const res = await createRequest(createInput);
+
+    expect(res).toEqual({ ok: false, formError: INVALID_TIMEZONE_MESSAGE });
+    expect(writes()).toEqual([]);
+    expect(counterCalls()).toEqual([]);
+  });
+
+  it("refuses an update that changes the date, with a form error", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest({ timezone: "Asia/Singapore" })];
+
+    const res = await updateRequest(REQUEST_ID, { ...updateInput, startDate: "2099-01-06" });
+
+    expect(res).toEqual({ ok: false, formError: INVALID_TIMEZONE_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+
+  it("still lets an update keep the stored date, because the zone is not needed", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest({ timezone: "Asia/Singapore" })];
+
+    const res = await updateRequest(REQUEST_ID, updateInput);
+
+    expect(res).toEqual({ ok: true });
   });
 });
 

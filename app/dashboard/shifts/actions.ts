@@ -23,7 +23,7 @@ import { requireShiftManager } from "./shift-guard";
 import {
   canRestoreShift,
   DUPLICATE_SHIFT_NAME_MESSAGE,
-  DUPLICATE_SHIFT_NUMBER_MESSAGE,
+  DUPLICATE_SHIFT_ORDER_MESSAGE,
   SHIFT_NOT_FOUND_MESSAGE,
   SHIFT_RESTORE_CONFLICT_MESSAGE,
   shiftConflictField,
@@ -35,12 +35,12 @@ import { shiftScopeFilter } from "./shifts";
 const SHIFTS_PATH = "/dashboard/shifts";
 
 // A unique violation names the field that clashes, so the form can mark it.
-function conflictResult(field: "number" | "name"): ShiftActionResult {
+function conflictResult(field: "order" | "name"): ShiftActionResult {
   return {
     ok: false,
     fieldErrors:
-      field === "number"
-        ? { number: DUPLICATE_SHIFT_NUMBER_MESSAGE }
+      field === "order"
+        ? { order: DUPLICATE_SHIFT_ORDER_MESSAGE }
         : { name: DUPLICATE_SHIFT_NAME_MESSAGE },
   };
 }
@@ -71,7 +71,7 @@ export async function createShift(input: ShiftInput): Promise<ShiftActionResult>
 
       await tx.insert(shift).values({
         siteId: target.id,
-        number: parsed.data.number,
+        order: parsed.data.order,
         name: parsed.data.name,
         startTime: parsed.data.startTime,
         endTime: parsed.data.endTime,
@@ -98,7 +98,7 @@ export async function createShift(input: ShiftInput): Promise<ShiftActionResult>
   return { ok: true };
 }
 
-// Number, name, and times change. A shift keeps its site after it is created.
+// Order, name, and times change. A shift keeps its site after it is created.
 export async function updateShift(
   id: string,
   input: ShiftUpdateInput,
@@ -115,7 +115,7 @@ export async function updateShift(
     const updated = await db
       .update(shift)
       .set({
-        number: parsed.data.number,
+        order: parsed.data.order,
         name: parsed.data.name,
         startTime: parsed.data.startTime,
         endTime: parsed.data.endTime,

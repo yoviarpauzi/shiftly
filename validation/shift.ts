@@ -7,11 +7,11 @@ const timeField = (label: string) =>
 
 // Kept apart from the refinements so shiftSchema can extend it. zod 4 rejects .pick() on a refined object.
 const shiftFieldsSchema = z.object({
-  number: z
-    .number({ error: "Shift number is required" })
-    .int("Shift number must be a whole number")
-    .min(1, "Shift number must be between 1 and 9")
-    .max(9, "Shift number must be between 1 and 9"),
+  order: z
+    .number({ error: "Shift order is required" })
+    .int("Shift order must be a whole number")
+    .min(1, "Shift order must be between 1 and 9")
+    .max(9, "Shift order must be between 1 and 9"),
   name: z
     .string({ error: "Shift name is required" })
     .trim()

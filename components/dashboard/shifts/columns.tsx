@@ -65,12 +65,12 @@ export function createShiftColumns(
       ),
       enableHiding: false,
     }),
-    columnHelper.accessor("number", {
+    columnHelper.accessor("order", {
       header: () => (
-        <SortHeader label="No." column="number" sort={sort} onSort={onSort} />
+        <SortHeader label="Order" column="order" sort={sort} onSort={onSort} />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums">{row.original.number}</span>
+        <span className="tabular-nums">{row.original.order}</span>
       ),
     }),
     columnHelper.accessor("name", {

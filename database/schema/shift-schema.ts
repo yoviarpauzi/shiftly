@@ -17,8 +17,8 @@ export const shift = pgTable(
     siteId: uuid("site_id")
       .notNull()
       .references(() => site.id, { onDelete: "restrict" }),
-    // The rule engine orders shifts by this number, so it is unique within a site.
-    number: integer("number").notNull(),
+    // The rule engine orders shifts by this value, so it is unique within a site.
+    order: integer("order").notNull(),
     name: text("name").notNull(),
     // A shift whose end is earlier than its start crosses midnight.
     startTime: time("start_time").notNull(),
@@ -31,8 +31,8 @@ export const shift = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex("shift_siteId_number_active_unique")
-      .on(table.siteId, table.number)
+    uniqueIndex("shift_siteId_order_active_unique")
+      .on(table.siteId, table.order)
       .where(isNull(table.deletedAt)),
     uniqueIndex("shift_siteId_lowerName_active_unique")
       .on(table.siteId, sql`lower(${table.name})`)

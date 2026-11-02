@@ -9,7 +9,7 @@ import {
   toHourMinute,
 } from "./shift-rules";
 
-const NUMBER_INDEX = "shift_siteId_number_active_unique";
+const ORDER_INDEX = "shift_siteId_order_active_unique";
 const NAME_INDEX = "shift_siteId_lowerName_active_unique";
 
 describe("canRestoreShift", () => {
@@ -26,8 +26,8 @@ describe("canRestoreShift", () => {
 });
 
 describe("shiftConflictField", () => {
-  it("names the number when the number index is violated", () => {
-    expect(shiftConflictField({ code: "23505", constraint: NUMBER_INDEX })).toBe("number");
+  it("names the order when the order index is violated", () => {
+    expect(shiftConflictField({ code: "23505", constraint: ORDER_INDEX })).toBe("order");
   });
 
   it("names the name when the name index is violated", () => {
@@ -36,8 +36,8 @@ describe("shiftConflictField", () => {
 
   it("finds the violation when the driver error sits on cause", () => {
     expect(
-      shiftConflictField(new Error("insert failed", { cause: { code: "23505", constraint: NUMBER_INDEX } })),
-    ).toBe("number");
+      shiftConflictField(new Error("insert failed", { cause: { code: "23505", constraint: ORDER_INDEX } })),
+    ).toBe("order");
     expect(
       shiftConflictField(new Error("insert failed", { cause: { code: "23505", constraint: NAME_INDEX } })),
     ).toBe("name");
@@ -48,7 +48,7 @@ describe("shiftConflictField", () => {
   });
 
   it("ignores another error code on a shift constraint", () => {
-    expect(shiftConflictField({ code: "23503", constraint: NUMBER_INDEX })).toBeNull();
+    expect(shiftConflictField({ code: "23503", constraint: ORDER_INDEX })).toBeNull();
   });
 
   it("ignores values that are not errors", () => {

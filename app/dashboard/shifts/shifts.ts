@@ -31,12 +31,12 @@ import { toHourMinute } from "./shift-rules";
 
 const DEFAULT_SORT: SortCriterion<ShiftSortColumn>[] = [
   { column: "site", direction: "asc" },
-  { column: "number", direction: "asc" },
+  { column: "order", direction: "asc" },
 ];
 
 // Each sortable column maps to a fixed expression. URL input only picks a key from this map.
 const SHIFT_SORT_EXPRESSIONS: Record<ShiftSortColumn, SQLWrapper> = {
-  number: shift.number,
+  order: shift.order,
   name: shift.name,
   site: site.name,
   status: sql`(${shift.deletedAt} is not null)`,
@@ -80,7 +80,7 @@ export async function listShifts(
   const rows = await db
     .select({
       id: shift.id,
-      number: shift.number,
+      order: shift.order,
       name: shift.name,
       startTime: shift.startTime,
       endTime: shift.endTime,

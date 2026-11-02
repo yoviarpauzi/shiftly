@@ -2,7 +2,7 @@ import type { SiteChoice } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 
-export type ShiftSortColumn = "number" | "name" | "site" | "status";
+export type ShiftSortColumn = "order" | "name" | "site" | "status";
 
 export type ShiftStatus = "active" | "deleted" | "all";
 
@@ -13,7 +13,7 @@ export type ShiftAccess = {
 
 export type ShiftRow = {
   id: string;
-  number: number;
+  order: number;
   name: string;
   // 24 hour HH:MM. A shift whose end is earlier than its start crosses midnight.
   startTime: string;
@@ -37,7 +37,7 @@ export type ShiftListParams = PageParams & {
   sort: SortCriterion<ShiftSortColumn>[];
 };
 
-export type ShiftField = "number" | "name" | "startTime" | "endTime" | "siteId";
+export type ShiftField = "order" | "name" | "startTime" | "endTime" | "siteId";
 
 export type ShiftFieldErrors = Partial<Record<ShiftField, string>>;
 

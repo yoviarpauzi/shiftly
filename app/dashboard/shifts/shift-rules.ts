@@ -6,14 +6,14 @@ export const SITE_NOT_FOUND_MESSAGE = "Site not found";
 
 export const SITE_DELETED_MESSAGE = "Restore the site first";
 
-export const DUPLICATE_SHIFT_NUMBER_MESSAGE = "Number is already used in this site";
+export const DUPLICATE_SHIFT_ORDER_MESSAGE = "Order is already used in this site";
 
 export const DUPLICATE_SHIFT_NAME_MESSAGE = "Name is already used in this site";
 
 export const SHIFT_RESTORE_CONFLICT_MESSAGE =
-  "Another active shift in this site already uses this number or name. Change that shift before restoring.";
+  "Another active shift in this site already uses this order or name. Change that shift before restoring.";
 
-const SHIFT_NUMBER_CONSTRAINT = "shift_siteId_number_active_unique";
+const SHIFT_ORDER_CONSTRAINT = "shift_siteId_order_active_unique";
 
 const SHIFT_NAME_CONSTRAINT = "shift_siteId_lowerName_active_unique";
 
@@ -26,7 +26,7 @@ export function canRestoreShift({
   return siteDeleted ? { ok: false, formError: SITE_DELETED_MESSAGE } : { ok: true };
 }
 
-function conflictFieldOf(value: unknown): "number" | "name" | null {
+function conflictFieldOf(value: unknown): "order" | "name" | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
@@ -37,8 +37,8 @@ function conflictFieldOf(value: unknown): "number" | "name" | null {
     return null;
   }
 
-  if (constraint === SHIFT_NUMBER_CONSTRAINT) {
-    return "number";
+  if (constraint === SHIFT_ORDER_CONSTRAINT) {
+    return "order";
   }
 
   return constraint === SHIFT_NAME_CONSTRAINT ? "name" : null;
@@ -47,7 +47,7 @@ function conflictFieldOf(value: unknown): "number" | "name" | null {
 // Which field a unique violation is about, or null when the error is something else. The name index
 // is on lower(name), so a name that matches an active sibling only in case also conflicts.
 // Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`.
-export function shiftConflictField(error: unknown): "number" | "name" | null {
+export function shiftConflictField(error: unknown): "order" | "name" | null {
   const direct = conflictFieldOf(error);
 
   if (direct) {

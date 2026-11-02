@@ -4,7 +4,7 @@ import { shiftSchema, shiftUpdateSchema } from "./shift";
 const SITE_ID = "11111111-1111-4111-8111-111111111111";
 
 const base = {
-  number: 1,
+  order: 1,
   name: "Morning",
   startTime: "06:00",
   endTime: "14:00",
@@ -33,12 +33,12 @@ describe("shiftSchema", () => {
     ]);
   });
 
-  it.each([0, 10, 1.5, Number.NaN, "2"])("rejects the number %s", (number) => {
-    expect(issues({ number }).map((issue) => issue.path)).toEqual([["number"]]);
+  it.each([0, 10, 1.5, Number.NaN, "2"])("rejects the order %s", (order) => {
+    expect(issues({ order }).map((issue) => issue.path)).toEqual([["order"]]);
   });
 
-  it.each([1, 9])("accepts the number %s", (number) => {
-    expect(issues({ number })).toEqual([]);
+  it.each([1, 9])("accepts the order %s", (order) => {
+    expect(issues({ order })).toEqual([]);
   });
 
   it("trims surrounding spaces from the name", () => {
@@ -76,14 +76,14 @@ describe("shiftSchema", () => {
 
 describe("shiftUpdateSchema", () => {
   it("accepts input without a site id", () => {
-    const update = { number: 1, name: "Morning", startTime: "06:00", endTime: "14:00" };
+    const update = { order: 1, name: "Morning", startTime: "06:00", endTime: "14:00" };
 
     expect(shiftUpdateSchema.safeParse(update).success).toBe(true);
   });
 
   it("rejects an end time equal to the start time", () => {
     const result = shiftUpdateSchema.safeParse({
-      number: 1,
+      order: 1,
       name: "Morning",
       startTime: "06:00",
       endTime: "06:00",

@@ -35,11 +35,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { shiftSchema, shiftUpdateSchema } from "@/validation/shift";
 
-const NUMBER_OPTIONS = Array.from({ length: 9 }, (_, index) => ({
-  value: `${index + 1}`,
-  label: `${index + 1}`,
-}));
-
 // A fixed site starts the form on it. An edit keeps the shift's own site.
 function defaultSiteId(shift: ShiftRow | null, siteChoice: SiteChoice) {
   if (shift) {
@@ -59,7 +54,8 @@ export function ShiftFormDialog({
 
   const form = useForm({
     defaultValues: {
-      number: shift?.number ?? 1,
+      // NaN is an empty field, so a new shift starts with a blank order.
+      order: shift?.order ?? Number.NaN,
       name: shift?.name ?? "",
       startTime: shift?.startTime ?? "",
       endTime: shift?.endTime ?? "",
@@ -92,7 +88,7 @@ export function ShiftFormDialog({
 
       const result = shift
         ? await updateShift(shift.id, {
-            number: value.number,
+            order: value.order,
             name: value.name,
             startTime: value.startTime,
             endTime: value.endTime,
@@ -105,7 +101,7 @@ export function ShiftFormDialog({
           onSubmit: {
             form: result.formError,
             fields: {
-              number: nameFieldError(result.fieldErrors?.number),
+              order: nameFieldError(result.fieldErrors?.order),
               name: nameFieldError(result.fieldErrors?.name),
               startTime: nameFieldError(result.fieldErrors?.startTime),
               endTime: nameFieldError(result.fieldErrors?.endTime),
@@ -140,40 +136,34 @@ export function ShiftFormDialog({
             {(isSubmitting) => (
               <>
                 <FieldGroup>
-                  <form.Field name="number">
+                  <form.Field name="order">
                     {(field) => {
                       const isInvalid = field.state.meta.errors.length > 0;
 
                       return (
                         <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Number</FieldLabel>
-                          <Select
-                            value={`${field.state.value}`}
-                            onValueChange={(value) => {
-                              if (value) {
-                                field.handleChange(Number(value));
-                              }
-                            }}
-                            items={NUMBER_OPTIONS}
+                          <FieldLabel htmlFor={field.name}>Order</FieldLabel>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={9}
+                            step={1}
+                            value={Number.isNaN(field.state.value) ? "" : field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(
+                                event.target.value === ""
+                                  ? Number.NaN
+                                  : Number(event.target.value),
+                              )
+                            }
+                            autoFocus
                             disabled={isSubmitting}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={isInvalid || undefined}
-                              className="w-full"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {NUMBER_OPTIONS.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                            aria-invalid={isInvalid || undefined}
+                          />
                           {isInvalid && (
                             <FieldError errors={field.state.meta.errors} />
                           )}
@@ -196,7 +186,6 @@ export function ShiftFormDialog({
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
-                            autoFocus
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}
                           />

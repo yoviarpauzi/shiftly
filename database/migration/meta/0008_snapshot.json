@@ -1,5 +1,5 @@
 {
-  "id": "c0c94305-df64-41d3-ab3e-197636f4de74",
+  "id": "da6be061-3aec-412f-96f3-e8a5ad18974a",
   "prevId": "469b6909-7d03-4ec2-a957-50ad6be36e41",
   "version": "7",
   "dialect": "postgresql",
@@ -802,8 +802,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "number": {
-          "name": "number",
+        "order": {
+          "name": "order",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -848,8 +848,8 @@
         }
       },
       "indexes": {
-        "shift_siteId_number_active_unique": {
-          "name": "shift_siteId_number_active_unique",
+        "shift_siteId_order_active_unique": {
+          "name": "shift_siteId_order_active_unique",
           "columns": [
             {
               "expression": "site_id",
@@ -858,7 +858,7 @@
               "nulls": "last"
             },
             {
-              "expression": "number",
+              "expression": "order",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

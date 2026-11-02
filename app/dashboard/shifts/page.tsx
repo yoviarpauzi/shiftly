@@ -6,7 +6,7 @@ import { parseSortParam } from "@/validation/sort";
 import { requireShiftManager } from "./shift-guard";
 import { listShifts, shiftSiteChoiceFor } from "./shifts";
 
-const SHIFT_SORT_COLUMNS = ["number", "name", "site", "status"] as const;
+const SHIFT_SORT_COLUMNS = ["order", "name", "site", "status"] as const;
 
 export default async function Page({
   searchParams,

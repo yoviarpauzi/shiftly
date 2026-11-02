@@ -24,8 +24,6 @@ import {
   FolderTreeIcon,
   UsersIcon,
   Building2Icon,
-  CameraIcon,
-  FileTextIcon,
   Settings2Icon,
   DatabaseIcon,
   FileChartColumnIcon,
@@ -77,54 +75,6 @@ const data = {
       url: "/dashboard/workers",
       icon: <HardHatIcon />,
       roles: ["superadmin", "ho", "admin_site"],
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: <CameraIcon />,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
     },
   ],
   navSecondary: [

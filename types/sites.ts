@@ -6,6 +6,7 @@ export type SiteSortColumn = "name" | "locations" | "status";
 export type SiteRow = {
   id: string;
   name: string;
+  code: string | null;
   locationCount: number;
   deletedAt: Date | null;
 };
@@ -26,7 +27,7 @@ export type SiteListParams = PageParams & {
 
 export type SiteActionResult =
   | { ok: true }
-  | { ok: false; fieldErrors?: { name?: string }; formError?: string };
+  | { ok: false; fieldErrors?: { name?: string; code?: string }; formError?: string };
 
 export type SiteBulkDeleteResult = {
   deletedIds: string[];

@@ -68,6 +68,7 @@ export async function listSites({
     .select({
       id: site.id,
       name: site.name,
+      code: site.code,
       locationCount: count(location.id),
       deletedAt: site.deletedAt,
     })
@@ -77,7 +78,7 @@ export async function listSites({
       and(eq(location.siteId, site.id), isNull(location.deletedAt)),
     )
     .where(filter)
-    .groupBy(site.id, site.name, site.deletedAt)
+    .groupBy(site.id, site.name, site.code, site.deletedAt)
     .orderBy(...sortTerms(criteria, SITE_SORT_EXPRESSIONS), asc(site.id))
     .limit(pageSize)
     .offset((currentPage - 1) * pageSize);

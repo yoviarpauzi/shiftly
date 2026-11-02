@@ -4,12 +4,14 @@ import {
   bulkRestoreMessage,
   bulkSelectionMode,
   canDeleteSite,
+  isSiteCodeConflict,
   isSiteNameConflict,
 } from "./site-rules";
 
 const site = (deleted: boolean): SiteRow => ({
   id: crypto.randomUUID(),
   name: "Nestle",
+  code: "NES",
   locationCount: 0,
   deletedAt: deleted ? new Date() : null,
 });
@@ -192,5 +194,40 @@ describe("isSiteNameConflict", () => {
 
   it("returns false for a non-object error", () => {
     expect(isSiteNameConflict(null)).toBe(false);
+  });
+});
+
+describe("isSiteCodeConflict", () => {
+  it("detects the active-code unique violation", () => {
+    expect(
+      isSiteCodeConflict({
+        code: "23505",
+        constraint: "site_code_lower_active_unique",
+      }),
+    ).toBe(true);
+  });
+
+  it("detects the violation when it is wrapped in a cause", () => {
+    expect(
+      isSiteCodeConflict({
+        cause: {
+          code: "23505",
+          constraint: "site_code_lower_active_unique",
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("ignores the name constraint", () => {
+    expect(
+      isSiteCodeConflict({
+        code: "23505",
+        constraint: "site_name_lower_active_unique",
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false for a non-object error", () => {
+    expect(isSiteCodeConflict(null)).toBe(false);
   });
 });

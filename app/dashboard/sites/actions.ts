@@ -2,6 +2,7 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
+import type { ZodError } from "zod";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
@@ -18,7 +19,9 @@ import type {
 import { siteSchema, type SiteInput } from "@/validation/site";
 import {
   canDeleteSite,
+  DUPLICATE_CODE_MESSAGE,
   DUPLICATE_NAME_MESSAGE,
+  isSiteCodeConflict,
   isSiteNameConflict,
   RESTORE_CONFLICT_MESSAGE,
   SITE_NOT_FOUND_MESSAGE,
@@ -26,20 +29,41 @@ import {
 
 const SITES_PATH = "/dashboard/sites";
 
+// Every issue is reported on its own field. The first issue per field wins.
+function siteFieldErrors(error: ZodError<SiteInput>) {
+  const fieldErrors: { name?: string; code?: string } = {};
+
+  for (const issue of error.issues) {
+    const field = issue.path[0];
+
+    if ((field === "name" || field === "code") && !fieldErrors[field]) {
+      fieldErrors[field] = issue.message;
+    }
+  }
+
+  return fieldErrors;
+}
+
 export async function createSite(input: SiteInput): Promise<SiteActionResult> {
   await requireSuperadmin();
 
   const parsed = siteSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: { name: parsed.error.issues[0].message } };
+    return { ok: false, fieldErrors: siteFieldErrors(parsed.error) };
   }
 
   try {
-    await db.insert(site).values({ name: parsed.data.name });
+    await db
+      .insert(site)
+      .values({ name: parsed.data.name, code: parsed.data.code });
   } catch (error) {
     if (isSiteNameConflict(error)) {
       return { ok: false, fieldErrors: { name: DUPLICATE_NAME_MESSAGE } };
+    }
+
+    if (isSiteCodeConflict(error)) {
+      return { ok: false, fieldErrors: { code: DUPLICATE_CODE_MESSAGE } };
     }
 
     throw error;
@@ -59,13 +83,13 @@ export async function updateSite(
   const parsed = siteSchema.safeParse(input);
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: { name: parsed.error.issues[0].message } };
+    return { ok: false, fieldErrors: siteFieldErrors(parsed.error) };
   }
 
   try {
     const updated = await db
       .update(site)
-      .set({ name: parsed.data.name })
+      .set({ name: parsed.data.name, code: parsed.data.code })
       .where(and(eq(site.id, id), isNull(site.deletedAt)))
       .returning({ id: site.id });
 
@@ -75,6 +99,10 @@ export async function updateSite(
   } catch (error) {
     if (isSiteNameConflict(error)) {
       return { ok: false, fieldErrors: { name: DUPLICATE_NAME_MESSAGE } };
+    }
+
+    if (isSiteCodeConflict(error)) {
+      return { ok: false, fieldErrors: { code: DUPLICATE_CODE_MESSAGE } };
     }
 
     throw error;
@@ -164,7 +192,7 @@ async function restoreOne(id: string): Promise<SiteActionResult> {
       return { ok: false, formError: SITE_NOT_FOUND_MESSAGE };
     }
   } catch (error) {
-    if (isSiteNameConflict(error)) {
+    if (isSiteNameConflict(error) || isSiteCodeConflict(error)) {
       return { ok: false, formError: RESTORE_CONFLICT_MESSAGE };
     }
 

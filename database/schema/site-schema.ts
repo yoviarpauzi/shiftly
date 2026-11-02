@@ -6,6 +6,7 @@ export const site = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    code: text("code"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -18,6 +19,9 @@ export const site = pgTable(
   (table) => [
     uniqueIndex("site_name_lower_active_unique")
       .on(sql`lower(${table.name})`)
+      .where(isNull(table.deletedAt)),
+    uniqueIndex("site_code_lower_active_unique")
+      .on(sql`lower(${table.code})`)
       .where(isNull(table.deletedAt)),
   ],
 );

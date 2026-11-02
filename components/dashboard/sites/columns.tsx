@@ -66,6 +66,10 @@ export function createSiteColumns(
       ),
       cell: ({ row }) => row.original.name,
     }),
+    columnHelper.accessor("code", {
+      header: "Code",
+      cell: ({ row }) => row.original.code ?? "-",
+    }),
     columnHelper.accessor("locationCount", {
       header: () => (
         <div className="flex justify-end">

@@ -33,7 +33,7 @@ export function SiteFormDialog({
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm({
-    defaultValues: { name: site?.name ?? "" },
+    defaultValues: { name: site?.name ?? "", code: site?.code ?? "" },
     validators: { onSubmit: siteSchema },
     onSubmit: async ({ value, formApi }) => {
       setFormError(null);
@@ -47,7 +47,10 @@ export function SiteFormDialog({
         formApi.setErrorMap({
           onSubmit: {
             form: result.formError,
-            fields: { name: nameFieldError(result.fieldErrors?.name) },
+            fields: {
+              name: nameFieldError(result.fieldErrors?.name),
+              code: nameFieldError(result.fieldErrors?.code),
+            },
           },
         });
         return;
@@ -93,6 +96,31 @@ export function SiteFormDialog({
                               field.handleChange(event.target.value)
                             }
                             autoFocus
+                            disabled={isSubmitting}
+                            aria-invalid={isInvalid || undefined}
+                          />
+                          {isInvalid && (
+                            <FieldError errors={field.state.meta.errors} />
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
+                  <form.Field name="code">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
+
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor={field.name}>Code</FieldLabel>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}
                           />

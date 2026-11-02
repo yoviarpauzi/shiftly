@@ -2,12 +2,15 @@ import type { BulkSelectionMode, SiteRow } from "@/types/sites";
 
 export const DUPLICATE_NAME_MESSAGE = "A site with this name already exists";
 
+export const DUPLICATE_CODE_MESSAGE = "A site with this code already exists";
+
 export const SITE_NOT_FOUND_MESSAGE = "This site no longer exists";
 
 export const RESTORE_CONFLICT_MESSAGE =
-  "Another active site already uses this name. Rename it before restoring.";
+  "Another active site already uses this name or code. Change it before restoring.";
 
 const SITE_NAME_CONSTRAINT = "site_name_lower_active_unique";
+const SITE_CODE_CONSTRAINT = "site_code_lower_active_unique";
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -63,19 +66,19 @@ export function canDeleteSite({
   };
 }
 
-function hasNameConflictCode(value: unknown) {
+function hasConstraintViolation(value: unknown, constraintName: string) {
   if (typeof value !== "object" || value === null) {
     return false;
   }
 
   const { code, constraint } = value as { code?: unknown; constraint?: unknown };
 
-  return code === "23505" && constraint === SITE_NAME_CONSTRAINT;
+  return code === "23505" && constraint === constraintName;
 }
 
 // Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`.
-export function isSiteNameConflict(error: unknown) {
-  if (hasNameConflictCode(error)) {
+function isConstraintConflict(error: unknown, constraintName: string) {
+  if (hasConstraintViolation(error, constraintName)) {
     return true;
   }
 
@@ -83,8 +86,16 @@ export function isSiteNameConflict(error: unknown) {
     typeof error === "object" &&
     error !== null &&
     "cause" in error &&
-    hasNameConflictCode(error.cause)
+    hasConstraintViolation(error.cause, constraintName)
   );
+}
+
+export function isSiteNameConflict(error: unknown) {
+  return isConstraintConflict(error, SITE_NAME_CONSTRAINT);
+}
+
+export function isSiteCodeConflict(error: unknown) {
+  return isConstraintConflict(error, SITE_CODE_CONSTRAINT);
 }
 
 // TanStack Form reads field errors as { message } objects, the shape zod issues have.

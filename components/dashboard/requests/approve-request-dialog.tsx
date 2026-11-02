@@ -64,7 +64,9 @@ export function ApproveRequestDialog({
     <AlertDialog open={request !== null} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Approve request {request?.poNumber}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Approve request {request?.poNumber}?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             The request becomes Approved. It can still be cancelled later.
           </AlertDialogDescription>
@@ -76,10 +78,7 @@ export function ApproveRequestDialog({
         )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-          <Button
-            disabled={isSubmitting}
-            onClick={handleConfirm}
-          >
+          <Button disabled={isSubmitting} onClick={handleConfirm}>
             {isSubmitting && <Spinner data-icon="inline-start" />}
             Approve
           </Button>

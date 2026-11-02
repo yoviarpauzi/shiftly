@@ -14,11 +14,13 @@ function plural(count: number, singular: string, pluralForm: string) {
 export function canDeleteLocation({
   assignedAdminSites,
   activeDepartments,
+  activeWorkers,
 }: {
   assignedAdminSites: number;
   activeDepartments: number;
+  activeWorkers: number;
 }): { ok: true } | { ok: false; formError: string } {
-  if (assignedAdminSites === 0 && activeDepartments === 0) {
+  if (assignedAdminSites === 0 && activeDepartments === 0 && activeWorkers === 0) {
     return { ok: true };
   }
 
@@ -28,16 +30,24 @@ export function canDeleteLocation({
     blockers.push(plural(assignedAdminSites, "admin site user assigned", "admin site users assigned"));
   }
 
+  if (activeWorkers > 0) {
+    blockers.push(plural(activeWorkers, "active worker", "active workers"));
+  }
+
   if (activeDepartments > 0) {
     blockers.push(plural(activeDepartments, "active department", "active departments"));
   }
 
-  // Users can be moved to another location, but a department cannot, so it has to be deleted.
-  let action = "Move the users and delete the departments first.";
+  // Users and workers can be moved to another location, but a department cannot, so it has to be deleted.
+  const movable = [
+    assignedAdminSites > 0 ? "users" : null,
+    activeWorkers > 0 ? "workers" : null,
+  ].filter((label) => label !== null);
+  let action = `Move the ${movable.join(" and ")} and delete the departments first.`;
 
   if (activeDepartments === 0) {
     action = "Move them first.";
-  } else if (assignedAdminSites === 0) {
+  } else if (movable.length === 0) {
     action = activeDepartments === 1 ? "Delete it first." : "Delete them first.";
   }
 

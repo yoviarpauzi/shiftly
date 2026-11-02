@@ -6,6 +6,7 @@ import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { user } from "@/database/schema/auth-schema";
 import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
+import { worker } from "@/database/schema/worker-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
 import { resolveSiteId } from "./location-access";
@@ -131,7 +132,12 @@ async function softDeleteLocation(
       .from(department)
       .where(and(eq(department.locationId, id), isNull(department.deletedAt)));
 
-    const verdict = canDeleteLocation({ assignedAdminSites, activeDepartments });
+    const [{ value: activeWorkers }] = await tx
+      .select({ value: count() })
+      .from(worker)
+      .where(and(eq(worker.locationId, id), isNull(worker.deletedAt)));
+
+    const verdict = canDeleteLocation({ assignedAdminSites, activeDepartments, activeWorkers });
 
     if (!verdict.ok) {
       return { ok: false as const, formError: verdict.formError };

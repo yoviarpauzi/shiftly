@@ -86,6 +86,34 @@ export type RequestActions = {
   onReject: (request: RequestRow) => void;
 };
 
+export type RequestLocationOption = { id: string; name: string };
+
+export type RequestsDataTableProps = {
+  data: RequestPage;
+  status: RequestStatusFilter;
+  type: RequestTypeFilter;
+  locationId: string | null;
+  locations: RequestLocationOption[];
+  sort: SortCriterion<RequestSortColumn>[];
+  // True for superadmin and HO. The server checks again in the action.
+  canDecide: boolean;
+};
+
+export type RequestStatusFilterProps = { status: RequestStatusFilter };
+
+export type RequestTypeFilterProps = { type: RequestTypeFilter };
+
+export type RequestLocationFilterProps = {
+  locationId: string | null;
+  locations: RequestLocationOption[];
+};
+
+// Shared by the cancel, approve, and reject dialogs. A null request means the dialog is closed.
+export type RequestDialogProps = {
+  request: RequestRow | null;
+  onOpenChange: (open: boolean) => void;
+};
+
 export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type RequestActor = {

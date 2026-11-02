@@ -64,6 +64,13 @@ const linesField = z
     }
   });
 
+// The reason HO gives when rejecting a request. Matches the server's check in rejectRequest.
+export const rejectReasonSchema = z
+  .string({ error: "Enter a reason of up to 500 characters" })
+  .trim()
+  .min(1, "Enter a reason of up to 500 characters")
+  .max(500, "Enter a reason of up to 500 characters");
+
 // minDate is the earliest allowed start date as YYYY-MM-DD. null skips the date rule.
 export const updateRequestSchema = (minDate: string | null) =>
   z.object({

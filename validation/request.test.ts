@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRequestSchema, updateRequestSchema } from "./request";
+import { createRequestSchema, rejectReasonSchema, updateRequestSchema } from "./request";
 
 const MIN_DATE = "2026-11-02";
 const LOCATION_ID = "11111111-1111-4111-8111-111111111111";
@@ -171,5 +171,21 @@ describe("updateRequestSchema", () => {
       lines: [line, { ...line }],
     });
     expect(!result.success && result.error.issues.map((issue) => issue.path)).toEqual([["lines"]]);
+  });
+});
+
+describe("rejectReasonSchema", () => {
+  it("trims the reason", () => {
+    expect(rejectReasonSchema.parse("  no headcount  ")).toBe("no headcount");
+  });
+
+  it("rejects an empty or blank reason", () => {
+    expect(rejectReasonSchema.safeParse("").success).toBe(false);
+    expect(rejectReasonSchema.safeParse("   ").success).toBe(false);
+  });
+
+  it("allows 500 characters and rejects 501", () => {
+    expect(rejectReasonSchema.safeParse("a".repeat(500)).success).toBe(true);
+    expect(rejectReasonSchema.safeParse("a".repeat(501)).success).toBe(false);
   });
 });

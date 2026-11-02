@@ -1,4 +1,11 @@
-export const IMPORT_COLUMNS = ["employee_id", "name", "site", "location", "positions"] as const;
+export const IMPORT_COLUMNS = [
+  "employee_id",
+  "name",
+  "site",
+  "location",
+  "positions",
+  "end_contract",
+] as const;
 
 export type ImportColumn = (typeof IMPORT_COLUMNS)[number];
 
@@ -17,6 +24,8 @@ export type ImportRowBase = {
   siteName: string;
   locationName: string;
   positionNames: string[];
+  // YYYY-MM-DD when valid, otherwise the cell as read, so the preview shows what is wrong.
+  endContract: string;
 };
 
 export type ImportRowResult =

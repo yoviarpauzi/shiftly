@@ -53,6 +53,10 @@ export function createImportColumns() {
           <span className="text-muted-foreground">None</span>
         ),
     }),
+    columnHelper.accessor("endContract", {
+      header: () => <span>Contract end</span>,
+      cell: ({ row }) => row.original.endContract,
+    }),
     columnHelper.display({
       id: "issues",
       header: () => <span>Issues</span>,

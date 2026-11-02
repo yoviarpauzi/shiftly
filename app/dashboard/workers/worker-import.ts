@@ -7,6 +7,7 @@ import type {
   ImportSummary,
 } from "@/types/worker-import";
 import type { WorkerAccess } from "@/types/workers";
+import { isCalendarDate } from "@/validation/calendar-date";
 import { workerSchema } from "@/validation/worker";
 import { canWriteWorker } from "./worker-access";
 import {
@@ -35,6 +36,34 @@ function cellText(column: ImportColumn, cell: ImportCell): { text: string; error
   }
 
   return { text: "", error: `${column} must be text` };
+}
+
+const END_CONTRACT_REQUIRED_MESSAGE = "End of contract is required";
+
+const END_CONTRACT_FORMAT_MESSAGE = "end_contract must be a date like 2026-12-31";
+
+// read-excel-file gives a date cell as midnight UTC of the day typed in Excel, so the UTC parts hold
+// that day in every server time zone. Text must already be YYYY-MM-DD; numbers and booleans are not dates.
+function readEndContract(cell: ImportCell): { text: string; error: string | null } {
+  if (cell instanceof Date) {
+    if (Number.isNaN(cell.getTime())) {
+      return { text: "", error: END_CONTRACT_FORMAT_MESSAGE };
+    }
+
+    return { text: cell.toISOString().slice(0, 10), error: null };
+  }
+
+  if (cell === null || (typeof cell === "string" && cell.trim() === "")) {
+    return { text: "", error: END_CONTRACT_REQUIRED_MESSAGE };
+  }
+
+  const text = typeof cell === "string" ? cell.trim() : String(cell);
+
+  if (typeof cell !== "string" || !isCalendarDate(text)) {
+    return { text, error: END_CONTRACT_FORMAT_MESSAGE };
+  }
+
+  return { text, error: null };
 }
 
 // Split on commas, trim, and drop blanks and repeats. The first spelling of a name is kept.
@@ -107,6 +136,12 @@ export function resolveImportRows(
       }
     }
 
+    const endContract = readEndContract(cells.end_contract);
+
+    if (endContract.error) {
+      errors.push(endContract.error);
+    }
+
     const positionNames = splitPositionNames(positionsCell.text);
 
     const base = {
@@ -116,6 +151,7 @@ export function resolveImportRows(
       siteName: siteCell.text,
       locationName: locationCell.text,
       positionNames,
+      endContract: endContract.text,
     };
 
     if (!siteCell.typeError && siteCell.text === "") {

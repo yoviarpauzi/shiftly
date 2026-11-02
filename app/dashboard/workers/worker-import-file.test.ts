@@ -2,13 +2,16 @@ import writeXlsxFile, { type SheetData } from "write-excel-file/node";
 import { describe, expect, it } from "vitest";
 import { IMPORT_MAX_EXPANDED_BYTES, IMPORT_MAX_ROWS } from "@/validation/worker-import";
 import { fakeZip } from "@/validation/zip-fixture";
+import { readSheet } from "read-excel-file/node";
+import type { ImportLookups } from "@/types/worker-import";
+import { resolveImportRows } from "./worker-import";
 import { buildImportTemplate, readImportSheet } from "./worker-import-file";
 
-const HEADER = ["employee_id", "name", "site", "location", "positions"];
+const HEADER = ["employee_id", "name", "site", "location", "positions", "end_contract"];
 
 // A cell with only a text format, like the empty rows Excel keeps below a formatted table.
 const BLANK = { type: String, format: "@" };
-const BLANK_ROW = [BLANK, BLANK, BLANK, BLANK, BLANK];
+const BLANK_ROW = [BLANK, BLANK, BLANK, BLANK, BLANK, BLANK];
 
 function xlsx(rows: SheetData) {
   return writeXlsxFile(rows).toBuffer();
@@ -17,9 +20,9 @@ function xlsx(rows: SheetData) {
 describe("readImportSheet", () => {
   it("reads rows with their Excel row numbers, even when the headers are reordered", async () => {
     const bytes = await xlsx([
-      ["positions", "name", "site", "location", "employee_id"],
-      ["Operator", "Budi", "Alpha", "Gudang", "EMP-1"],
-      [null, "Sari", "Alpha", "Kantor", "EMP-2"],
+      ["positions", "end_contract", "name", "site", "location", "employee_id"],
+      ["Operator", "2026-12-31", "Budi", "Alpha", "Gudang", "EMP-1"],
+      [null, "2027-01-31", "Sari", "Alpha", "Kantor", "EMP-2"],
     ]);
 
     const result = await readImportSheet(bytes);
@@ -34,13 +37,14 @@ describe("readImportSheet", () => {
         site: "Alpha",
         location: "Gudang",
         positions: "Operator",
+        end_contract: "2026-12-31",
       });
       expect(result.rows[1].cells.positions).toBeNull();
     }
   });
 
   it("keeps number cells as numbers", async () => {
-    const result = await readImportSheet(await xlsx([HEADER, [12345, "Budi", "Alpha", "Gudang", null]]));
+    const result = await readImportSheet(await xlsx([HEADER, [12345, "Budi", "Alpha", "Gudang", null, "2026-12-31"]]));
 
     expect(result.ok && result.rows[0].cells.employee_id).toBe(12345);
   });
@@ -49,7 +53,7 @@ describe("readImportSheet", () => {
     const rows: SheetData = [HEADER];
 
     for (let index = 1; index <= 3; index += 1) {
-      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null]);
+      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null, "2026-12-31"]);
       rows.push(BLANK_ROW);
     }
 
@@ -66,7 +70,7 @@ describe("readImportSheet", () => {
     const rows: SheetData = [HEADER];
 
     for (let index = 1; index <= IMPORT_MAX_ROWS + 1; index += 1) {
-      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null]);
+      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null, "2026-12-31"]);
     }
 
     const result = await readImportSheet(await xlsx(rows));
@@ -78,7 +82,7 @@ describe("readImportSheet", () => {
     const rows: SheetData = [HEADER];
 
     for (let index = 1; index <= IMPORT_MAX_ROWS; index += 1) {
-      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null]);
+      rows.push([`EMP-${index}`, "Budi", "Alpha", "Gudang", null, "2026-12-31"]);
     }
 
     const result = await readImportSheet(await xlsx(rows));
@@ -101,7 +105,50 @@ describe("readImportSheet", () => {
   it("names the missing columns", async () => {
     const result = await readImportSheet(await xlsx([["employee_id", "name"], ["EMP-1", "Budi"]]));
 
-    expect(result).toEqual({ ok: false, formError: "Missing columns: site, location, positions" });
+    expect(result).toEqual({
+      ok: false,
+      formError: "Missing columns: site, location, positions, end_contract",
+    });
+  });
+
+  it("names a missing end_contract column", async () => {
+    const result = await readImportSheet(
+      await xlsx([HEADER.slice(0, 5), ["EMP-1", "Budi", "Alpha", "Gudang", null]]),
+    );
+
+    expect(result).toEqual({ ok: false, formError: "Missing columns: end_contract" });
+  });
+
+  it("reads a real Excel date cell back as the day typed", async () => {
+    const lookups: ImportLookups = {
+      sites: [{ id: "s1", name: "Alpha" }],
+      locations: [{ id: "l1", siteId: "s1", name: "Gudang" }],
+      positions: [],
+      existing: [],
+    };
+    const bytes = await xlsx([
+      HEADER,
+      [
+        "EMP-1",
+        "Budi",
+        "Alpha",
+        "Gudang",
+        null,
+        { type: Date, value: new Date(Date.UTC(2026, 11, 31)), format: "yyyy-mm-dd" },
+      ],
+    ]);
+
+    const sheet = await readImportSheet(bytes);
+
+    expect(sheet.ok).toBe(true);
+
+    if (sheet.ok) {
+      expect(sheet.rows[0].cells.end_contract).toBeInstanceOf(Date);
+
+      const [row] = resolveImportRows(sheet.rows, lookups, { siteId: null, locationId: null });
+
+      expect(row).toMatchObject({ action: "create", endContract: "2026-12-31", errors: [] });
+    }
   });
 
   it("rejects a workbook that would unzip past the limit before reading it", async () => {
@@ -126,6 +173,13 @@ describe("buildImportTemplate", () => {
     if (result.ok) {
       expect(result.rows).toHaveLength(1);
       expect(result.rows[0].cells.employee_id).toBe("EMP-001");
+      expect(result.rows[0].cells.end_contract).toBeInstanceOf(Date);
     }
+  });
+
+  it("writes end_contract in the header", async () => {
+    const [header] = await readSheet(await buildImportTemplate());
+
+    expect(header).toContain("end_contract");
   });
 });

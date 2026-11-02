@@ -37,6 +37,7 @@ function row(
       site: "Alpha",
       location: "Gudang",
       positions: "",
+      end_contract: "2026-12-31",
       ...cells,
     },
   };
@@ -228,6 +229,70 @@ describe("resolveImportRows", () => {
     expect(resolveOne({ name: "x".repeat(101) }).errors).toEqual([
       "Name must be 100 characters or fewer",
     ]);
+  });
+
+  it("reads a text end of contract, trimmed", () => {
+    expect(resolveOne({ end_contract: "2026-12-31" })).toMatchObject({
+      action: "create",
+      endContract: "2026-12-31",
+      errors: [],
+    });
+    expect(resolveOne({ end_contract: " 2026-12-31 " })).toMatchObject({
+      action: "create",
+      endContract: "2026-12-31",
+      errors: [],
+    });
+  });
+
+  it("reads a date cell as the day typed in Excel", () => {
+    // read-excel-file gives a date cell as midnight UTC of the typed day.
+    const result = resolveOne({ end_contract: new Date(Date.UTC(2026, 11, 31)) });
+
+    expect(result).toMatchObject({ action: "create", endContract: "2026-12-31", errors: [] });
+  });
+
+  it("requires an end of contract, without hiding other errors", () => {
+    expect(resolveOne({ end_contract: null }).errors).toEqual(["End of contract is required"]);
+    expect(resolveOne({ end_contract: "   " }).errors).toEqual(["End of contract is required"]);
+    expect(resolveOne({ end_contract: null, name: "" }).errors).toEqual([
+      "Name is required",
+      "End of contract is required",
+    ]);
+  });
+
+  it.each<[string, ImportCell]>([
+    ["a number", 45000],
+    ["a boolean", true],
+    ["text in another format", "11/02/2026"],
+    ["a day that does not exist", "2026-02-30"],
+  ])("rejects %s as the end of contract, and still checks the other columns", (_, cell) => {
+    const message = "end_contract must be a date like 2026-12-31";
+
+    expect(resolveOne({ end_contract: cell }).errors).toEqual([message]);
+    expect(resolveOne({ end_contract: cell, name: "", site: "Nowhere" })).toMatchObject({
+      action: "error",
+      errors: ["Name is required", message, "Site not found"],
+    });
+  });
+
+  it("keeps the end of contract as read when it is not a date", () => {
+    expect(resolveOne({ end_contract: "11/02/2026" }).endContract).toBe("11/02/2026");
+    expect(resolveOne({ end_contract: 45000 }).endContract).toBe("45000");
+    expect(resolveOne({ end_contract: null }).endContract).toBe("");
+  });
+
+  it("carries the end of contract on an update and a create", () => {
+    const [update, create] = resolveImportRows(
+      [
+        row(2, { end_contract: "2027-03-31" }),
+        row(3, { employee_id: "EMP-2", end_contract: "2027-06-30" }),
+      ],
+      { ...lookups, existing: [existingWorker] },
+      EVERYWHERE,
+    );
+
+    expect(update).toMatchObject({ action: "update", workerId: "w1", endContract: "2027-03-31" });
+    expect(create).toMatchObject({ action: "create", workerId: null, endContract: "2027-06-30" });
   });
 
   it("keeps the input order and is deterministic", () => {

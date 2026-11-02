@@ -44,11 +44,18 @@ describe("checkImportFileBytes", () => {
 
 describe("checkImportHeaders", () => {
   it("accepts the headers in any order and case", () => {
-    const result = checkImportHeaders(["Positions", " NAME ", "site", "Location", "employee_id"]);
+    const result = checkImportHeaders([
+      "Positions",
+      " NAME ",
+      "site",
+      "Location",
+      "employee_id",
+      "End_Contract",
+    ]);
 
     expect(result).toEqual({
       ok: true,
-      columnIndex: { positions: 0, name: 1, site: 2, location: 3, employee_id: 4 },
+      columnIndex: { positions: 0, name: 1, site: 2, location: 3, employee_id: 4, end_contract: 5 },
     });
   });
 
@@ -58,12 +65,20 @@ describe("checkImportHeaders", () => {
     expect(result.ok).toBe(false);
 
     if (!result.ok) {
-      expect(result.formError).toContain("site, location, positions");
+      expect(result.formError).toContain("site, location, positions, end_contract");
     }
   });
 
   it("ignores extra unknown columns", () => {
-    const result = checkImportHeaders(["employee_id", "name", "site", "location", "positions", "notes"]);
+    const result = checkImportHeaders([
+      "employee_id",
+      "name",
+      "site",
+      "location",
+      "positions",
+      "end_contract",
+      "notes",
+    ]);
 
     expect(result.ok).toBe(true);
   });

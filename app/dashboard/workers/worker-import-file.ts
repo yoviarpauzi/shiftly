@@ -65,13 +65,20 @@ export async function readImportSheet(
   return { ok: true, rows };
 }
 
-// The header, one example worker, and empty text cells in the employee ID column for every row the
+// The header, one example worker with a real date cell for the end of contract, and empty text cells in the employee ID column for every row the
 // import accepts, so Excel keeps IDs such as 00123 as typed.
 export function buildImportTemplate(): Promise<Buffer> {
   const textCell = { type: String, format: "@" };
   const data: SheetData = [
     IMPORT_COLUMNS.map((column) => ({ value: column, fontWeight: "bold" as const })),
-    [{ ...textCell, value: "EMP-001" }, "Budi Santoso", "Alpha", "Gudang", "Operator, Driver"],
+    [
+      { ...textCell, value: "EMP-001" },
+      "Budi Santoso",
+      "Alpha",
+      "Gudang",
+      "Operator, Driver",
+      { type: Date, value: new Date(Date.UTC(2026, 11, 31)), format: "yyyy-mm-dd" },
+    ],
   ];
 
   for (let index = 1; index < IMPORT_MAX_ROWS; index += 1) {

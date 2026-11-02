@@ -191,6 +191,15 @@ export function resolveImportRows(
   });
 }
 
+// The employee IDs in the file, read like the resolver reads them, so the loader looks up the same text.
+export function importEmployeeIds(rows: ImportRawRow[]): string[] {
+  return rows.flatMap(({ cells }) => {
+    const { text, error } = cellText("employee_id", cells.employee_id);
+
+    return text && !error ? [text] : [];
+  });
+}
+
 export function summarizeImport(rows: ImportRowResult[]): ImportSummary {
   const summary: ImportSummary = { create: 0, update: 0, error: 0 };
 

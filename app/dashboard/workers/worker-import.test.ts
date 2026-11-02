@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ImportCell, ImportColumn, ImportLookups, ImportRawRow } from "@/types/worker-import";
 import type { WorkerAccess } from "@/types/workers";
-import { resolveImportRows, summarizeImport } from "./worker-import";
+import { importEmployeeIds, resolveImportRows, summarizeImport } from "./worker-import";
 
 const EVERYWHERE: WorkerAccess = { siteId: null, locationId: null };
 
@@ -250,5 +250,19 @@ describe("summarizeImport", () => {
 
     // Row 2 and row 4 share EMP-1, so row 4 repeats the ID and is an error.
     expect(summarizeImport(rows)).toEqual({ create: 0, update: 1, error: 2 });
+  });
+});
+
+describe("importEmployeeIds", () => {
+  it("lists the trimmed employee IDs the loader should look up", () => {
+    const rows = [
+      row(2, { employee_id: " A " }),
+      row(3, { employee_id: 12 }),
+      row(4, { employee_id: true }),
+      row(5, { employee_id: "" }),
+      row(6, { employee_id: null }),
+    ];
+
+    expect(importEmployeeIds(rows)).toEqual(["A", "12"]);
   });
 });

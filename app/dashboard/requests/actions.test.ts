@@ -15,7 +15,7 @@ import {
   NOT_PENDING_MESSAGE,
   REASON_REQUIRED_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
-  SITE_CODE_MISSING_MESSAGE,
+  siteCodeMissingMessage,
 } from "./request-rules";
 
 // The database is replaced by a recorder. Every query is logged as a Call, and the result of a
@@ -200,7 +200,7 @@ const createInput = {
 const updateInput = { startDate: FUTURE, note: null, lines: [line] };
 
 function seedLocationChoices() {
-  fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteCode: "NSL" }];
+  fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL" }];
   fake.rows.departments = [{ id: DEPT_A }];
   fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
   fake.rows.positions = [{ id: POSITION_A }];
@@ -296,22 +296,28 @@ describe("createRequest", () => {
 
   it("refuses a site without a code and writes nothing", async () => {
     seedLocationChoices();
-    fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteCode: null }];
+    fake.rows.location = [
+      { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: null },
+    ];
 
     const res = await createRequest(createInput);
 
-    expect(res).toEqual({ ok: false, formError: SITE_CODE_MISSING_MESSAGE });
+    expect(res).toEqual({ ok: false, formError: siteCodeMissingMessage("Nestle Kejayan") });
+    expect(res.ok === false && res.formError).toContain("Nestle Kejayan");
     expect(writes()).toEqual([]);
     expect(counterCalls()).toEqual([]);
   });
 
   it("refuses an empty site code and writes nothing", async () => {
     seedLocationChoices();
-    fake.rows.location = [{ id: LOCATION_A, siteId: SITE_A, siteCode: "" }];
+    fake.rows.location = [
+      { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "" },
+    ];
 
     const res = await createRequest(createInput);
 
-    expect(res).toEqual({ ok: false, formError: SITE_CODE_MISSING_MESSAGE });
+    expect(res).toEqual({ ok: false, formError: siteCodeMissingMessage("Nestle Kejayan") });
+    expect(res.ok === false && res.formError).toContain("Nestle Kejayan");
     expect(writes()).toEqual([]);
   });
 

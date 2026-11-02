@@ -9,8 +9,9 @@ export const REQUEST_NOT_FOUND_MESSAGE = "Request not found";
 
 export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
-export const SITE_CODE_MISSING_MESSAGE =
-  "This site has no code yet. Add a code to the site before creating requests.";
+export function siteCodeMissingMessage(siteName: string): string {
+  return `${siteName} has no code yet. Add a code to the site before creating requests.`;
+}
 
 export const NOT_PENDING_MESSAGE = "Only a pending request can be approved or rejected";
 

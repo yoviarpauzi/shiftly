@@ -6,6 +6,7 @@ import {
   initialStatus,
   lineScopeError,
   requestFieldErrors,
+  siteCodeMissingMessage,
   statusAfterEdit,
 } from "./request-rules";
 import type { RequestStatus } from "@/types/requests";
@@ -160,5 +161,14 @@ describe("requestFieldErrors", () => {
         { path: ["lines", 0, "headcount"], message: "lines message" },
       ]),
     ).toEqual({ startDate: "first", lines: "lines message" });
+  });
+});
+
+describe("siteCodeMissingMessage", () => {
+  it("names the site and asks for a code", () => {
+    const message = siteCodeMissingMessage("Nestle Kejayan");
+
+    expect(message).toContain("Nestle Kejayan");
+    expect(message).toContain("Add a code to the site before creating requests");
   });
 });

@@ -39,7 +39,7 @@ import {
   REASON_REQUIRED_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
   requestFieldErrors,
-  SITE_CODE_MISSING_MESSAGE,
+  siteCodeMissingMessage,
   statusAfterEdit,
 } from "./request-rules";
 import { requestScopeFilter } from "./requests";
@@ -118,7 +118,12 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
   // loaded and checked against the caller's access, and the site id is taken from the row.
   const result = await db.transaction(async (tx): Promise<RequestActionResult> => {
     const [target] = await tx
-      .select({ id: location.id, siteId: location.siteId, siteCode: site.code })
+      .select({
+        id: location.id,
+        siteId: location.siteId,
+        siteName: site.name,
+        siteCode: site.code,
+      })
       .from(location)
       .innerJoin(site, eq(site.id, location.siteId))
       .where(
@@ -131,7 +136,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
     }
 
     if (!target.siteCode) {
-      return { ok: false, formError: SITE_CODE_MISSING_MESSAGE };
+      return { ok: false, formError: siteCodeMissingMessage(target.siteName) };
     }
 
     const lineError = lineScopeError(

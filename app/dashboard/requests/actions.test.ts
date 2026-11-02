@@ -194,7 +194,14 @@ function actAs(role: Role) {
 const FUTURE = "2099-01-05";
 const PAST = "2020-01-06";
 
-const line = { departmentId: DEPT_A, subDepartmentId: SUB_A, positionId: POSITION_A, headcounts: [3] };
+const line = {
+  departmentId: DEPT_A,
+  subDepartmentId: SUB_A,
+  positionId: POSITION_A,
+  headcounts: [3],
+};
+
+const ZERO_WEEK = [0, 0, 0, 0, 0, 0, 0];
 
 const WEEK = [0, 3, 3, 0, 5, 5, 5];
 
@@ -310,7 +317,7 @@ describe("createRequest", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard/requests");
   });
 
-  it("inserts seven day rows for each weekly line, tied to the id the line was inserted with", async () => {
+  it("inserts seven day rows per weekly line, tied to the id each line was inserted with", async () => {
     seedLocationChoices();
     const secondWeek = [1, 1, 1, 1, 1, 1, 2];
     const second = { ...weeklyLine, subDepartmentId: null, headcounts: secondWeek };
@@ -338,7 +345,7 @@ describe("createRequest", () => {
   });
 
   it.each([
-    ["a weekly line with every day 0", weeklyCreateInput, [0, 0, 0, 0, 0, 0, 0], WEEKLY_HEADCOUNT_MESSAGE],
+    ["a weekly line with every day 0", weeklyCreateInput, ZERO_WEEK, WEEKLY_HEADCOUNT_MESSAGE],
     ["a daily line with 0", createInput, [0], DAILY_HEADCOUNT_MESSAGE],
     ["a daily line with seven numbers", createInput, WEEK, HEADCOUNT_LENGTH_MESSAGE],
     ["a weekly line with one number", weeklyCreateInput, [3], HEADCOUNT_LENGTH_MESSAGE],
@@ -507,7 +514,10 @@ describe("updateRequest", () => {
     seedLocationChoices();
     fake.rows.request = [storedRequest()];
 
-    await updateRequest(REQUEST_ID, { ...updateInput, lines: [{ ...line, headcounts: [7, 7, 7, 7, 7, 7, 7] }] });
+    await updateRequest(REQUEST_ID, {
+      ...updateInput,
+      lines: [{ ...line, headcounts: [7, 7, 7, 7, 7, 7, 7] }],
+    });
 
     expect(writes().map((c) => [c.op, c.table])).toEqual([
       ["update", rosterRequest],
@@ -528,27 +538,34 @@ describe("updateRequest", () => {
     ]);
     // The old day rows go with the deleted lines through the cascade, so only 7 new rows exist.
     expect(writes()[3].values).toEqual(
-      Array.from({ length: 7 }, (_, dayOffset) => ({ lineId: lineRow.id, dayOffset, headcount: 7 })),
+      Array.from({ length: 7 }, (_, dayOffset) => ({
+        lineId: lineRow.id,
+        dayOffset,
+        headcount: 7,
+      })),
     );
   });
 
   it.each([
     ["a weekly request with a one-number line", "weekly", [3], HEADCOUNT_LENGTH_MESSAGE],
     ["a daily request with a seven-number line", "daily", WEEK, HEADCOUNT_LENGTH_MESSAGE],
-    ["a weekly request with every day 0", "weekly", [0, 0, 0, 0, 0, 0, 0], WEEKLY_HEADCOUNT_MESSAGE],
+    ["a weekly request with every day 0", "weekly", ZERO_WEEK, WEEKLY_HEADCOUNT_MESSAGE],
     ["a daily request with 0", "daily", [0], DAILY_HEADCOUNT_MESSAGE],
-  ])("refuses %s using the stored type and writes nothing", async (_label, type, headcounts, message) => {
-    seedLocationChoices();
-    fake.rows.request = [storedRequest({ type })];
+  ])(
+    "refuses %s using the stored type and writes nothing",
+    async (_label, type, headcounts, message) => {
+      seedLocationChoices();
+      fake.rows.request = [storedRequest({ type })];
 
-    const res = await updateRequest(REQUEST_ID, {
-      ...updateInput,
-      lines: [{ ...line, headcounts }],
-    });
+      const res = await updateRequest(REQUEST_ID, {
+        ...updateInput,
+        lines: [{ ...line, headcounts }],
+      });
 
-    expect(res).toEqual({ ok: false, fieldErrors: { lines: message } });
-    expect(writes()).toEqual([]);
-  });
+      expect(res).toEqual({ ok: false, fieldErrors: { lines: message } });
+      expect(writes()).toEqual([]);
+    },
+  );
 
   it("refuses a cancelled request and writes nothing", async () => {
     seedLocationChoices();

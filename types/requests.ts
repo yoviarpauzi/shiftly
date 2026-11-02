@@ -23,7 +23,8 @@ export type RequestLineInput = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
-  // One number for a daily request, seven for a weekly one (index = day offset from the start date).
+  // One number for a daily request, seven for a weekly one. The index is the day offset from the
+  // start date.
   headcounts: number[];
 };
 

@@ -71,6 +71,13 @@
       "when": 1793602424207,
       "tag": "0009_site_code",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793602620414,
+      "tag": "0010_roster_request",
+      "breakpoints": true
     }
   ]
 }

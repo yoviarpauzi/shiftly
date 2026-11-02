@@ -9,7 +9,9 @@ const password = process.env.SUPERADMIN_PASSWORD;
 const name = process.env.SUPERADMIN_NAME;
 
 if (!email || !password || !name) {
-  throw new Error("SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, and SUPERADMIN_NAME must be set in .env");
+  throw new Error(
+    "SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, and SUPERADMIN_NAME must be set in .env",
+  );
 }
 
 const pool = new Pool({ connectionString: process.env.DB_URL });

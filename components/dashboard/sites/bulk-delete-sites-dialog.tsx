@@ -64,8 +64,8 @@ export function BulkDeleteSitesDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             The selected sites move to Deleted and can be restored from that
-            filter. A site with active locations, active positions, or assigned
-            HO users is kept, and the reason is shown.
+            filter. A site with active locations, active positions, active
+            shifts, or assigned HO users is kept, and the reason is shown.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

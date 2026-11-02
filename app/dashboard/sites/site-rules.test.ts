@@ -55,7 +55,7 @@ describe("bulkRestoreMessage", () => {
 describe("canDeleteSite", () => {
   it("allows deleting a site with no locations, positions, and users", () => {
     expect(
-      canDeleteSite({ activeLocations: 0, activePositions: 0, assignedUsers: 0 }),
+      canDeleteSite({ activeLocations: 0, activePositions: 0, activeShifts: 0, assignedUsers: 0 }),
     ).toEqual({
       ok: true,
     });
@@ -65,6 +65,7 @@ describe("canDeleteSite", () => {
     const result = canDeleteSite({
       activeLocations: 1,
       activePositions: 0,
+      activeShifts: 0,
       assignedUsers: 0,
     });
 
@@ -77,7 +78,7 @@ describe("canDeleteSite", () => {
 
   it("names both counts when the site has locations and users", () => {
     expect(
-      canDeleteSite({ activeLocations: 2, activePositions: 0, assignedUsers: 1 }),
+      canDeleteSite({ activeLocations: 2, activePositions: 0, activeShifts: 0, assignedUsers: 1 }),
     ).toEqual({
       ok: false,
       formError:
@@ -89,6 +90,7 @@ describe("canDeleteSite", () => {
     const result = canDeleteSite({
       activeLocations: 0,
       activePositions: 0,
+      activeShifts: 0,
       assignedUsers: 3,
     });
 
@@ -100,7 +102,7 @@ describe("canDeleteSite", () => {
 
   it("blocks deleting a site with one active position", () => {
     expect(
-      canDeleteSite({ activeLocations: 0, activePositions: 1, assignedUsers: 0 }),
+      canDeleteSite({ activeLocations: 0, activePositions: 1, activeShifts: 0, assignedUsers: 0 }),
     ).toEqual({
       ok: false,
       formError:
@@ -110,11 +112,41 @@ describe("canDeleteSite", () => {
 
   it("names all three counts when the site has locations, positions, and users", () => {
     expect(
-      canDeleteSite({ activeLocations: 2, activePositions: 3, assignedUsers: 1 }),
+      canDeleteSite({ activeLocations: 2, activePositions: 3, activeShifts: 0, assignedUsers: 1 }),
     ).toEqual({
       ok: false,
       formError:
         "This site has 2 active locations, 3 active positions and 1 HO user assigned. Move or delete them first.",
+    });
+  });
+
+  it("blocks deleting a site with one active shift", () => {
+    expect(
+      canDeleteSite({ activeLocations: 0, activePositions: 0, activeShifts: 1, assignedUsers: 0 }),
+    ).toEqual({
+      ok: false,
+      formError: "This site has 1 active shift. Move or delete them first.",
+    });
+  });
+
+  it("counts several active shifts", () => {
+    const result = canDeleteSite({
+      activeLocations: 0,
+      activePositions: 0,
+      activeShifts: 3,
+      assignedUsers: 0,
+    });
+
+    expect((result as { formError: string }).formError).toContain("3 active shifts");
+  });
+
+  it("names every count in order when the site has locations, positions, shifts, and users", () => {
+    expect(
+      canDeleteSite({ activeLocations: 2, activePositions: 3, activeShifts: 1, assignedUsers: 1 }),
+    ).toEqual({
+      ok: false,
+      formError:
+        "This site has 2 active locations, 3 active positions, 1 active shift and 1 HO user assigned. Move or delete them first.",
     });
   });
 });

@@ -1,6 +1,7 @@
 import type {
   BulkNoun,
   BulkSelectionMode,
+  DepartmentLocationChoice,
   DepartmentLocationOption,
   SoftDeletable,
 } from "@/types/departments";
@@ -175,6 +176,29 @@ export function departmentSitesFrom(locations: DepartmentLocationOption[]): Site
   }
 
   return [...sites.values()];
+}
+
+// The site the add form starts on: a fixed location's own site, or the only site a picker offers.
+// An actor who can pick between several sites starts with none chosen.
+export function departmentSiteDefault(choice: DepartmentLocationChoice): string {
+  if (choice.mode === "fixed") {
+    return choice.location.siteId;
+  }
+
+  const sites = departmentSitesFrom(choice.locations);
+
+  return sites.length === 1 ? sites[0].id : "";
+}
+
+// A site with one location needs no choice, so the form starts on it. Otherwise the location is
+// cleared, because the one chosen before may belong to another site.
+export function departmentLocationAfterSiteChange(
+  locations: DepartmentLocationOption[],
+  siteId: string,
+): string {
+  const inSite = locations.filter((location) => location.siteId === siteId);
+
+  return inSite.length === 1 ? inSite[0].id : "";
 }
 
 // Superadmin picks a site first, so until then there are no locations to filter by. HO has one site,

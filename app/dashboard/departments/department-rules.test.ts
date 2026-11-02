@@ -15,7 +15,9 @@ import {
   canDeleteDepartment,
   canRestoreDepartment,
   canRestoreSubDepartment,
+  departmentLocationAfterSiteChange,
   departmentLocationsFor,
+  departmentSiteDefault,
   departmentSitesFrom,
   isDepartmentNameConflict,
   isSubDepartmentNameConflict,
@@ -288,6 +290,41 @@ describe("departmentSitesFrom", () => {
 
   it("returns no sites when there are no locations", () => {
     expect(departmentSitesFrom([])).toEqual([]);
+  });
+});
+
+describe("departmentSiteDefault", () => {
+  it("starts a fixed location on its own site", () => {
+    expect(departmentSiteDefault({ mode: "fixed", location: LOCATIONS[2] })).toBe("site-b");
+  });
+
+  it("starts a picker that holds a single site on that site", () => {
+    expect(
+      departmentSiteDefault({ mode: "pick", locations: [LOCATIONS[0], LOCATIONS[1]] }),
+    ).toBe("site-a");
+  });
+
+  it("leaves the site empty when the actor can pick between several sites", () => {
+    expect(departmentSiteDefault({ mode: "pick", locations: LOCATIONS })).toBe("");
+  });
+
+  it("leaves the site empty when there are no locations", () => {
+    expect(departmentSiteDefault({ mode: "pick", locations: [] })).toBe("");
+  });
+});
+
+describe("departmentLocationAfterSiteChange", () => {
+  it("presets the location when the site has exactly one", () => {
+    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-b")).toBe("loc-3");
+  });
+
+  it("leaves the location empty when the site has several", () => {
+    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-a")).toBe("");
+  });
+
+  it("leaves the location empty for an unknown or empty site", () => {
+    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-z")).toBe("");
+    expect(departmentLocationAfterSiteChange(LOCATIONS, "")).toBe("");
   });
 });
 

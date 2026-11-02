@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RequestChoices, RequestDetail } from "@/types/requests";
 import {
   MAX_REQUEST_LINES,
+  afterSiteChange,
   blankLine,
   canAddLine,
   canRemoveLine,
@@ -9,6 +10,7 @@ import {
   isReadOnlyStatus,
   lineAfterDepartmentChange,
   linesAfterLocationChange,
+  locationsFor,
   positionsFor,
   requestFormDefaults,
   returnsToPending,
@@ -29,6 +31,10 @@ const POS_A = "9a000000-0000-4000-8000-000000000000";
 const POS_B = "9b000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
+  sites: [
+    { id: SITE_A, name: "Site A" },
+    { id: SITE_B, name: "Site B" },
+  ],
   locations: [
     { id: LOC_A1, name: "A1", siteId: SITE_A },
     { id: LOC_A2, name: "A2", siteId: SITE_A },
@@ -56,6 +62,7 @@ const detail: RequestDetail = {
   startDate: "2026-11-09",
   status: "approved",
   siteId: SITE_A,
+  siteName: "Site A",
   locationId: LOC_A1,
   locationName: "A1",
   lineCount: 1,
@@ -65,6 +72,35 @@ const detail: RequestDetail = {
     { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, headcount: 3 },
   ],
 };
+
+describe("locationsFor", () => {
+  it("returns only the locations of the site", () => {
+    expect(locationsFor(choices, SITE_A).map((row) => row.id)).toEqual([LOC_A1, LOC_A2]);
+    expect(locationsFor(choices, SITE_B).map((row) => row.id)).toEqual([LOC_B1]);
+  });
+
+  it("returns nothing when no site is chosen or the site is unknown", () => {
+    expect(locationsFor(choices, "")).toEqual([]);
+    expect(locationsFor(choices, "unknown")).toEqual([]);
+  });
+});
+
+describe("afterSiteChange", () => {
+  it("clears the location and starts the lines over for a site with several locations", () => {
+    const next = afterSiteChange(choices, SITE_A);
+
+    expect(next.locationId).toBe("");
+    expect(next.lines).toHaveLength(1);
+    expect(next.lines[0].departmentId).toBe("");
+  });
+
+  it("presets the location when the new site has only one", () => {
+    const next = afterSiteChange(choices, SITE_B);
+
+    expect(next.locationId).toBe(LOC_B1);
+    expect(next.lines).toHaveLength(1);
+  });
+});
 
 describe("departmentsFor", () => {
   it("returns only the departments of the location", () => {
@@ -143,25 +179,54 @@ describe("line rules", () => {
 });
 
 describe("requestFormDefaults", () => {
-  it("starts a new request blank with one line", () => {
+  it("starts a new request blank with one line when several sites are available", () => {
     const values = requestFormDefaults(null, choices);
 
     expect(values.type).toBe("");
     expect(values.startDate).toBe("");
+    expect(values.siteId).toBe("");
     expect(values.locationId).toBe("");
     expect(values.lines).toHaveLength(1);
   });
 
-  it("presets the location when the actor has only one", () => {
-    const single = { ...choices, locations: [choices.locations[0]] };
+  it("presets the site and the location when the actor has only one of each", () => {
+    const single = {
+      ...choices,
+      sites: [choices.sites[0]],
+      locations: [choices.locations[0]],
+    };
+    const values = requestFormDefaults(null, single);
 
-    expect(requestFormDefaults(null, single).locationId).toBe(LOC_A1);
+    expect(values.siteId).toBe(SITE_A);
+    expect(values.locationId).toBe(LOC_A1);
   });
 
-  it("loads an existing request", () => {
+  it("presets only the site when its site has several locations", () => {
+    const oneSite = {
+      ...choices,
+      sites: [choices.sites[0]],
+      locations: [choices.locations[0], choices.locations[1]],
+    };
+    const values = requestFormDefaults(null, oneSite);
+
+    expect(values.siteId).toBe(SITE_A);
+    expect(values.locationId).toBe("");
+  });
+
+  it("does not preset a location while the site is still to be chosen", () => {
+    const perSite = {
+      ...choices,
+      locations: [choices.locations[0], choices.locations[2]],
+    };
+
+    expect(requestFormDefaults(null, perSite).locationId).toBe("");
+  });
+
+  it("loads an existing request with its site", () => {
     expect(requestFormDefaults(detail, choices)).toEqual({
       type: "weekly",
       startDate: "2026-11-09",
+      siteId: SITE_A,
       locationId: LOC_A1,
       lines: detail.lines,
     });

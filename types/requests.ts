@@ -40,6 +40,7 @@ export type RequestRow = {
 };
 
 export type RequestDetail = RequestRow & {
+  siteName: string;
   rejectReason: string | null;
   lines: RequestLineInput[];
 };
@@ -60,6 +61,7 @@ export type RequestListParams = PageParams & {
 };
 
 export type RequestChoices = {
+  sites: { id: string; name: string }[];
   locations: { id: string; name: string; siteId: string }[];
   departments: { id: string; name: string; locationId: string }[];
   subDepartments: { id: string; name: string; departmentId: string }[];
@@ -129,11 +131,14 @@ export type RequestFormProps = {
   readOnly: boolean;
 };
 
-// The form's own state. An empty string is an unchosen type, date, location, department, or
+// The form's own state. An empty string is an unchosen type, date, site, location, department, or
 // position, and NaN is an empty headcount. The zod schema turns these into RequestInput on submit.
+// The site only narrows the locations; it is not part of RequestInput, because the server reads
+// the site from the location.
 export type RequestFormValues = {
   type: RequestType | "";
   startDate: string;
+  siteId: string;
   locationId: string;
   lines: RequestLineInput[];
 };

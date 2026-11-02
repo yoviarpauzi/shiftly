@@ -9,11 +9,13 @@ import { toast } from "sonner";
 import { createRequest, updateRequest } from "@/app/dashboard/requests/actions";
 import {
   MAX_REQUEST_LINES,
+  afterSiteChange,
   blankLine,
   canAddLine,
   canRemoveLine,
   departmentsFor,
   linesAfterLocationChange,
+  locationsFor,
   positionsFor,
   requestFormDefaults,
   returnsToPending,
@@ -34,7 +36,6 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -47,6 +48,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { createRequestSchema, updateRequestSchema } from "@/validation/request";
 
 const REQUESTS_PATH = "/dashboard/requests";
+
+const REQUEST_TYPE_ITEMS = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+];
 
 function fieldError(message: string | undefined) {
   return message ? { message } : undefined;
@@ -91,7 +97,10 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
       // The validator above has passed, so these parses only convert the values. The date rule is
       // left to the server, which checks it again either way.
       const result = request
-        ? await updateRequest(request.id, updateRequestSchema(null).parse(value))
+        ? await updateRequest(
+            request.id,
+            updateRequestSchema(null).parse(value),
+          )
         : await createRequest(createRequestSchema(null).parse(value));
 
       if (!result.ok) {
@@ -122,7 +131,9 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
     },
   });
 
+  const siteId = useStore(form.store, (state) => state.values.siteId);
   const locationId = useStore(form.store, (state) => state.values.locationId);
+  const siteLocations = locationsFor(choices, siteId);
   const departments = departmentsFor(choices, locationId);
   const positions = positionsFor(choices, locationId);
   const isEdit = request !== null;
@@ -151,45 +162,39 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                     const isInvalid = field.state.meta.errors.length > 0;
 
                     return (
-                      <FieldSet data-invalid={isInvalid || undefined}>
-                        <FieldLegend variant="label">Type</FieldLegend>
-                        <FieldDescription>
-                          A daily request is approved on save. A weekly request waits for HO.
-                        </FieldDescription>
-                        <RadioGroup
+                      <Field data-invalid={isInvalid || undefined}>
+                        <FieldLabel htmlFor={field.name}>Type</FieldLabel>
+                        <Select
                           value={field.state.value || null}
                           onValueChange={(value) => {
                             if (value === "daily" || value === "weekly") {
                               field.handleChange(value);
                             }
                           }}
+                          items={REQUEST_TYPE_ITEMS}
                           disabled={disabled || isEdit}
-                          aria-invalid={isInvalid || undefined}
-                          className="flex gap-6"
                         >
-                          <Field orientation="horizontal" className="w-auto">
-                            <RadioGroupItem
-                              value="daily"
-                              id="type-daily"
-                              aria-invalid={isInvalid || undefined}
-                            />
-                            <FieldLabel htmlFor="type-daily" className="font-normal">
-                              Daily
-                            </FieldLabel>
-                          </Field>
-                          <Field orientation="horizontal" className="w-auto">
-                            <RadioGroupItem
-                              value="weekly"
-                              id="type-weekly"
-                              aria-invalid={isInvalid || undefined}
-                            />
-                            <FieldLabel htmlFor="type-weekly" className="font-normal">
-                              Weekly
-                            </FieldLabel>
-                          </Field>
-                        </RadioGroup>
-                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                      </FieldSet>
+                          <SelectTrigger
+                            id={field.name}
+                            className="w-full"
+                            aria-invalid={isInvalid || undefined}
+                          >
+                            <SelectValue placeholder="Choose a type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {REQUEST_TYPE_ITEMS.map((item) => (
+                                <SelectItem key={item.value} value={item.value}>
+                                  {item.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        {isInvalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
                     );
                   }}
                 </form.Field>
@@ -206,11 +211,81 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                           type="date"
                           value={field.state.value}
                           onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
+                          onChange={(event) =>
+                            field.handleChange(event.target.value)
+                          }
                           disabled={disabled}
                           aria-invalid={isInvalid || undefined}
                         />
-                        {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        {isInvalid && (
+                          <FieldError errors={field.state.meta.errors} />
+                        )}
+                      </Field>
+                    );
+                  }}
+                </form.Field>
+                <form.Field name="siteId">
+                  {(field) => {
+                    // The site is fixed after creation.
+                    if (request) {
+                      return (
+                        <Field>
+                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
+                          <Input
+                            id={field.name}
+                            value={request.siteName}
+                            disabled
+                            readOnly
+                          />
+                        </Field>
+                      );
+                    }
+
+                    // HO and admin site have one site, already set in the default values.
+                    if (choices.sites.length <= 1) {
+                      return (
+                        <Field>
+                          <FieldLabel>Site</FieldLabel>
+                          <p className="text-sm">
+                            {choices.sites[0]?.name ?? "No site available"}
+                          </p>
+                        </Field>
+                      );
+                    }
+
+                    return (
+                      <Field>
+                        <FieldLabel htmlFor={field.name}>Site</FieldLabel>
+                        <Select
+                          value={field.state.value || null}
+                          onValueChange={(value) => {
+                            if (value && value !== field.state.value) {
+                              const next = afterSiteChange(choices, value);
+
+                              field.handleChange(value);
+                              form.setFieldValue("locationId", next.locationId);
+                              form.setFieldValue("lines", next.lines);
+                            }
+                          }}
+                          items={choices.sites.map((row) => ({
+                            value: row.id,
+                            label: row.name,
+                          }))}
+                          disabled={disabled}
+                        >
+                          <SelectTrigger id={field.name} className="w-full">
+                            <SelectValue placeholder="Choose a site" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {choices.sites.map((row) => (
+                                <SelectItem key={row.id} value={row.id}>
+                                  {row.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
                       </Field>
                     );
                   }}
@@ -218,26 +293,34 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                 <form.Field name="locationId">
                   {(field) => {
                     const isInvalid = field.state.meta.errors.length > 0;
-                    const error = isInvalid && <FieldError errors={field.state.meta.errors} />;
+                    const error = isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    );
 
                     // The location is fixed after creation.
                     if (request) {
                       return (
                         <Field data-invalid={isInvalid || undefined}>
                           <FieldLabel htmlFor={field.name}>Location</FieldLabel>
-                          <Input id={field.name} value={request.locationName} disabled readOnly />
+                          <Input
+                            id={field.name}
+                            value={request.locationName}
+                            disabled
+                            readOnly
+                          />
                           {error}
                         </Field>
                       );
                     }
 
-                    // Admin site has one location, already set in the default values.
-                    if (choices.locations.length <= 1) {
+                    // A site with one location (or none) leaves nothing to choose. The one
+                    // location is already set in the default values and by a site change.
+                    if (siteId && siteLocations.length <= 1) {
                       return (
                         <Field data-invalid={isInvalid || undefined}>
                           <FieldLabel>Location</FieldLabel>
                           <p className="text-sm">
-                            {choices.locations[0]?.name ?? "No location available"}
+                            {siteLocations[0]?.name ?? "No location available"}
                           </p>
                           {error}
                         </Field>
@@ -252,25 +335,34 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                           onValueChange={(value) => {
                             if (value && value !== field.state.value) {
                               field.handleChange(value);
-                              form.setFieldValue("lines", linesAfterLocationChange());
+                              form.setFieldValue(
+                                "lines",
+                                linesAfterLocationChange(),
+                              );
                             }
                           }}
-                          items={choices.locations.map((row) => ({
+                          items={siteLocations.map((row) => ({
                             value: row.id,
                             label: row.name,
                           }))}
-                          disabled={disabled}
+                          disabled={disabled || !siteId}
                         >
                           <SelectTrigger
                             id={field.name}
                             className="w-full"
                             aria-invalid={isInvalid || undefined}
                           >
-                            <SelectValue placeholder="Choose a location" />
+                            <SelectValue
+                              placeholder={
+                                siteId
+                                  ? "Choose a location"
+                                  : "Choose a site first"
+                              }
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              {choices.locations.map((row) => (
+                              {siteLocations.map((row) => (
                                 <SelectItem key={row.id} value={row.id}>
                                   {row.name}
                                 </SelectItem>
@@ -297,7 +389,9 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                           ? `Headcount per department and position, up to ${MAX_REQUEST_LINES} lines.`
                           : "Choose a location to see its departments and positions."}
                       </FieldDescription>
-                      {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
                       <div className="flex flex-col gap-3">
                         {lines.map((line, index) => (
                           <RequestLineFields
@@ -305,7 +399,10 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                             index={index}
                             line={line}
                             departments={departments}
-                            subDepartments={subDepartmentsFor(choices, line.departmentId)}
+                            subDepartments={subDepartmentsFor(
+                              choices,
+                              line.departmentId,
+                            )}
                             positions={positions}
                             disabled={disabled}
                             canRemove={canRemoveLine(lines.length)}
@@ -337,7 +434,10 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                 </p>
               )}
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Link href={REQUESTS_PATH} className={buttonVariants({ variant: "outline" })}>
+                <Link
+                  href={REQUESTS_PATH}
+                  className={buttonVariants({ variant: "outline" })}
+                >
                   Back to requests
                 </Link>
                 {!readOnly && (

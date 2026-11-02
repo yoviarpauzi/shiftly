@@ -17,6 +17,7 @@ import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
 import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
+import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
@@ -148,12 +149,14 @@ export async function getRequest(
       startDate: rosterRequest.startDate,
       status: rosterRequest.status,
       siteId: rosterRequest.siteId,
+      siteName: site.name,
       locationId: rosterRequest.locationId,
       locationName: location.name,
       createdByName: user.name,
       rejectReason: rosterRequest.rejectReason,
     })
     .from(rosterRequest)
+    .innerJoin(site, eq(site.id, rosterRequest.siteId))
     .innerJoin(location, eq(location.id, rosterRequest.locationId))
     .innerJoin(user, eq(user.id, rosterRequest.createdBy))
     .where(and(eq(rosterRequest.id, id), requestScopeFilter(access)));
@@ -182,8 +185,8 @@ export async function getRequest(
   };
 }
 
-// The active locations the actor can write to, their active departments and sub-departments,
-// and the active positions of those sites.
+// The active locations the actor can write to, the active sites that hold them, their active
+// departments and sub-departments, and the active positions of those sites.
 export async function requestChoicesFor(access: RequestAccess): Promise<RequestChoices> {
   const locations = await db
     .select({ id: location.id, name: location.name, siteId: location.siteId })
@@ -198,11 +201,17 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
     .orderBy(asc(location.name), asc(location.id));
 
   if (locations.length === 0) {
-    return { locations, departments: [], subDepartments: [], positions: [] };
+    return { sites: [], locations, departments: [], subDepartments: [], positions: [] };
   }
 
   const locationIds = locations.map((row) => row.id);
   const siteIds = [...new Set(locations.map((row) => row.siteId))];
+
+  const sites = await db
+    .select({ id: site.id, name: site.name })
+    .from(site)
+    .where(and(inArray(site.id, siteIds), isNull(site.deletedAt)))
+    .orderBy(asc(site.name), asc(site.id));
 
   const departments = await db
     .select({
@@ -240,5 +249,5 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
     .where(and(inArray(position.siteId, siteIds), isNull(position.deletedAt)))
     .orderBy(asc(position.name), asc(position.id));
 
-  return { locations, departments, subDepartments, positions };
+  return { sites, locations, departments, subDepartments, positions };
 }

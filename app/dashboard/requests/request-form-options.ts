@@ -15,6 +15,17 @@ function toOption({ id, name }: RequestOption): RequestOption {
   return { id, name };
 }
 
+export function locationsFor(choices: RequestChoices, siteId: string): RequestOption[] {
+  return choices.locations.filter((row) => row.siteId === siteId).map(toOption);
+}
+
+// A site with one location needs no choice, so the form starts on it.
+function onlyLocationId(choices: RequestChoices, siteId: string): string {
+  const inSite = locationsFor(choices, siteId);
+
+  return inSite.length === 1 ? inSite[0].id : "";
+}
+
 export function departmentsFor(choices: RequestChoices, locationId: string): RequestOption[] {
   return choices.departments.filter((row) => row.locationId === locationId).map(toOption);
 }
@@ -46,6 +57,14 @@ export function linesAfterLocationChange(): RequestLineInput[] {
   return [blankLine()];
 }
 
+// The locations depend on the site, so a new site clears the location and starts the lines over.
+export function afterSiteChange(
+  choices: RequestChoices,
+  siteId: string,
+): { locationId: string; lines: RequestLineInput[] } {
+  return { locationId: onlyLocationId(choices, siteId), lines: linesAfterLocationChange() };
+}
+
 // A sub-department belongs to one department, so a new department clears it.
 export function lineAfterDepartmentChange(
   line: RequestLineInput,
@@ -62,7 +81,8 @@ export function canRemoveLine(count: number): boolean {
   return count > 1;
 }
 
-// An actor with a single location starts on it, so admin site never has to choose.
+// An actor with a single site starts on it, and a site with a single location starts on that, so
+// HO and admin site never have to choose what they have no choice about.
 export function requestFormDefaults(
   request: RequestDetail | null,
   choices: RequestChoices,
@@ -71,15 +91,19 @@ export function requestFormDefaults(
     return {
       type: request.type,
       startDate: request.startDate,
+      siteId: request.siteId,
       locationId: request.locationId,
       lines: request.lines,
     };
   }
 
+  const siteId = choices.sites.length === 1 ? choices.sites[0].id : "";
+
   return {
     type: "",
     startDate: "",
-    locationId: choices.locations.length === 1 ? choices.locations[0].id : "",
+    siteId,
+    locationId: onlyLocationId(choices, siteId),
     lines: [blankLine()],
   };
 }

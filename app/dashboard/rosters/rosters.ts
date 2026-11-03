@@ -547,7 +547,7 @@ export async function getRoster(
     })),
     targets: await loadTargets(db, rosterId),
     rules: rulesForLocation(head.locationId),
-    history: await loadHistories(db, workerIds, days),
+    history: await loadHistories(db, workerIds, days, rosterId),
   });
 
   const titles = new Map(lines.map((line) => [line.lineId, line.title]));
@@ -768,12 +768,14 @@ export function otherRosterWorkQuery(
     );
 }
 
-// The confirmed work rows of the workers between two dates.
+// The confirmed work rows of the workers between two dates. excludeRosterId leaves a roster out of
+// its own history: a confirmed roster's rows are also its cells, and must not count twice.
 export function confirmedWorkQuery(
   reader: Reader,
   workerIds: string[],
   from: string,
   to: string,
+  excludeRosterId?: string,
 ) {
   return reader
     .select({
@@ -788,6 +790,7 @@ export function confirmedWorkQuery(
     .where(
       and(
         eq(roster.status, "confirmed"),
+        excludeRosterId ? ne(roster.id, excludeRosterId) : undefined,
         eq(rosterRequest.status, "approved"),
         eq(rosterAssignment.kind, "work"),
         inArray(rosterAssignment.workerId, workerIds),
@@ -797,10 +800,12 @@ export function confirmedWorkQuery(
 }
 
 // The confirmed work rows of the workers in the window around a roster, grouped into histories.
+// A caller reading an existing roster passes its id so the roster is not part of its own history.
 async function loadHistories(
   reader: Reader,
   workerIds: string[],
   days: string[],
+  excludeRosterId?: string,
 ): Promise<EngineHistory[]> {
   if (workerIds.length === 0 || days.length === 0) {
     return [];
@@ -814,6 +819,7 @@ async function loadHistories(
     workerIds,
     addDays(firstDay, -HISTORY_LOOKBACK_DAYS),
     addDays(days[days.length - 1], 31),
+    excludeRosterId,
   );
 
   return workerIds.map((workerId) =>
@@ -1014,7 +1020,7 @@ export async function loadReplacementContext(
       ? []
       : await otherRosterWorkQuery(reader, input.rosterId, eligibleIds, days);
 
-  const histories = await loadHistories(reader, eligibleIds, days);
+  const histories = await loadHistories(reader, eligibleIds, days, input.rosterId);
 
   return {
     ok: true,
@@ -1154,7 +1160,7 @@ export async function loadCellContext(
         workerIds.length === 0
           ? []
           : await otherRosterWorkQuery(reader, input.rosterId, workerIds, days),
-      history: await loadHistories(reader, workerIds, days),
+      history: await loadHistories(reader, workerIds, days, input.rosterId),
       rules: rulesForLocation(head.locationId),
       previousConflicts,
       lines,

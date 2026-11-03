@@ -109,6 +109,21 @@ describe("reads of other rosters leave out a request that is no longer approved"
     expect(sql).toContain('"roster_request"."status" = $');
     expect(params).toContain("approved");
   });
+
+  // A confirmed roster's own work rows would otherwise count twice: once as history, once as cells.
+  it("leaves the excluded roster out of the confirmed work", () => {
+    const ROSTER = "22222222-2222-4222-8222-222222222222";
+    const { sql, params } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15", ROSTER).toSQL();
+
+    expect(sql).toContain('"roster"."id" <> $');
+    expect(params).toContain(ROSTER);
+  });
+
+  it("reads every roster's confirmed work when none is excluded", () => {
+    const { sql } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15").toSQL();
+
+    expect(sql).not.toContain('"roster"."id" <> $');
+  });
 });
 
 describe("lineTitle", () => {

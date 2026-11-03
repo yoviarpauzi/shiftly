@@ -1,11 +1,17 @@
 import type { EvalCell, EvaluateInput, RosterWarning, WarningCode } from "@/types/rosters";
 
-import { contractEnded, monthlyLimitReached, shiftMoveBlocked } from "./roster-constraints";
-import { addDays, monthKey, monthName, shortDate } from "./roster-rules";
+import {
+  contractEnded,
+  monthlyMessage,
+  monthlyOverrunEvents,
+  shiftMoveEvents,
+  shiftMoveMessage,
+} from "./roster-constraints";
+import { shortDate } from "./roster-rules";
 
 // Checks every cell of an edited roster against the rules and returns what it breaks, as warnings.
-// Nothing is refused: the shift-move and monthly logic is the same chain and counting that
-// checkReplacement uses, so the two cannot disagree. Sorted by date, line, code, then worker, with a
+// Nothing is refused. The shift-move and monthly walks, and their message text, come from
+// roster-constraints, shared with checkReplacement. Sorted by date, line, code, then worker, with a
 // warning about a cell group (no worker) after the worker warnings of the same code.
 export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
   const { rules } = input;
@@ -43,16 +49,6 @@ export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
     const positioned = new Set<string>();
     let contractWarned = false;
 
-    // The history only counts as a chain when it ends the day before the roster starts.
-    const chained =
-      history !== undefined && firstDay !== null && history.lastWorkDate === addDays(firstDay, -1);
-    let lastDate = chained ? history.lastWorkDate : null;
-    let lastOrder = chained ? history.lastShiftOrder : null;
-    let consecutive = chained ? history.consecutiveWorkDays : 0;
-
-    const monthCounts = new Map<string, number>();
-    const exceeded = new Set<string>();
-
     cells.forEach((cell, index) => {
       const line = lines.get(cell.lineId);
 
@@ -75,38 +71,15 @@ export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
       if (index === rules.workDaysPerWeek) {
         warn("weekly", cell, `Would exceed ${rules.workDaysPerWeek} working days this week.`);
       }
-
-      const order = cell.shiftOrder ?? 0;
-      const inChain = lastDate === addDays(cell.date, -1);
-      const previousOrder = inChain ? lastOrder : null;
-      const runLength = inChain ? consecutive : 0;
-
-      if (shiftMoveBlocked(previousOrder, order, runLength, rules.shiftExceptionDays)) {
-        warn(
-          "shiftMove",
-          cell,
-          `Moves from shift ${previousOrder} to shift ${order} on ${shortDate(cell.date)}, before ${rules.shiftExceptionDays} working days.`,
-        );
-      }
-
-      consecutive = runLength + 1;
-      lastDate = cell.date;
-      lastOrder = order;
-
-      const month = monthKey(cell.date);
-      const before = monthCounts.get(month) ?? history?.monthWorkDays[month] ?? 0;
-
-      if (monthlyLimitReached(before, rules.maxWorkingDaysPerMonth) && !exceeded.has(month)) {
-        exceeded.add(month);
-        warn(
-          "monthly",
-          cell,
-          `Would exceed ${rules.maxWorkingDaysPerMonth} working days in ${monthName(cell.date)}.`,
-        );
-      }
-
-      monthCounts.set(month, before + 1);
     });
+
+    for (const event of shiftMoveEvents(cells, history, firstDay, rules.shiftExceptionDays)) {
+      warn("shiftMove", cells[event.index], shiftMoveMessage(event, rules.shiftExceptionDays));
+    }
+
+    for (const event of monthlyOverrunEvents(cells, history, rules.maxWorkingDaysPerMonth)) {
+      warn("monthly", cells[event.index], monthlyMessage(event, rules.maxWorkingDaysPerMonth));
+    }
   }
 
   const assigned = new Map<string, number>();

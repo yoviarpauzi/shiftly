@@ -1,10 +1,13 @@
-import type { ReplacementInput, ReplacementResult } from "@/types/rosters";
+import type { ReplacementInput, ReplacementResult, Reason } from "@/types/rosters";
 
-import { contractEnded, monthlyLimitReached, shiftMoveBlocked } from "./roster-constraints";
-import { addDays, monthKey, monthName, shortDate } from "./roster-rules";
-
-// A hard reason makes the candidate impossible. The others are rules an editor may knowingly break.
-type Reason = { hard: boolean; text: string };
+import {
+  contractEnded,
+  monthlyMessage,
+  monthlyOverrunEvents,
+  shiftMoveEvents,
+  shiftMoveMessage,
+} from "./roster-constraints";
+import { shortDate } from "./roster-rules";
 
 // Replays a candidate on the replaced worker's whole row against the same rule helpers the engine
 // uses, and returns every reason it breaks a rule, in a fixed order: already in the roster, the
@@ -35,47 +38,19 @@ function replacementReasons(input: ReplacementInput): Reason[] {
     }
   }
 
-  // The history only counts as a chain when it ends the day before the row starts.
-  const first = row[0]?.date ?? null;
-  const chained = first !== null && history.lastWorkDate === addDays(first, -1);
-  let lastDate = chained ? history.lastWorkDate : null;
-  let lastOrder = chained ? history.lastShiftOrder : null;
-  let consecutive = chained ? history.consecutiveWorkDays : 0;
+  const walked = workDays.map((day) => ({ date: day.date, shiftOrder: day.shiftOrder }));
 
-  for (const day of workDays) {
-    const order = day.shiftOrder ?? 0;
-    const inChain = lastDate === addDays(day.date, -1);
-    const previousOrder = inChain ? lastOrder : null;
-    const run = inChain ? consecutive : 0;
-
-    if (shiftMoveBlocked(previousOrder, order, run, rules.shiftExceptionDays)) {
-      reasons.push({
-        hard: false,
-        text: `Moves from shift ${previousOrder} to shift ${order} on ${shortDate(day.date)}, before ${rules.shiftExceptionDays} working days.`,
-      });
-    }
-
-    consecutive = run + 1;
-    lastDate = day.date;
-    lastOrder = order;
+  for (const event of shiftMoveEvents(
+    walked,
+    history,
+    row[0]?.date ?? null,
+    rules.shiftExceptionDays,
+  )) {
+    reasons.push({ hard: false, text: shiftMoveMessage(event, rules.shiftExceptionDays) });
   }
 
-  const counts = new Map<string, number>();
-  const exceeded = new Set<string>();
-
-  for (const day of workDays) {
-    const month = monthKey(day.date);
-    const before = counts.get(month) ?? history.monthWorkDays[month] ?? 0;
-
-    if (monthlyLimitReached(before, rules.maxWorkingDaysPerMonth) && !exceeded.has(month)) {
-      exceeded.add(month);
-      reasons.push({
-        hard: false,
-        text: `Would exceed ${rules.maxWorkingDaysPerMonth} working days in ${monthName(day.date)}.`,
-      });
-    }
-
-    counts.set(month, before + 1);
+  for (const event of monthlyOverrunEvents(walked, history, rules.maxWorkingDaysPerMonth)) {
+    reasons.push({ hard: false, text: monthlyMessage(event, rules.maxWorkingDaysPerMonth) });
   }
 
   return reasons;

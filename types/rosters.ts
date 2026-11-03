@@ -385,3 +385,24 @@ export type EvaluateInput = {
   rules: EngineRules;
   history: EngineHistory[];
 };
+
+// ---- The walks the replacement check and the roster evaluation share.
+
+// One work cell of a worker, in date order. Off and break cells are left out before the walk.
+export type WalkCell = { date: string; shiftOrder: number | null };
+
+// A move to a lower shift that is refused. index is the cell's position in the walked cells.
+export type ShiftMoveEvent = {
+  index: number;
+  date: string;
+  previousOrder: number;
+  order: number;
+  run: number;
+};
+
+// The first cell that takes a month past the limit. month is YYYY-MM.
+export type MonthlyOverrunEvent = { index: number; date: string; month: string };
+
+// A reason a candidate breaks a rule. A hard one makes the candidate impossible, the others are
+// rules an editor may knowingly break.
+export type Reason = { hard: boolean; text: string };

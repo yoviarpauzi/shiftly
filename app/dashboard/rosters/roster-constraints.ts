@@ -1,5 +1,9 @@
-// The rule helpers the engine and the replacement check share, so the two cannot disagree. Pure,
-// with no server-only, so tests import them directly.
+import type { EngineHistory, MonthlyOverrunEvent, ShiftMoveEvent, WalkCell } from "@/types/rosters";
+
+import { addDays, monthKey, monthName, shortDate } from "./roster-rules";
+
+// The rule helpers the engine, the replacement check and the roster evaluation share. Pure, with no
+// server-only, so tests import them directly.
 
 // The six reasons a worker can be left out, in the priority order the engine counts them: the first
 // rule that rejects a worker is the one reported. The order of the keys is the priority.
@@ -37,6 +41,74 @@ export function monthlyLimitReached(
   maxWorkingDaysPerMonth: number,
 ): boolean {
   return workDaysInMonth >= maxWorkingDaysPerMonth;
+}
+
+// Walks one worker's work cells, in date order, and returns each move to a lower shift that
+// shiftMoveBlocked refuses. The history only counts as a chain when it ends the day before
+// firstDay, and a run is broken by any day without a work cell. index is the cell's position.
+export function shiftMoveEvents(
+  cells: WalkCell[],
+  history: EngineHistory | undefined,
+  firstDay: string | null,
+  shiftExceptionDays: number,
+): ShiftMoveEvent[] {
+  const events: ShiftMoveEvent[] = [];
+  const chained =
+    history !== undefined && firstDay !== null && history.lastWorkDate === addDays(firstDay, -1);
+  let lastDate = chained ? history.lastWorkDate : null;
+  let lastOrder = chained ? history.lastShiftOrder : null;
+  let consecutive = chained ? history.consecutiveWorkDays : 0;
+
+  cells.forEach((cell, index) => {
+    const order = cell.shiftOrder ?? 0;
+    const inChain = lastDate === addDays(cell.date, -1);
+    const previousOrder = inChain ? lastOrder : null;
+    const run = inChain ? consecutive : 0;
+
+    if (previousOrder !== null && shiftMoveBlocked(previousOrder, order, run, shiftExceptionDays)) {
+      events.push({ index, date: cell.date, previousOrder, order, run });
+    }
+
+    consecutive = run + 1;
+    lastDate = cell.date;
+    lastOrder = order;
+  });
+
+  return events;
+}
+
+export function shiftMoveMessage(event: ShiftMoveEvent, shiftExceptionDays: number): string {
+  return `Moves from shift ${event.previousOrder} to shift ${event.order} on ${shortDate(event.date)}, before ${shiftExceptionDays} working days.`;
+}
+
+// Walks one worker's work cells, in date order, and returns the first cell that takes each month
+// past the limit. A month starts from the history's count for it.
+export function monthlyOverrunEvents(
+  cells: WalkCell[],
+  history: EngineHistory | undefined,
+  maxWorkingDaysPerMonth: number,
+): MonthlyOverrunEvent[] {
+  const events: MonthlyOverrunEvent[] = [];
+  const counts = new Map<string, number>();
+  const exceeded = new Set<string>();
+
+  cells.forEach((cell, index) => {
+    const month = monthKey(cell.date);
+    const before = counts.get(month) ?? history?.monthWorkDays[month] ?? 0;
+
+    if (monthlyLimitReached(before, maxWorkingDaysPerMonth) && !exceeded.has(month)) {
+      exceeded.add(month);
+      events.push({ index, date: cell.date, month });
+    }
+
+    counts.set(month, before + 1);
+  });
+
+  return events;
+}
+
+export function monthlyMessage(event: MonthlyOverrunEvent, maxWorkingDaysPerMonth: number): string {
+  return `Would exceed ${maxWorkingDaysPerMonth} working days in ${monthName(event.date)}.`;
 }
 
 // "Short by 2. 3 already assigned that day, 1 at the monthly limit." Only reasons that happened

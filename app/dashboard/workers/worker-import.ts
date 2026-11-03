@@ -276,3 +276,18 @@ export function summarizeImport(rows: ImportRowResult[]): ImportSummary {
 
   return summary;
 }
+
+// The preview text for the Working days column. A blank cell clears nothing: a created worker
+// inherits the work rules and an updated one keeps its own override. An error row may be blank or
+// invalid, so it claims neither.
+export function importWorkDaysText(row: Pick<ImportRowResult, "action" | "workDays">): string {
+  if (row.workDays !== null) {
+    return `${row.workDays}`;
+  }
+
+  if (row.action === "create") {
+    return "Inherited";
+  }
+
+  return row.action === "update" ? "Unchanged" : "-";
+}

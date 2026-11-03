@@ -1,5 +1,6 @@
 import { columnVisibilityFeature, createColumnHelper, tableFeatures } from "@tanstack/react-table";
 import type { ImportRowResult } from "@/types/worker-import";
+import { importWorkDaysText } from "@/app/dashboard/workers/worker-import";
 import { Badge } from "@/components/ui/badge";
 
 export const importFeatures = tableFeatures({ columnVisibilityFeature });
@@ -60,7 +61,11 @@ export function createImportColumns() {
     columnHelper.accessor("workDays", {
       header: () => <span>Working days</span>,
       cell: ({ row }) =>
-        row.original.workDays ?? <span className="text-muted-foreground">Inherited</span>,
+        row.original.workDays !== null ? (
+          importWorkDaysText(row.original)
+        ) : (
+          <span className="text-muted-foreground">{importWorkDaysText(row.original)}</span>
+        ),
     }),
     columnHelper.display({
       id: "issues",

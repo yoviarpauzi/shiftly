@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ImportCell, ImportCellColumn, ImportLookups, ImportRawRow } from "@/types/worker-import";
 import type { WorkerAccess } from "@/types/workers";
-import { importEmployeeIds, resolveImportRows, summarizeImport } from "./worker-import";
+import {
+  importEmployeeIds,
+  importWorkDaysText,
+  resolveImportRows,
+  summarizeImport,
+} from "./worker-import";
 
 const EVERYWHERE: WorkerAccess = { siteId: null, locationId: null };
 
@@ -377,5 +382,17 @@ describe("work_days", () => {
       action: "error",
       errors: ["work_days must be 5 or 7", "Site not found"],
     });
+  });
+});
+
+describe("importWorkDaysText", () => {
+  it.each([
+    ["create", 5, "5"],
+    ["update", 7, "7"],
+    ["create", null, "Inherited"],
+    ["update", null, "Unchanged"],
+    ["error", null, "-"],
+  ] as const)("shows a %s row with work days %j as %j", (action, workDays, expected) => {
+    expect(importWorkDaysText({ action, workDays })).toBe(expected);
   });
 });

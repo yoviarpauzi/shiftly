@@ -22,6 +22,8 @@ type Call = {
   values?: unknown;
   conflict?: { target: unknown; targetWhere: SQL; set: Record<string, unknown> };
   lock?: string;
+  where?: SQL;
+  join?: { table: unknown; on: SQL };
 };
 
 const fake = vi.hoisted(() => ({
@@ -50,8 +52,14 @@ function builder(call: Call) {
       call.table = table;
       return chain;
     },
-    innerJoin: () => chain,
-    where: () => chain,
+    innerJoin(table: unknown, on: SQL) {
+      call.join = { table, on };
+      return chain;
+    },
+    where(condition: SQL) {
+      call.where = condition;
+      return chain;
+    },
     for(strength: string) {
       call.lock = strength;
       return chain;
@@ -124,6 +132,32 @@ const atLocation = (locationId: string) => ({ scope: "location", locationId }) a
 
 const dialect = new PgDialect();
 const writes = () => fake.calls.filter((call) => call.op !== "select");
+const render = (query: SQL | undefined) => dialect.sqlToQuery(query!);
+
+// The existence check is the only thing that turns a deleted or unknown target into "not found",
+// so its filters are asserted as SQL, not just through the rows the recorder hands back.
+const expectSiteCheck = (siteId: string) => {
+  const [check] = fake.calls;
+
+  expect(check).toMatchObject({ op: "select", table: site, lock: "share" });
+  expect(check.join).toBeUndefined();
+  expect(render(check.where)).toMatchObject({
+    sql: '("site"."id" = $1 and "site"."deleted_at" is null)',
+    params: [siteId],
+  });
+};
+
+const expectLocationCheck = (locationId: string) => {
+  const [check] = fake.calls;
+
+  expect(check).toMatchObject({ op: "select", table: location, lock: "share" });
+  expect(check.join?.table).toBe(site);
+  expect(render(check.join?.on).sql).toBe('"site"."id" = "location"."site_id"');
+  expect(render(check.where)).toMatchObject({
+    sql: '("location"."id" = $1 and "location"."deleted_at" is null and "site"."deleted_at" is null)',
+    params: [locationId],
+  });
+};
 
 beforeEach(() => {
   fake.calls = [];
@@ -312,7 +346,7 @@ describe.each(CARDS)("%s", (_name, action, values, invalid) => {
       fake.rows.site = [{ id: SITE_B }];
 
       expect(await save(atSite(SITE_B))).toEqual({ ok: true });
-      expect(fake.calls[0]).toMatchObject({ op: "select", table: site, lock: "share" });
+      expectSiteCheck(SITE_B);
       expectUpsert(
         { scope: "site", siteId: SITE_B },
         values,
@@ -326,7 +360,7 @@ describe.each(CARDS)("%s", (_name, action, values, invalid) => {
       fake.rows.location = [{ id: LOCATION_B, siteId: SITE_B }];
 
       expect(await save(atLocation(LOCATION_B))).toEqual({ ok: true });
-      expect(fake.calls[0]).toMatchObject({ op: "select", table: location, lock: "share" });
+      expectLocationCheck(LOCATION_B);
       expectUpsert(
         { scope: "location", locationId: LOCATION_B },
         values,
@@ -422,12 +456,14 @@ describe.each(CARDS)("%s", (_name, action, values, invalid) => {
     fake.rows.site = [];
 
     expectRefused(await save(atSite(SITE_A)), SITE_NOT_FOUND_MESSAGE);
+    expectSiteCheck(SITE_A);
   });
 
   it("refuses a location that is deleted, missing, or in a deleted site", async () => {
     fake.rows.location = [];
 
     expectRefused(await save(atLocation(LOCATION_A)), LOCATION_NOT_FOUND_MESSAGE);
+    expectLocationCheck(LOCATION_A);
   });
 
   it.each([

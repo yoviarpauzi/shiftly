@@ -86,3 +86,26 @@ export type RosterEngineOutput = {
   assignments: EngineAssignment[];
   conflicts: EngineConflict[];
 };
+
+// ---- Replacing a worker. The candidate takes the replaced worker's whole row.
+
+// One day of the replaced worker's row. shiftOrder is set on a work day.
+export type ReplacementRowDay = {
+  date: string;
+  kind: AssignmentKind;
+  shiftOrder: number | null;
+};
+
+export type ReplacementInput = {
+  // The replaced worker's days in this roster, in date order.
+  row: ReplacementRowDay[];
+  candidate: { id: string; endContract: string; positionIds: string[] };
+  position: { id: string; name: string };
+  alreadyInRoster: boolean;
+  // Days the candidate already works in another roster.
+  otherRosterWorkDates: string[];
+  history: EngineHistory;
+  rules: EngineRules;
+};
+
+export type ReplacementResult = { ok: true } | { ok: false; reasons: string[] };

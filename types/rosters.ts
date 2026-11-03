@@ -386,6 +386,26 @@ export type EvaluateInput = {
   history: EngineHistory[];
 };
 
+// ---- Editing one cell of a draft roster.
+
+// What a cell becomes. clear removes the worker's cell for that day.
+export type CellTarget =
+  | { kind: "work"; shiftId: string; shiftOrder: number }
+  | { kind: "off" }
+  | { kind: "break" }
+  | { kind: "clear" };
+
+export type CellChange = { lineId: string; workerId: string; date: string; to: CellTarget };
+
+// A stored shortage: a shift that has fewer workers than its target.
+export type ShortageRow = {
+  lineId: string;
+  date: string;
+  shiftId: string;
+  shortfall: number;
+  message: string;
+};
+
 // ---- The walks the replacement check and the roster evaluation share.
 
 // One work cell of a worker, in date order. Off and break cells are left out before the walk.

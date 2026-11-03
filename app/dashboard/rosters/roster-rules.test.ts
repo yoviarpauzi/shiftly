@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   addDays,
+  CELL_BUSY_MESSAGE,
+  CELL_DATE_MESSAGE,
+  CELL_OTHER_LINE_MESSAGE,
+  CELL_SHIFT_MESSAGE,
+  CELL_WORKS_THAT_DAY_MESSAGE,
   confirmDescription,
   dayLabel,
   evenSplit,
@@ -260,5 +265,17 @@ describe("rulesForLocation", () => {
       requirePositionMatch: true,
       maxWorkingDaysPerMonth: 26,
     });
+  });
+});
+
+describe("cell edit messages", () => {
+  it("states each refusal", () => {
+    expect(CELL_DATE_MESSAGE).toBe("That day is not in this roster.");
+    expect(CELL_SHIFT_MESSAGE).toBe("That shift is not available at this site.");
+    expect(CELL_OTHER_LINE_MESSAGE).toBe(
+      "This worker already has a row on that day in another line.",
+    );
+    expect(CELL_BUSY_MESSAGE).toBe("This worker already works on that day in another roster.");
+    expect(CELL_WORKS_THAT_DAY_MESSAGE).toBe("This worker already works on that day.");
   });
 });

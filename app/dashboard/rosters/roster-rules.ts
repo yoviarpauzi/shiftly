@@ -11,6 +11,11 @@ export const TARGETS_MISMATCH_MESSAGE =
 export const ROSTER_LINE_MISSING_MESSAGE = "That line is not in this roster.";
 export const ROSTER_WORKER_MISSING_MESSAGE = "That worker has no shifts on this line.";
 export const REPLACEMENT_WORKER_MISSING_MESSAGE = "That worker is not available at this location.";
+export const CELL_DATE_MESSAGE = "That day is not in this roster.";
+export const CELL_SHIFT_MESSAGE = "That shift is not available at this site.";
+export const CELL_OTHER_LINE_MESSAGE = "This worker already has a row on that day in another line.";
+export const CELL_BUSY_MESSAGE = "This worker already works on that day in another roster.";
+export const CELL_WORKS_THAT_DAY_MESSAGE = "This worker already works on that day.";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

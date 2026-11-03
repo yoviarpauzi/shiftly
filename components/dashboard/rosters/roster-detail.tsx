@@ -16,7 +16,8 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
   const [confirming, setConfirming] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  const draft = roster.status === "draft";
+  // A confirmed roster, or one whose request was cancelled, has no menus or buttons.
+  const draft = roster.editable;
   const dialogRoster = {
     id: roster.id,
     version: roster.version,

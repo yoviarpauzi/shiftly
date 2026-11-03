@@ -1,11 +1,15 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: {} }));
 
 const {
+  busyWorkersQuery,
   buildConflictViews,
   buildLineViews,
+  confirmedWorkQuery,
+  otherRosterWorkQuery,
   lineTitle,
   rosterCounts,
   shapeRosterRow,
@@ -77,6 +81,33 @@ describe("shapeRosterRow", () => {
         updatedAt: new Date("2026-11-03T10:00:00.000Z"),
       }).conflictCount,
     ).toBe(0);
+  });
+});
+
+// A roster whose request was cancelled stays on record, but its work days must not block or
+// count against anyone in another roster. Each of the three reads that look at other rosters is
+// rendered to SQL here, since the recorder in the action tests cannot run a WHERE clause.
+describe("reads of other rosters leave out a request that is no longer approved", () => {
+  const reader = drizzle.mock();
+  const ID = "11111111-1111-4111-8111-111111111111";
+
+  const cases: [string, () => { toSQL: () => { sql: string; params: unknown[] } }][] = [
+    ["the workers busy in another roster", () => busyWorkersQuery(reader, ID, "2026-11-09", "2026-11-15")],
+    [
+      "another roster's work days for a candidate",
+      () => otherRosterWorkQuery(reader, ID, [ID], ["2026-11-09"]),
+    ],
+    [
+      "the confirmed work a history is built from",
+      () => confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15"),
+    ],
+  ];
+
+  it.each(cases)("%s", (_label, build) => {
+    const { sql, params } = build().toSQL();
+
+    expect(sql).toContain('"roster_request"."status" = $');
+    expect(params).toContain("approved");
   });
 });
 

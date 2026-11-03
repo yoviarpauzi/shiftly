@@ -118,6 +118,9 @@ export type RosterDetail = {
   locationName: string;
   siteName: string;
   status: RosterStatus;
+  // False once the roster is confirmed or its request is no longer approved: no replacing,
+  // generating again, or confirming.
+  editable: boolean;
   generatedByName: string | null;
   generatedAt: string;
   confirmedByName: string | null;

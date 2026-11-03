@@ -28,7 +28,7 @@ async function RosterDetailPage({ params }: { params: Promise<{ id: string }> })
 
   // Generate again repeats the split the draft was made with. A request that is no longer approved
   // has no Generate view, and so no Generate again.
-  const view = roster.status === "draft" ? await getGenerateView(access, roster.requestId) : null;
+  const view = roster.editable ? await getGenerateView(access, roster.requestId) : null;
   const generateInput = view
     ? {
         requestId: view.requestId,

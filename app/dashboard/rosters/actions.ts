@@ -2,7 +2,7 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { ZodError } from "zod";
 import { rosterRequest } from "@/database/schema/request-schema";
 import {
@@ -72,31 +72,66 @@ function invalidInput(error: ZodError): RosterActionResult {
   return { ok: false, formError: error.issues[0]?.message ?? "Invalid input", fieldErrors };
 }
 
-// Locks the roster row, so a concurrent edit, replace, or confirm waits. A roster outside the
-// actor's scope is the same as a missing one.
-async function lockRoster(tx: Transaction, access: RequestAccess, rosterId: string) {
-  const [row] = await tx
-    .select({
-      id: roster.id,
-      status: roster.status,
-      updatedAt: roster.updatedAt,
-      siteId: rosterRequest.siteId,
-      locationId: rosterRequest.locationId,
-    })
-    .from(roster)
-    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
-    .where(eq(roster.id, rosterId))
-    .for("update", { of: roster });
+// One writer per location at a time. Two rosters of the same location read each other's work days
+// to keep a worker from being booked twice, and neither can see the other's uncommitted rows, so
+// the writes take turns. Always taken after the request lock and before the roster lock.
+async function lockLocation(tx: Transaction, locationId: string) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${locationId}))`);
+}
 
-  if (!row || !canAccessRosterLocation(access, { id: row.locationId, siteId: row.siteId })) {
+// Locks the request row, then the roster row, in the order generate takes them, so a concurrent
+// generate, edit, replace, or confirm waits. serialize also takes the location lock between the two,
+// for a write that checks other rosters. A roster outside the actor's scope is the same as a
+// missing one.
+async function lockRoster(
+  tx: Transaction,
+  access: RequestAccess,
+  rosterId: string,
+  { serialize }: { serialize: boolean },
+) {
+  const [found] = await tx
+    .select({ requestId: roster.requestId })
+    .from(roster)
+    .where(eq(roster.id, rosterId));
+
+  if (!found) {
     return null;
   }
 
-  return row;
+  const [request] = await tx
+    .select({
+      status: rosterRequest.status,
+      siteId: rosterRequest.siteId,
+      locationId: rosterRequest.locationId,
+    })
+    .from(rosterRequest)
+    .where(eq(rosterRequest.id, found.requestId))
+    .for("update");
+
+  if (!request || !canAccessRosterLocation(access, { id: request.locationId, siteId: request.siteId })) {
+    return null;
+  }
+
+  if (serialize) {
+    await lockLocation(tx, request.locationId);
+  }
+
+  const [row] = await tx
+    .select({ id: roster.id, status: roster.status, updatedAt: roster.updatedAt })
+    .from(roster)
+    .where(eq(roster.id, rosterId))
+    .for("update");
+
+  return row ? { ...row, requestStatus: request.status } : null;
 }
 
-// A confirmed roster is locked, and an edit made on an old version would overwrite a newer one.
-function editError(row: { status: string; updatedAt: Date }, version: string): string | null {
+// A roster is read-only once its request is no longer approved, or once it is confirmed, and an
+// edit made on an old version would overwrite a newer one.
+function editError(
+  row: { status: string; updatedAt: Date; requestStatus: string },
+  version: string,
+): string | null {
+  if (row.requestStatus !== "approved") return REQUEST_NOT_APPROVED_MESSAGE;
   if (row.status === "confirmed") return ROSTER_CONFIRMED_MESSAGE;
   if (row.updatedAt.toISOString() !== version) return ROSTER_CHANGED_MESSAGE;
 
@@ -137,6 +172,8 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
       if (request.status !== "approved") {
         return { ok: false, formError: REQUEST_NOT_APPROVED_MESSAGE };
       }
+
+      await lockLocation(tx, request.locationId);
 
       const [existing] = await tx
         .select({ id: roster.id, status: roster.status, updatedAt: roster.updatedAt })
@@ -274,8 +311,8 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
       return { ok: true, rosterId };
     });
 
-    if (result.ok) {
-      revalidatePath(ROSTERS_PATH);
+    if (result.ok && result.rosterId) {
+      revalidateRoster(result.rosterId);
     }
 
     return result;
@@ -302,7 +339,7 @@ export async function replaceRosterWorker(input: ReplaceWorkerInput): Promise<Ro
   const data = parsed.data;
 
   const result = await db.transaction(async (tx): Promise<RosterActionResult> => {
-    const locked = await lockRoster(tx, access, data.rosterId);
+    const locked = await lockRoster(tx, access, data.rosterId, { serialize: true });
 
     if (!locked) {
       return { ok: false, formError: ROSTER_NOT_FOUND_MESSAGE };
@@ -396,7 +433,7 @@ export async function confirmRoster(input: ConfirmRosterInput): Promise<RosterAc
   const data = parsed.data;
 
   const result = await db.transaction(async (tx): Promise<RosterActionResult> => {
-    const locked = await lockRoster(tx, access, data.rosterId);
+    const locked = await lockRoster(tx, access, data.rosterId, { serialize: false });
 
     if (!locked) {
       return { ok: false, formError: ROSTER_NOT_FOUND_MESSAGE };

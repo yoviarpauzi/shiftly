@@ -61,6 +61,12 @@ export function shortDate(date: string): string {
   return `${weekday} ${day} ${MONTHS_SHORT[month - 1]}`;
 }
 
+// A roster can be changed while it is a draft and its request is still approved. A request that
+// was cancelled afterwards leaves its roster on record, read-only.
+export function isRosterEditable(rosterStatus: string, requestStatus: string): boolean {
+  return rosterStatus === "draft" && requestStatus === "approved";
+}
+
 // "Mon 9", the header of a day in the roster grid.
 export function dayLabel(date: string): string {
   return shortDate(date).split(" ").slice(0, 2).join(" ");

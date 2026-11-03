@@ -57,7 +57,14 @@ import type { SortCriterion } from "@/types/sort";
 import { parseRequestId } from "@/validation/request-id";
 import { requestScopeFilter } from "../requests/requests";
 import { checkReplacement } from "./roster-replacement";
-import { addDays, evenSplit, monthKey, requestDays, rulesForLocation } from "./roster-rules";
+import {
+  addDays,
+  evenSplit,
+  isRosterEditable,
+  monthKey,
+  requestDays,
+  rulesForLocation,
+} from "./roster-rules";
 
 // Anything that can run a select: the database itself or a transaction.
 type Reader = Pick<Transaction, "select">;
@@ -421,6 +428,7 @@ export async function getRoster(
       confirmedByName: confirmedBy.name,
       poNumber: rosterRequest.poNumber,
       type: rosterRequest.type,
+      requestStatus: rosterRequest.status,
       startDate: rosterRequest.startDate,
       locationName: location.name,
       siteName: site.name,
@@ -486,6 +494,7 @@ export async function getRoster(
     locationName: head.locationName,
     siteName: head.siteName,
     status: head.status as RosterStatus,
+    editable: isRosterEditable(head.status, head.requestStatus),
     generatedByName: head.generatedByName ?? null,
     generatedAt: head.generatedAt.toISOString(),
     confirmedByName: head.confirmedByName ?? null,
@@ -607,6 +616,78 @@ export async function getGenerateView(
   };
 }
 
+// The three reads below look at other rosters. A roster whose request was cancelled stays on
+// record, read-only, and must not block or count against anyone, so each one keeps to approved
+// requests.
+
+// The workers who work on one of the days in a roster of another request.
+export function busyWorkersQuery(reader: Reader, requestId: string, firstDay: string, lastDay: string) {
+  return reader
+    .select({ id: rosterAssignment.workerId })
+    .from(rosterAssignment)
+    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .where(
+      and(
+        ne(roster.requestId, requestId),
+        eq(rosterRequest.status, "approved"),
+        eq(rosterAssignment.kind, "work"),
+        between(rosterAssignment.workDate, firstDay, lastDay),
+      ),
+    );
+}
+
+// The days the workers work in the other rosters of the same approved requests.
+export function otherRosterWorkQuery(
+  reader: Reader,
+  rosterId: string,
+  workerIds: string[],
+  dates: string[],
+) {
+  return reader
+    .select({ workerId: rosterAssignment.workerId, date: rosterAssignment.workDate })
+    .from(rosterAssignment)
+    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .where(
+      and(
+        ne(rosterAssignment.rosterId, rosterId),
+        eq(rosterRequest.status, "approved"),
+        eq(rosterAssignment.kind, "work"),
+        inArray(rosterAssignment.workerId, workerIds),
+        inArray(rosterAssignment.workDate, dates),
+      ),
+    );
+}
+
+// The confirmed work rows of the workers between two dates.
+export function confirmedWorkQuery(
+  reader: Reader,
+  workerIds: string[],
+  from: string,
+  to: string,
+) {
+  return reader
+    .select({
+      workerId: rosterAssignment.workerId,
+      date: rosterAssignment.workDate,
+      shiftOrder: shift.order,
+    })
+    .from(rosterAssignment)
+    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
+    .where(
+      and(
+        eq(roster.status, "confirmed"),
+        eq(rosterRequest.status, "approved"),
+        eq(rosterAssignment.kind, "work"),
+        inArray(rosterAssignment.workerId, workerIds),
+        between(rosterAssignment.workDate, from, to),
+      ),
+    );
+}
+
 // The confirmed work rows of the workers in the window around a roster, grouped into histories.
 async function loadHistories(
   reader: Reader,
@@ -620,27 +701,12 @@ async function loadHistories(
   const firstDay = days[0];
   const months = [...new Set(days.map(monthKey))];
 
-  const rows = await reader
-    .select({
-      workerId: rosterAssignment.workerId,
-      date: rosterAssignment.workDate,
-      shiftOrder: shift.order,
-    })
-    .from(rosterAssignment)
-    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
-    .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
-    .where(
-      and(
-        eq(roster.status, "confirmed"),
-        eq(rosterAssignment.kind, "work"),
-        inArray(rosterAssignment.workerId, workerIds),
-        between(
-          rosterAssignment.workDate,
-          addDays(firstDay, -HISTORY_LOOKBACK_DAYS),
-          addDays(days[days.length - 1], 31),
-        ),
-      ),
-    );
+  const rows = await confirmedWorkQuery(
+    reader,
+    workerIds,
+    addDays(firstDay, -HISTORY_LOOKBACK_DAYS),
+    addDays(days[days.length - 1], 31),
+  );
 
   return workerIds.map((workerId) =>
     workerHistory(
@@ -704,17 +770,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
     .where(and(eq(shift.siteId, request.siteId), isNull(shift.deletedAt)))
     .orderBy(asc(shift.order));
 
-  const busy = tx
-    .select({ id: rosterAssignment.workerId })
-    .from(rosterAssignment)
-    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
-    .where(
-      and(
-        ne(roster.requestId, requestId),
-        eq(rosterAssignment.kind, "work"),
-        between(rosterAssignment.workDate, days[0], days[days.length - 1]),
-      ),
-    );
+  const busy = busyWorkersQuery(tx, requestId, days[0], days[days.length - 1]);
 
   const workers = await tx
     .select({ id: worker.id, employeeId: worker.employeeId, endContract: worker.endContract })
@@ -848,17 +904,7 @@ export async function loadReplacementContext(
   const others =
     eligibleIds.length === 0
       ? []
-      : await reader
-          .select({ workerId: rosterAssignment.workerId, date: rosterAssignment.workDate })
-          .from(rosterAssignment)
-          .where(
-            and(
-              ne(rosterAssignment.rosterId, input.rosterId),
-              eq(rosterAssignment.kind, "work"),
-              inArray(rosterAssignment.workerId, eligibleIds),
-              inArray(rosterAssignment.workDate, days),
-            ),
-          );
+      : await otherRosterWorkQuery(reader, input.rosterId, eligibleIds, days);
 
   const histories = await loadHistories(reader, eligibleIds, days);
 

@@ -30,7 +30,7 @@ import {
 // recorder cannot run a WHERE clause, so scope is simulated by the rows the test seeds. The row
 // loaders in ./rosters are replaced, and the engine and checkReplacement run for real.
 type Call = {
-  op: "select" | "insert" | "update" | "delete";
+  op: "select" | "insert" | "update" | "delete" | "advisory";
   table?: unknown;
   values?: unknown;
   set?: Record<string, unknown>;
@@ -116,6 +116,11 @@ function queries(inTransaction: boolean) {
     insert: (table: unknown) => builder({ op: "insert", table, inTransaction }),
     update: (table: unknown) => builder({ op: "update", table, inTransaction }),
     delete: (table: unknown) => builder({ op: "delete", table, inTransaction }),
+    // The location lock: pg_advisory_xact_lock. Recorded with its SQL, so a test reads the id.
+    execute: async (statement: SQL) => {
+      fake.calls.push({ op: "advisory", where: statement, inTransaction });
+      return [];
+    },
   };
 }
 
@@ -235,7 +240,10 @@ const storedRoster = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const writes = () => fake.calls.filter((call) => call.op !== "select");
+const writes = () => fake.calls.filter((call) => call.op !== "select" && call.op !== "advisory");
+const advisoryLocks = () => fake.calls.filter((call) => call.op === "advisory");
+// The selects that lock a row, in the order they ran.
+const lockedSelects = () => fake.calls.filter((call) => call.op === "select" && call.lock);
 const writesTo = (op: Call["op"], table: unknown) =>
   fake.calls.filter((call) => call.op === op && call.table === table);
 
@@ -323,15 +331,26 @@ describe("generateRoster", () => {
     expect(writes()).toEqual([]);
   });
 
-  it("locks the request row before it reads the roster", async () => {
+  it("locks the request, then the location, then the roster", async () => {
     fake.rows.request = [storedRequest()];
 
     await generateRoster(generateInput());
 
-    const [first, second] = fake.calls;
+    const [first, second, third] = fake.calls;
 
     expect([first.op, first.table, first.lock]).toEqual(["select", rosterRequest, "update"]);
-    expect([second.op, second.table, second.lock]).toEqual(["select", roster, "update"]);
+    expect(second.op).toBe("advisory");
+    expect(whereParams(second.where)).toEqual([LOCATION_A]);
+    expect([third.op, third.table, third.lock]).toEqual(["select", roster, "update"]);
+  });
+
+  it("revalidates the roster's own page as well as the list", async () => {
+    fake.rows.request = [storedRequest()];
+
+    await generateRoster(generateInput());
+
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard/rosters");
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard/rosters/roster-new");
   });
 
   it("writes the roster, targets, assignments, and conflicts in one transaction", async () => {
@@ -536,6 +555,22 @@ function seedContext(overrides: Partial<ReplacementContextResult & { ok: true }>
 }
 
 describe("replaceRosterWorker", () => {
+  beforeEach(() => {
+    fake.rows.request = [storedRequest()];
+  });
+
+  it("refuses a roster whose request is no longer approved, and writes nothing", async () => {
+    fake.rows.request = [storedRequest({ status: "cancelled" })];
+    fake.rows.roster = [storedRoster()];
+    seedContext();
+
+    expect(await replaceRosterWorker(replaceInput())).toEqual({
+      ok: false,
+      formError: REQUEST_NOT_APPROVED_MESSAGE,
+    });
+    expect(writes()).toEqual([]);
+  });
+
   it("refuses invalid input and reads nothing", async () => {
     const res = await replaceRosterWorker(replaceInput({ toWorkerId: W1 }));
 
@@ -550,7 +585,9 @@ describe("replaceRosterWorker", () => {
     const res = await replaceRosterWorker(replaceInput());
 
     expect(res).toEqual({ ok: true });
-    expect(fake.calls[0].lock).toBe("update");
+    // The request, then the location, then the roster: the order generate takes them in.
+    expect(lockedSelects().map((call) => call.table)).toEqual([rosterRequest, roster]);
+    expect(advisoryLocks().map((call) => whereParams(call.where))).toEqual([[LOCATION_A]]);
     expect(fake.calls.every((call) => call.inTransaction)).toBe(true);
     expect(writes().map((call) => [call.op, call.table])).toEqual([
       ["update", rosterAssignment],
@@ -660,13 +697,29 @@ const confirmInput = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("confirmRoster", () => {
+  beforeEach(() => {
+    fake.rows.request = [storedRequest()];
+  });
+
+  it("refuses a roster whose request is no longer approved, and writes nothing", async () => {
+    fake.rows.request = [storedRequest({ status: "cancelled" })];
+    fake.rows.roster = [storedRoster()];
+
+    expect(await confirmRoster(confirmInput())).toEqual({
+      ok: false,
+      formError: REQUEST_NOT_APPROVED_MESSAGE,
+    });
+    expect(writes()).toEqual([]);
+  });
+
   it("confirms a draft with the time and the user", async () => {
     fake.rows.roster = [storedRoster()];
 
     const res = await confirmRoster(confirmInput());
 
     expect(res).toEqual({ ok: true });
-    expect(fake.calls[0].lock).toBe("update");
+    expect(lockedSelects().map((call) => call.table)).toEqual([rosterRequest, roster]);
+    expect(advisoryLocks()).toEqual([]);
     expect(writes().map((call) => [call.op, call.table])).toEqual([["update", roster]]);
     expect(writes()[0].set).toEqual({
       status: "confirmed",

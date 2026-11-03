@@ -6,6 +6,7 @@ import {
   dayLabel,
   evenSplit,
   generateAgainDescription,
+  isRosterEditable,
   formatRosterTime,
   monthKey,
   monthName,
@@ -190,6 +191,16 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(new Error("boom"))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
     expect(isUniqueViolation("23505")).toBe(false);
+  });
+});
+
+describe("isRosterEditable", () => {
+  it("is true only for a draft whose request is still approved", () => {
+    expect(isRosterEditable("draft", "approved")).toBe(true);
+    expect(isRosterEditable("confirmed", "approved")).toBe(false);
+    expect(isRosterEditable("draft", "cancelled")).toBe(false);
+    expect(isRosterEditable("draft", "pending")).toBe(false);
+    expect(isRosterEditable("confirmed", "cancelled")).toBe(false);
   });
 });
 

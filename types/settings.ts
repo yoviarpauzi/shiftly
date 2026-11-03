@@ -90,6 +90,25 @@ export type RuleSourceInput = {
 
 export type WorkRulesEmpty = "no-site" | "no-location";
 
+export type SettingsSearchParams = Record<string, string | string[] | undefined>;
+
+// The role-scoped choice lists, passed in so the target can be resolved without a database.
+export type SettingsTargetLoaders = {
+  siteChoiceFor: (access: SettingsAccess) => Promise<SiteChoice>;
+  locationChoiceFor: (access: SettingsAccess, siteId: string) => Promise<LocationChoice>;
+};
+
+// load is the level to read with workRulesFor, or null when empty says why there is none.
+export type ResolvedSettingsTarget = {
+  scope: WorkRuleScope;
+  siteChoice: SiteChoice;
+  siteId: string | null;
+  locationChoice: LocationChoice | null;
+  locationId: string | null;
+  empty: WorkRulesEmpty | null;
+  load: SettingsTarget | null;
+};
+
 // canEdit comes from canEditWorkRule for the chosen target.
 export type WorkRulesView = {
   scope: WorkRuleScope;

@@ -1,57 +1,25 @@
 import { SettingsTabs } from "@/components/dashboard/settings/settings-tabs";
-import type { SettingsAccess, WorkRulesView } from "@/types/settings";
-import {
-  parseSettingsLocation,
-  parseSettingsScope,
-  parseSettingsTab,
-} from "@/validation/settings";
-import { parseWorkerSite } from "@/validation/worker-site";
+import type { SettingsAccess, SettingsSearchParams, WorkRulesView } from "@/types/settings";
+import { parseSettingsTab } from "@/validation/settings";
 import { canEditWorkRule, workRuleAccessTargetFor } from "./settings-access";
 import { requireSettingsAccess } from "./settings-guard";
-import {
-  pickSettingsLocation,
-  pickSettingsScope,
-  pickSettingsSite,
-  workRulesEmptyFor,
-} from "./settings-rules";
 import {
   settingsLocationChoiceFor,
   settingsSiteChoiceFor,
   workRulesFor,
 } from "./settings";
+import { resolveSettingsTarget } from "./settings-target";
 
-// The site and location only ever come from the caller's own choice lists, never straight from
-// the URL, so an HO cannot read another site's rules by editing ?site=. Locations are only
-// listed at location level, the one level that uses them.
 async function workRulesViewFor(
   access: SettingsAccess,
-  params: Record<string, string | string[] | undefined>,
+  params: SettingsSearchParams,
 ): Promise<WorkRulesView> {
-  const scope = pickSettingsScope(parseSettingsScope(params.scope));
-  const siteChoice = await settingsSiteChoiceFor(access);
-  const siteId = pickSettingsSite(
-    siteChoice,
-    parseWorkerSite(params.site, siteChoice.mode === "pick" ? siteChoice.sites : []),
+  const { scope, siteChoice, siteId, locationChoice, empty, load } = await resolveSettingsTarget(
+    access,
+    params,
+    { siteChoiceFor: settingsSiteChoiceFor, locationChoiceFor: settingsLocationChoiceFor },
   );
-  const locationChoice =
-    siteId && scope === "location" ? await settingsLocationChoiceFor(access, siteId) : null;
-  const locationId = locationChoice
-    ? pickSettingsLocation(
-        locationChoice,
-        parseSettingsLocation(
-          params.location,
-          locationChoice.mode === "pick" ? locationChoice.locations : [],
-        ),
-      )
-    : null;
-  const empty = workRulesEmptyFor({ scope, siteId, locationId });
-  const rules = empty
-    ? null
-    : await workRulesFor({
-        scope,
-        siteId: scope === "global" ? null : siteId,
-        locationId: scope === "location" ? locationId : null,
-      });
+  const rules = load ? await workRulesFor(load) : null;
 
   if (!rules) {
     // Either nothing resolved, or the site or location was deleted since it was listed.
@@ -80,7 +48,7 @@ async function workRulesViewFor(
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SettingsSearchParams>;
 }) {
   const access = await requireSettingsAccess();
   const params = await searchParams;

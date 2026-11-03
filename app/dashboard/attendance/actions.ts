@@ -53,7 +53,9 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
   const ids = entries.map((entry) => entry.assignmentId);
 
   const result = await db.transaction(async (tx): Promise<AttendanceActionResult> => {
-    // The share lock on the rosters keeps a roster from changing between this read and the write.
+    // The share lock on the rosters and their requests keeps either from changing between this read
+    // and the write: a confirmed roster is fixed, but a request can still be cancelled, and that
+    // waits until this save commits.
     const found = await tx
       .select({
         id: rosterAssignment.id,
@@ -70,7 +72,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
       .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
       .innerJoin(location, eq(location.id, rosterRequest.locationId))
       .where(inArray(rosterAssignment.id, ids))
-      .for("share", { of: roster });
+      .for("share", { of: [roster, rosterRequest] });
 
     const byId = new Map(found.map((row) => [row.id, row]));
     const locations = new Map(found.map((row) => [row.locationId, row]));
@@ -114,7 +116,11 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
       return { ok: false, formError: firstError, entryErrors };
     }
 
-    const marked = entries.filter((entry) => entry.status !== null);
+    // In assignment id order, so two saves that overlap lock the same rows in the same order and
+    // cannot deadlock on the unique index.
+    const marked = entries
+      .filter((entry) => entry.status !== null)
+      .sort((a, b) => (a.assignmentId < b.assignmentId ? -1 : a.assignmentId > b.assignmentId ? 1 : 0));
     const cleared = entries.filter((entry) => entry.status === null);
 
     if (marked.length > 0) {

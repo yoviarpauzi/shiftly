@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CheckCheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
 import type { AttendanceDateRowProps } from "@/types/attendance";
+import { isCalendarDate } from "@/validation/calendar-date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -46,8 +47,9 @@ export function AttendanceDateRow({
           type="date"
           value={date}
           onChange={(event) => {
-            // The picker sends an empty value while a date is half typed.
-            if (event.target.value) {
+            // The picker sends an empty value while a date is half typed, and a year with more
+            // than four digits, which the page would read as no date at all.
+            if (isCalendarDate(event.target.value)) {
               goTo(event.target.value);
             }
           }}

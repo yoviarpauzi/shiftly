@@ -3,7 +3,8 @@ import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attendance } from "@/database/schema/attendance-schema";
-import { rosterAssignment } from "@/database/schema/roster-schema";
+import { rosterRequest } from "@/database/schema/request-schema";
+import { roster, rosterAssignment } from "@/database/schema/roster-schema";
 import type { AttendanceAccess } from "@/types/attendance";
 import {
   ATTENDANCE_NOT_FOUND_MESSAGE,
@@ -253,7 +254,7 @@ describe("saveAttendance", () => {
     expect(writes().map((call) => call.op)).toEqual(["delete"]);
   });
 
-  it("locks the rosters of the assignments for sharing while it reads", async () => {
+  it("locks the rosters and their requests for sharing while it reads", async () => {
     await saveAttendance(input([entry(ASSIGNMENT_1, "present")]));
 
     const [read] = fake.calls;
@@ -261,6 +262,22 @@ describe("saveAttendance", () => {
     expect(read.op).toBe("select");
     expect(read.lock?.strength).toBe("share");
     expect(read.table).toBe(rosterAssignment);
+    // The request is the one fact that can still change under a confirmed roster, so a request
+    // cancelled at the same moment waits for this save instead of slipping in after the read.
+    expect(read.lock?.of).toEqual([roster, rosterRequest]);
+  });
+
+  it("inserts in assignment id order, so two overlapping saves lock rows in the same order", async () => {
+    await saveAttendance(
+      input([entry(ASSIGNMENT_2, "present"), entry(ASSIGNMENT_1, "absent")]),
+    );
+
+    const [insert] = writes();
+
+    expect((insert.values as { rosterAssignmentId: string }[]).map((row) => row.rosterAssignmentId)).toEqual([
+      ASSIGNMENT_1,
+      ASSIGNMENT_2,
+    ]);
   });
 
   it("stores a 200-character reason, trimmed, and a blank reason as null", async () => {

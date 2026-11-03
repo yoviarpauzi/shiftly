@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ImportCell, ImportColumn, ImportLookups, ImportRawRow } from "@/types/worker-import";
+import type { ImportCell, ImportCellColumn, ImportLookups, ImportRawRow } from "@/types/worker-import";
 import type { WorkerAccess } from "@/types/workers";
 import { importEmployeeIds, resolveImportRows, summarizeImport } from "./worker-import";
 
@@ -27,7 +27,7 @@ const existingWorker = { id: "w1", employeeId: "EMP-1", siteId: "s1", locationId
 
 function row(
   rowNumber: number,
-  cells: Partial<Record<ImportColumn, ImportCell>> = {},
+  cells: Partial<Record<ImportCellColumn, ImportCell>> = {},
 ): ImportRawRow {
   return {
     rowNumber,
@@ -38,13 +38,14 @@ function row(
       location: "Gudang",
       positions: "",
       end_contract: "2026-12-31",
+      work_days: null,
       ...cells,
     },
   };
 }
 
 function resolveOne(
-  cells: Partial<Record<ImportColumn, ImportCell>>,
+  cells: Partial<Record<ImportCellColumn, ImportCell>>,
   options: { lookups?: ImportLookups; access?: WorkerAccess } = {},
 ) {
   return resolveImportRows([row(2, cells)], options.lookups ?? lookups, options.access ?? EVERYWHERE)[0];
@@ -336,5 +337,45 @@ describe("importEmployeeIds", () => {
     ];
 
     expect(importEmployeeIds(rows)).toEqual(["A", "12"]);
+  });
+});
+
+describe("work_days", () => {
+  it.each([
+    [5, 5],
+    ["5", 5],
+    [7, 7],
+    [" 7 ", 7],
+    [null, null],
+    ["", null],
+    ["  ", null],
+  ] as [ImportCell, 5 | 7 | null][])("reads %j as %j", (cell, expected) => {
+    expect(resolveOne({ work_days: cell })).toMatchObject({ action: "create", workDays: expected, errors: [] });
+  });
+
+  it.each([6, 5.5, "five", true, 0, "6", "5.0", new Date(Date.UTC(2026, 0, 1))] as ImportCell[])(
+    "rejects %j as a row error",
+    (cell) => {
+      expect(resolveOne({ work_days: cell })).toMatchObject({
+        action: "error",
+        errors: ["work_days must be 5 or 7"],
+      });
+    },
+  );
+
+  it("keeps a blank work_days on an update row as null, so the override is kept", () => {
+    const result = resolveOne(
+      { work_days: null },
+      { lookups: { ...lookups, existing: [existingWorker] } },
+    );
+
+    expect(result).toMatchObject({ action: "update", workDays: null });
+  });
+
+  it("reports the work_days error next to the other row errors", () => {
+    expect(resolveOne({ work_days: 6, site: "Nowhere" })).toMatchObject({
+      action: "error",
+      errors: ["work_days must be 5 or 7", "Site not found"],
+    });
   });
 });

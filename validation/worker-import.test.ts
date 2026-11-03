@@ -55,7 +55,28 @@ describe("checkImportHeaders", () => {
 
     expect(result).toEqual({
       ok: true,
-      columnIndex: { positions: 0, name: 1, site: 2, location: 3, employee_id: 4, end_contract: 5 },
+      columnIndex: {
+        positions: 0,
+        name: 1,
+        site: 2,
+        location: 3,
+        employee_id: 4,
+        end_contract: 5,
+        work_days: -1,
+      },
+    });
+  });
+
+  it("finds the optional work_days column, and does not report it missing", () => {
+    const base = ["employee_id", "name", "site", "location", "positions", "end_contract"];
+    const without = checkImportHeaders(base);
+    const withColumn = checkImportHeaders([...base, " Work_Days "]);
+
+    expect(without.ok && without.columnIndex.work_days).toBe(-1);
+    expect(withColumn.ok && withColumn.columnIndex.work_days).toBe(6);
+    expect(checkImportHeaders(["employee_id"])).toEqual({
+      ok: false,
+      formError: "Missing columns: name, site, location, positions, end_contract",
     });
   });
 

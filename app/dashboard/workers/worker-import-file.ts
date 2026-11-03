@@ -1,6 +1,12 @@
 import { readSheet } from "read-excel-file/node";
 import writeXlsxFile, { type SheetData } from "write-excel-file/node";
-import { IMPORT_COLUMNS, type ImportCell, type ImportColumn, type ImportRawRow } from "@/types/worker-import";
+import {
+  IMPORT_COLUMNS,
+  OPTIONAL_IMPORT_COLUMNS,
+  type ImportCell,
+  type ImportCellColumn,
+  type ImportRawRow,
+} from "@/types/worker-import";
 import { checkImportHeaders, checkImportZip, IMPORT_MAX_ROWS } from "@/validation/worker-import";
 
 const NOT_A_WORKBOOK_MESSAGE = "The file is not a valid .xlsx workbook";
@@ -48,8 +54,11 @@ export async function readImportSheet(
     }
 
     const picked = Object.fromEntries(
-      IMPORT_COLUMNS.map((column) => [column, cells[headers.columnIndex[column]] ?? null]),
-    ) as Record<ImportColumn, ImportCell>;
+      [...IMPORT_COLUMNS, ...OPTIONAL_IMPORT_COLUMNS].map((column) => [
+        column,
+        cells[headers.columnIndex[column]] ?? null,
+      ]),
+    ) as Record<ImportCellColumn, ImportCell>;
 
     return [{ rowNumber: index + 2, cells: picked }];
   });
@@ -65,13 +74,16 @@ export async function readImportSheet(
   return { ok: true, rows };
 }
 
-// The header, one example worker with a real date cell for the end of contract, and empty text
+// The header with the optional work_days column last, one example worker with a real date cell for the end of contract, and empty text
 // cells in the employee ID column for every row the import accepts, so Excel keeps IDs such as
 // 00123 as typed.
 export function buildImportTemplate(): Promise<Buffer> {
   const textCell = { type: String, format: "@" };
   const data: SheetData = [
-    IMPORT_COLUMNS.map((column) => ({ value: column, fontWeight: "bold" as const })),
+    [...IMPORT_COLUMNS, ...OPTIONAL_IMPORT_COLUMNS].map((column) => ({
+      value: column,
+      fontWeight: "bold" as const,
+    })),
     [
       { ...textCell, value: "EMP-001" },
       "Budi Santoso",
@@ -79,6 +91,7 @@ export function buildImportTemplate(): Promise<Buffer> {
       "Gudang",
       "Operator, Driver",
       { type: Date, value: new Date(Date.UTC(2026, 11, 31)), format: "yyyy-mm-dd" },
+      5,
     ],
   ];
 
@@ -86,5 +99,5 @@ export function buildImportTemplate(): Promise<Buffer> {
     data.push([textCell]);
   }
 
-  return writeXlsxFile(data, { columns: IMPORT_COLUMNS.map(() => ({ width: 24 })) }).toBuffer();
+  return writeXlsxFile(data, { columns: [...IMPORT_COLUMNS, ...OPTIONAL_IMPORT_COLUMNS].map(() => ({ width: 24 })) }).toBuffer();
 }

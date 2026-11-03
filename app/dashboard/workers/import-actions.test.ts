@@ -161,6 +161,7 @@ describe("commitWorkerImport", () => {
           siteId: SITE_A,
           locationId: LOCATION_A,
           endContract: "2026-12-31",
+          workDaysPerWeek: null,
         },
       },
       { op: "delete", table: workerPosition },
@@ -205,6 +206,7 @@ describe("commitWorkerImport", () => {
             locationName: "Gudang",
             positionNames: ["Operator"],
             endContract: "2026-12-31",
+            workDays: null,
             action: "create",
             errors: [],
             workerId: null,
@@ -220,6 +222,7 @@ describe("commitWorkerImport", () => {
             locationName: "Gudang",
             positionNames: [],
             endContract: "2026-02-30",
+            workDays: null,
             action: "error",
             errors: ["end_contract must be a date like 2026-12-31"],
           },
@@ -240,6 +243,78 @@ describe("commitWorkerImport", () => {
     const result = await commitWorkerImport(formData);
 
     expect(result).toEqual({ ok: false, formError: "Missing columns: end_contract" });
+    expect(writes()).toEqual([]);
+  });
+});
+
+describe("commitWorkerImport work_days", () => {
+  const WITH_WORK_DAYS = [...HEADER, "work_days"];
+
+  it("inserts the work_days of a create row, and null when the cell is blank", async () => {
+    const result = await commitWorkerImport(
+      await upload([
+        WITH_WORK_DAYS,
+        ["EMP-001", "Budi", "Alpha", "Gudang", null, "2026-12-31", 7],
+        ["EMP-003", "Sari", "Alpha", "Gudang", null, "2026-12-31", null],
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, created: 2, updated: 0 });
+
+    const inserts = writes().filter((call) => call.op === "insert" && call.table === worker);
+
+    expect(inserts.map((call) => (call.values as Record<string, unknown>).workDaysPerWeek)).toEqual([7, null]);
+  });
+
+  it("sets work_days on an update row only when the cell has a value", async () => {
+    const withValue = await commitWorkerImport(
+      await upload([WITH_WORK_DAYS, ["EMP-002", "Sari", "Alpha", "Gudang", null, "2026-12-31", 7]]),
+    );
+
+    expect(withValue).toEqual({ ok: true, created: 0, updated: 1 });
+
+    const [setWithValue] = writes().filter((call) => call.op === "update");
+
+    expect(setWithValue.set).toMatchObject({ workDaysPerWeek: 7 });
+
+    fake.calls = [];
+
+    const blank = await commitWorkerImport(
+      await upload([WITH_WORK_DAYS, ["EMP-002", "Sari", "Alpha", "Gudang", null, "2026-12-31", null]]),
+    );
+
+    expect(blank).toEqual({ ok: true, created: 0, updated: 1 });
+
+    const [setBlank] = writes().filter((call) => call.op === "update");
+
+    expect(setBlank.set).not.toHaveProperty("workDaysPerWeek");
+  });
+
+  it("keeps an existing override when the file has no work_days column", async () => {
+    const result = await commitWorkerImport(
+      await upload([HEADER, ["EMP-002", "Sari", "Alpha", "Gudang", null, "2026-12-31"]]),
+    );
+
+    expect(result).toEqual({ ok: true, created: 0, updated: 1 });
+
+    const [update] = writes().filter((call) => call.op === "update");
+
+    expect(update.set).not.toHaveProperty("workDaysPerWeek");
+  });
+
+  it("refuses an invalid work_days and writes nothing", async () => {
+    const result = await commitWorkerImport(
+      await upload([
+        WITH_WORK_DAYS,
+        ["EMP-001", "Budi", "Alpha", "Gudang", null, "2026-12-31", 5],
+        ["EMP-003", "Sari", "Alpha", "Gudang", null, "2026-12-31", 6],
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      preview: { summary: { create: 1, update: 0, error: 1 } },
+    });
     expect(writes()).toEqual([]);
   });
 });

@@ -57,6 +57,11 @@ export function createImportColumns() {
       header: () => <span>Contract end</span>,
       cell: ({ row }) => row.original.endContract,
     }),
+    columnHelper.accessor("workDays", {
+      header: () => <span>Working days</span>,
+      cell: ({ row }) =>
+        row.original.workDays ?? <span className="text-muted-foreground">Inherited</span>,
+    }),
     columnHelper.display({
       id: "issues",
       header: () => <span>Issues</span>,

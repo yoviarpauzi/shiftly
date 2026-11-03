@@ -1,7 +1,8 @@
 import {
   IMPORT_COLUMNS,
+  OPTIONAL_IMPORT_COLUMNS,
   type ImportCell,
-  type ImportColumn,
+  type ImportCellColumn,
 } from "@/types/worker-import";
 
 // Kept under the 1 MB body limit Server Actions have by default, which leaves room for the multipart overhead.
@@ -106,7 +107,7 @@ export function checkImportZip(bytes: Uint8Array): string | null {
 export function checkImportHeaders(
   header: ImportCell[],
 ):
-  | { ok: true; columnIndex: Record<ImportColumn, number> }
+  | { ok: true; columnIndex: Record<ImportCellColumn, number> }
   | { ok: false; formError: string } {
   const names = header.map((cell) => (typeof cell === "string" ? cell.trim().toLowerCase() : ""));
   const missing = IMPORT_COLUMNS.filter((column) => !names.includes(column));
@@ -115,9 +116,10 @@ export function checkImportHeaders(
     return { ok: false, formError: `Missing columns: ${missing.join(", ")}` };
   }
 
+  // An optional column that is absent gets -1, and cells[-1] reads as undefined, like a blank cell.
   const columnIndex = Object.fromEntries(
-    IMPORT_COLUMNS.map((column) => [column, names.indexOf(column)]),
-  ) as Record<ImportColumn, number>;
+    [...IMPORT_COLUMNS, ...OPTIONAL_IMPORT_COLUMNS].map((column) => [column, names.indexOf(column)]),
+  ) as Record<ImportCellColumn, number>;
 
   return { ok: true, columnIndex };
 }

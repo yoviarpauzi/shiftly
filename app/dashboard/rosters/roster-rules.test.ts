@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   addDays,
+  confirmDescription,
+  dayLabel,
   evenSplit,
+  generateAgainDescription,
   formatRosterTime,
   monthKey,
   monthName,
@@ -187,6 +190,54 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(new Error("boom"))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
     expect(isUniqueViolation("23505")).toBe(false);
+  });
+});
+
+describe("dayLabel", () => {
+  it("gives the weekday and the day of the month", () => {
+    expect(dayLabel("2026-11-09")).toBe("Mon 9");
+    expect(dayLabel("2026-11-15")).toBe("Sun 15");
+  });
+});
+
+describe("confirmDescription", () => {
+  const LOCKED =
+    "A confirmed roster is locked: you can no longer replace workers or generate it again.";
+
+  it("only warns about the lock when nothing is unfilled", () => {
+    expect(confirmDescription(0)).toBe(LOCKED);
+  });
+
+  it("counts one unfilled shift in the singular", () => {
+    expect(confirmDescription(1)).toBe(`1 shift is still unfilled. ${LOCKED}`);
+  });
+
+  it("counts several unfilled shifts in the plural", () => {
+    expect(confirmDescription(3)).toBe(`3 shifts are still unfilled. ${LOCKED}`);
+  });
+});
+
+describe("generateAgainDescription", () => {
+  it("says only that the draft is replaced when there is nothing to lose", () => {
+    expect(generateAgainDescription(0, 0)).toBe("The current draft is replaced.");
+  });
+
+  it("names the manual replacements and the conflicts it discards", () => {
+    expect(generateAgainDescription(1, 2)).toBe(
+      "The current draft is replaced. This discards 1 manual replacement and the 2 conflicts listed now.",
+    );
+    expect(generateAgainDescription(3, 1)).toBe(
+      "The current draft is replaced. This discards 3 manual replacements and the 1 conflict listed now.",
+    );
+  });
+
+  it("names only what exists", () => {
+    expect(generateAgainDescription(2, 0)).toBe(
+      "The current draft is replaced. This discards 2 manual replacements.",
+    );
+    expect(generateAgainDescription(0, 4)).toBe(
+      "The current draft is replaced. This discards the 4 conflicts listed now.",
+    );
   });
 });
 

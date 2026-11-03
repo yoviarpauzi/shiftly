@@ -1,5 +1,6 @@
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
+import type { GenerateRosterInput } from "@/validation/rosters";
 
 export type RosterStatus = "draft" | "confirmed";
 
@@ -158,6 +159,57 @@ export type GenerateView = {
   // A confirmed roster cannot be generated again, so the page opens it instead.
   existingStatus: RosterStatus | null;
   version: string | null;
+};
+
+// generateInput is the split the draft was generated with and its current version, so Generate
+// again can repeat it. It is null when the request is no longer approved.
+export type RosterDetailProps = {
+  roster: RosterDetail;
+  generateInput: GenerateRosterInput | null;
+};
+
+export type ReplaceWorkerDialogProps = {
+  roster: { id: string; version: string };
+  line: { lineId: string; title: string };
+  worker: { workerId: string; name: string } | null;
+  onOpenChange: (open: boolean) => void;
+};
+
+type RosterDialogRoster = {
+  id: string;
+  version: string;
+  // How many workers the rules could not find, over every shift.
+  unfilled: number;
+  edits: number;
+  conflicts: number;
+};
+
+export type ConfirmRosterDialogProps = {
+  roster: RosterDialogRoster;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export type GenerateAgainDialogProps = ConfirmRosterDialogProps & {
+  generateInput: GenerateRosterInput;
+};
+
+// What the grid needs to open the Replace dialog for one row.
+export type ReplaceTarget = {
+  line: { lineId: string; title: string };
+  worker: { workerId: string; name: string };
+};
+
+export type RosterSummaryProps = { counts: RosterCounts };
+
+export type ConflictsPanelProps = { conflicts: RosterConflictView[] };
+
+export type RosterGridProps = {
+  days: string[];
+  lines: RosterLineView[];
+  // True for a draft: only a draft has the row menu.
+  editable: boolean;
+  onReplace: (target: ReplaceTarget) => void;
 };
 
 export type GenerateFormProps = { view: GenerateView };

@@ -61,6 +61,33 @@ export function shortDate(date: string): string {
   return `${weekday} ${day} ${MONTHS_SHORT[month - 1]}`;
 }
 
+// "Mon 9", the header of a day in the roster grid.
+export function dayLabel(date: string): string {
+  return shortDate(date).split(" ").slice(0, 2).join(" ");
+}
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+const LOCKED_NOTE =
+  "A confirmed roster is locked: you can no longer replace workers or generate it again.";
+
+export function confirmDescription(unfilled: number): string {
+  return unfilled === 0
+    ? LOCKED_NOTE
+    : `${unfilled} ${unfilled === 1 ? "shift is" : "shifts are"} still unfilled. ${LOCKED_NOTE}`;
+}
+
+export function generateAgainDescription(edits: number, conflicts: number): string {
+  const lost = [
+    edits > 0 ? plural(edits, "manual replacement", "manual replacements") : null,
+    conflicts > 0 ? `the ${plural(conflicts, "conflict", "conflicts")} listed now` : null,
+  ].filter(Boolean);
+
+  return lost.length === 0
+    ? "The current draft is replaced."
+    : `The current draft is replaced. This discards ${lost.join(" and ")}.`;
+}
+
 export function monthName(date: string): string {
   return MONTHS_LONG[parts(date)[1] - 1];
 }

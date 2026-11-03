@@ -16,6 +16,21 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus | "not-marked", s
   "not-marked": "Not marked",
 };
 
+// Whether an assignment can be marked on a date: a work assignment of a confirmed roster, on
+// that date, whose request is still approved. Returns the message when it cannot.
+export function scheduledWorkError(
+  assignment: { kind: string; workDate: string; rosterStatus: string; requestStatus: string },
+  date: string,
+): string | null {
+  const scheduled =
+    assignment.kind === "work" &&
+    assignment.workDate === date &&
+    assignment.rosterStatus === "confirmed" &&
+    assignment.requestStatus === "approved";
+
+  return scheduled ? null : NOT_SCHEDULED_MESSAGE;
+}
+
 // A row with no status is Not marked, which has no stored record.
 export function summarize(rows: { status: AttendanceStatus | null }[]): AttendanceSummary {
   const summary: AttendanceSummary = {

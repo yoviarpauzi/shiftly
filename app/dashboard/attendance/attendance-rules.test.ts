@@ -2,10 +2,55 @@ import { describe, expect, it } from "vitest";
 
 import type { AttendanceDraftRow, AttendanceStatus } from "@/types/attendance";
 
-import { ATTENDANCE_STATUS_LABELS, isFutureDay, markAllPresent, summarize } from "./attendance-rules";
+import {
+  ATTENDANCE_STATUS_LABELS,
+  isFutureDay,
+  markAllPresent,
+  NOT_SCHEDULED_MESSAGE,
+  scheduledWorkError,
+  summarize,
+} from "./attendance-rules";
 
 const rows = (...statuses: (AttendanceStatus | null)[]) =>
   statuses.map((status) => ({ status }));
+
+describe("scheduledWorkError", () => {
+  const scheduled = {
+    kind: "work",
+    workDate: "2026-11-09",
+    rosterStatus: "confirmed",
+    requestStatus: "approved",
+  } as const;
+
+  it("accepts a work assignment of a confirmed roster on the saved date", () => {
+    expect(scheduledWorkError(scheduled, "2026-11-09")).toBeNull();
+  });
+
+  it("refuses an assignment of a draft roster", () => {
+    expect(scheduledWorkError({ ...scheduled, rosterStatus: "draft" }, "2026-11-09")).toBe(
+      NOT_SCHEDULED_MESSAGE,
+    );
+  });
+
+  it("refuses an off day and a break day", () => {
+    expect(scheduledWorkError({ ...scheduled, kind: "off" }, "2026-11-09")).toBe(
+      NOT_SCHEDULED_MESSAGE,
+    );
+    expect(scheduledWorkError({ ...scheduled, kind: "break" }, "2026-11-09")).toBe(
+      NOT_SCHEDULED_MESSAGE,
+    );
+  });
+
+  it("refuses an assignment on a different date", () => {
+    expect(scheduledWorkError(scheduled, "2026-11-10")).toBe(NOT_SCHEDULED_MESSAGE);
+  });
+
+  it("refuses an assignment whose request is no longer approved", () => {
+    expect(scheduledWorkError({ ...scheduled, requestStatus: "cancelled" }, "2026-11-09")).toBe(
+      NOT_SCHEDULED_MESSAGE,
+    );
+  });
+});
 
 describe("ATTENDANCE_STATUS_LABELS", () => {
   it("names every status and Not marked", () => {

@@ -1,4 +1,5 @@
 import type { AppRole } from "@/types/roles";
+import type { LocationTimezone } from "@/validation/location";
 
 export type AttendanceStatus = "present" | "absent" | "sick" | "leave";
 
@@ -44,6 +45,50 @@ export type AttendanceDraftRow = {
   assignmentId: string;
   status: AttendanceStatus | null;
   reason: string | null;
+};
+
+// One scheduled worker for the day, as the page lists them. startTime and endTime are HH:mm.
+export type AttendanceRow = {
+  assignmentId: string;
+  employeeId: string;
+  workerName: string;
+  departmentName: string;
+  positionName: string;
+  shiftOrder: number;
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  status: AttendanceStatus | null;
+  reason: string | null;
+};
+
+// A row as the query returns it: the times are still HH:mm:ss, and the ids the filters need are
+// still there.
+export type AttendanceJoinedRow = Omit<AttendanceRow, "status"> & {
+  departmentId: string;
+  shiftId: string;
+  status: string | null;
+};
+
+export type AttendanceListResult = {
+  rows: AttendanceRow[];
+  // Counts every worker of the date and location, before the department, shift, status, and query
+  // filters.
+  summary: AttendanceSummary;
+  // Today in the location's time zone.
+  today: string;
+  isFuture: boolean;
+};
+
+// What the page offers in its filters, and the site and location it resolved to. Both are null
+// when the access allows no site or no location.
+export type AttendanceChoices = {
+  siteId: string | null;
+  locationId: string | null;
+  sites: { id: string; name: string }[];
+  locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
+  departments: { id: string; name: string }[];
+  shifts: { id: string; name: string }[];
 };
 
 export type AttendanceActionResult =

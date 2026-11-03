@@ -3,32 +3,35 @@ import type { ReplacementInput, ReplacementResult } from "@/types/rosters";
 import { contractEnded, monthlyLimitReached, shiftMoveBlocked } from "./roster-constraints";
 import { addDays, monthKey, monthName, shortDate } from "./roster-rules";
 
+// A hard reason makes the candidate impossible. The others are rules an editor may knowingly break.
+type Reason = { hard: boolean; text: string };
+
 // Replays a candidate on the replaced worker's whole row against the same rule helpers the engine
 // uses, and returns every reason it breaks a rule, in a fixed order: already in the roster, the
 // position, the contract, another roster, a shift move, and the monthly limit. The weekly limit is
 // not checked: the candidate takes the same row, and the engine already kept that row within it.
-export function checkReplacement(input: ReplacementInput): ReplacementResult {
+function replacementReasons(input: ReplacementInput): Reason[] {
   const { row, candidate, position, rules, history } = input;
-  const reasons: string[] = [];
+  const reasons: Reason[] = [];
   const workDays = row.filter((day) => day.kind === "work");
 
   if (input.alreadyInRoster) {
-    reasons.push("Already in this roster.");
+    reasons.push({ hard: true, text: "Already in this roster." });
   }
 
   if (rules.requirePositionMatch && !candidate.positionIds.includes(position.id)) {
-    reasons.push(`Does not have the position ${position.name}.`);
+    reasons.push({ hard: false, text: `Does not have the position ${position.name}.` });
   }
 
   if (workDays.some((day) => contractEnded(candidate, day.date))) {
-    reasons.push(`Contract ends ${candidate.endContract}.`);
+    reasons.push({ hard: false, text: `Contract ends ${candidate.endContract}.` });
   }
 
   const other = new Set(input.otherRosterWorkDates);
 
   for (const day of workDays) {
     if (other.has(day.date)) {
-      reasons.push(`Assigned to another roster on ${shortDate(day.date)}.`);
+      reasons.push({ hard: true, text: `Assigned to another roster on ${shortDate(day.date)}.` });
     }
   }
 
@@ -46,9 +49,10 @@ export function checkReplacement(input: ReplacementInput): ReplacementResult {
     const run = inChain ? consecutive : 0;
 
     if (shiftMoveBlocked(previousOrder, order, run, rules.shiftExceptionDays)) {
-      reasons.push(
-        `Moves from shift ${previousOrder} to shift ${order} on ${shortDate(day.date)}, before ${rules.shiftExceptionDays} working days.`,
-      );
+      reasons.push({
+        hard: false,
+        text: `Moves from shift ${previousOrder} to shift ${order} on ${shortDate(day.date)}, before ${rules.shiftExceptionDays} working days.`,
+      });
     }
 
     consecutive = run + 1;
@@ -65,13 +69,34 @@ export function checkReplacement(input: ReplacementInput): ReplacementResult {
 
     if (monthlyLimitReached(before, rules.maxWorkingDaysPerMonth) && !exceeded.has(month)) {
       exceeded.add(month);
-      reasons.push(
-        `Would exceed ${rules.maxWorkingDaysPerMonth} working days in ${monthName(day.date)}.`,
-      );
+      reasons.push({
+        hard: false,
+        text: `Would exceed ${rules.maxWorkingDaysPerMonth} working days in ${monthName(day.date)}.`,
+      });
     }
 
     counts.set(month, before + 1);
   }
+
+  return reasons;
+}
+
+// The same reasons split in two, each list keeping the fixed order.
+export function checkReplacementDetailed(input: ReplacementInput): {
+  hard: string[];
+  warnings: string[];
+} {
+  const reasons = replacementReasons(input);
+
+  return {
+    hard: reasons.filter((reason) => reason.hard).map((reason) => reason.text),
+    warnings: reasons.filter((reason) => !reason.hard).map((reason) => reason.text),
+  };
+}
+
+// Every reason, hard or not, in the fixed order.
+export function checkReplacement(input: ReplacementInput): ReplacementResult {
+  const reasons = replacementReasons(input).map((reason) => reason.text);
 
   return reasons.length === 0 ? { ok: true } : { ok: false, reasons };
 }

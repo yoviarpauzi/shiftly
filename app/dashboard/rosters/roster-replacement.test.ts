@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { EngineHistory, EngineRules, ReplacementInput } from "@/types/rosters";
 
-import { checkReplacement } from "./roster-replacement";
+import { checkReplacement, checkReplacementDetailed } from "./roster-replacement";
 import { requestDays } from "./roster-rules";
 
 const DAYS = requestDays("2026-11-09", "weekly");
@@ -175,6 +175,34 @@ describe("checkReplacement", () => {
         "Does not have the position Operator Produksi.",
         "Contract ends 2026-11-10.",
         "Assigned to another roster on Mon 9 Nov.",
+        "Moves from shift 3 to shift 1 on Tue 10 Nov, before 7 working days.",
+        "Would exceed 26 working days in November.",
+      ],
+    });
+  });
+});
+
+describe("checkReplacementDetailed", () => {
+  it("gives two empty lists for a clean candidate", () => {
+    expect(checkReplacementDetailed(input())).toEqual({ hard: [], warnings: [] });
+  });
+
+  it("splits every reason into hard and warnings, each in the documented order", () => {
+    const result = checkReplacementDetailed(
+      input({
+        row: row(3, 1, 1, 1),
+        alreadyInRoster: true,
+        candidate: { id: "w9", endContract: "2026-11-10", positionIds: ["p2"] },
+        otherRosterWorkDates: ["2026-11-09"],
+        history: { ...NO_HISTORY, monthWorkDays: { "2026-11": 24 } },
+      }),
+    );
+
+    expect(result).toEqual({
+      hard: ["Already in this roster.", "Assigned to another roster on Mon 9 Nov."],
+      warnings: [
+        "Does not have the position Operator Produksi.",
+        "Contract ends 2026-11-10.",
         "Moves from shift 3 to shift 1 on Tue 10 Nov, before 7 working days.",
         "Would exceed 26 working days in November.",
       ],

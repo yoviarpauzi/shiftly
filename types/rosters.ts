@@ -352,3 +352,36 @@ export type ReplacementInput = {
 };
 
 export type ReplacementResult = { ok: true } | { ok: false; reasons: string[] };
+
+// ---- Rule warnings on an edited roster. An edit is never refused for a rule, it is warned about.
+
+export type WarningCode = "position" | "contract" | "weekly" | "shiftMove" | "monthly" | "over";
+
+// workerId and shiftOrder are null when the warning is about a cell group, not one worker's cell.
+export type RosterWarning = {
+  code: WarningCode;
+  lineId: string;
+  workerId: string | null;
+  date: string;
+  shiftOrder: number | null;
+  message: string;
+};
+
+export type EvalCell = {
+  lineId: string;
+  workerId: string;
+  date: string;
+  kind: AssignmentKind;
+  shiftOrder: number | null;
+  shiftId: string | null;
+};
+
+export type EvaluateInput = {
+  days: string[];
+  lines: { id: string; positionId: string; positionName: string }[];
+  workers: { id: string; endContract: string; positionIds: string[] }[];
+  cells: EvalCell[];
+  targets: { lineId: string; date: string; shiftOrder: number; headcount: number }[];
+  rules: EngineRules;
+  history: EngineHistory[];
+};

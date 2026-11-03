@@ -113,6 +113,7 @@ export async function listWorkers(
       locationId: worker.locationId,
       locationName: location.name,
       endContract: worker.endContract,
+      workDaysPerWeek: worker.workDaysPerWeek,
       deletedAt: worker.deletedAt,
     })
     .from(worker)

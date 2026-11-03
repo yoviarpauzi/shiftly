@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { WorkDays } from "@/types/settings";
 import { isCalendarDate } from "./calendar-date";
 
 export const workerSchema = z.object({
@@ -21,6 +22,11 @@ export const workerSchema = z.object({
     .trim()
     .min(1, { error: "End of contract is required", abort: true })
     .refine(isCalendarDate, "End of contract must be a real date like 2026-12-31"),
+  // "default" means no override, so the worker follows the location's work rule.
+  workDays: z
+    .enum(["default", "5", "7"], { error: "Choose working days" })
+    .default("default")
+    .transform((value): WorkDays | null => (value === "default" ? null : value === "5" ? 5 : 7)),
 });
 
 export type WorkerInput = z.input<typeof workerSchema>;

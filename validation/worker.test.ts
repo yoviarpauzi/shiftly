@@ -91,4 +91,25 @@ describe("workerSchema", () => {
       expect(issues[0].path).toEqual(["endContract"]);
     }
   });
+
+  it("reads an omitted working-days override as null", () => {
+    expect(workerSchema.parse(valid).workDays).toBeNull();
+  });
+
+  it("maps the working-days choice to null, 5 or 7", () => {
+    expect(workerSchema.parse({ ...valid, workDays: "default" }).workDays).toBeNull();
+    expect(workerSchema.parse({ ...valid, workDays: "5" }).workDays).toBe(5);
+    expect(workerSchema.parse({ ...valid, workDays: "7" }).workDays).toBe(7);
+  });
+
+  it("rejects any other working-days value", () => {
+    for (const workDays of ["6", "", 5]) {
+      const parsed = workerSchema.safeParse({ ...valid, workDays });
+
+      expect(parsed.success).toBe(false);
+      expect(parsed.error!.issues).toHaveLength(1);
+      expect(parsed.error!.issues[0].message).toBe("Choose working days");
+      expect(parsed.error!.issues[0].path).toEqual(["workDays"]);
+    }
+  });
 });

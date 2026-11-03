@@ -44,6 +44,7 @@ const FIELD_KEYS: (keyof WorkerFieldErrors)[] = [
   "locationId",
   "positionIds",
   "endContract",
+  "workDays",
 ];
 
 // First message per field, so the form can show each one under its input.
@@ -164,6 +165,7 @@ export async function createWorker(
           siteId: data.siteId,
           locationId: data.locationId,
           endContract: data.endContract,
+          workDaysPerWeek: data.workDays,
         })
         .returning({ id: worker.id });
 
@@ -221,6 +223,7 @@ export async function updateWorker(
           siteId: data.siteId,
           locationId: data.locationId,
           endContract: data.endContract,
+          workDaysPerWeek: data.workDays,
         })
         .where(
           and(

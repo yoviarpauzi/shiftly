@@ -8,6 +8,8 @@ import type {
 
 export const WORK_DAYS = [5, 7] as const;
 
+// database/schema/work-rule-schema.ts imports this file by a relative path, and drizzle-kit does
+// not resolve the @/ alias for value imports, so this file must never import a value through @/.
 export const WORK_RULE_LIMITS = {
   breakDays: { min: 1, max: 31 },
   breakCycleMonths: { min: 1, max: 12 },

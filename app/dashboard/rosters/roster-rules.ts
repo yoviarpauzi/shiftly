@@ -90,6 +90,26 @@ export function targetsTotalError(
   return null;
 }
 
+// The Generate screen's split as the targets generateRoster takes: a target for every cell, zero
+// headcounts included. splits[line][day][shiftIndex] follows the order of the three id lists.
+export function splitsToTargets(
+  lineIds: string[],
+  days: string[],
+  shiftIds: string[],
+  splits: number[][][],
+) {
+  return lineIds.flatMap((lineId, lineIndex) =>
+    days.flatMap((date, dayIndex) =>
+      shiftIds.map((shiftId, shiftIndex) => ({
+        lineId,
+        date,
+        shiftId,
+        headcount: splits[lineIndex]?.[dayIndex]?.[shiftIndex] ?? 0,
+      })),
+    ),
+  );
+}
+
 const JAKARTA_CLOCK = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Asia/Jakarta",
   hour: "2-digit",

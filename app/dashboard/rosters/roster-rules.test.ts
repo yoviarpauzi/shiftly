@@ -10,6 +10,7 @@ import {
   rulesForLocation,
   shortDate,
   isUniqueViolation,
+  splitsToTargets,
   targetsTotalError,
   targetsTotalMessage,
 } from "./roster-rules";
@@ -116,6 +117,41 @@ describe("targetsTotalError", () => {
         ],
       ),
     ).toBeNull();
+  });
+});
+
+describe("splitsToTargets", () => {
+  it("gives a target for every cell, zero headcounts included, in line, day, shift order", () => {
+    expect(
+      splitsToTargets(
+        ["l1", "l2"],
+        ["2026-11-09", "2026-11-10"],
+        ["s1", "s2"],
+        [
+          [
+            [2, 1],
+            [0, 3],
+          ],
+          [
+            [1, 0],
+            [1, 1],
+          ],
+        ],
+      ),
+    ).toEqual([
+      { lineId: "l1", date: "2026-11-09", shiftId: "s1", headcount: 2 },
+      { lineId: "l1", date: "2026-11-09", shiftId: "s2", headcount: 1 },
+      { lineId: "l1", date: "2026-11-10", shiftId: "s1", headcount: 0 },
+      { lineId: "l1", date: "2026-11-10", shiftId: "s2", headcount: 3 },
+      { lineId: "l2", date: "2026-11-09", shiftId: "s1", headcount: 1 },
+      { lineId: "l2", date: "2026-11-09", shiftId: "s2", headcount: 0 },
+      { lineId: "l2", date: "2026-11-10", shiftId: "s1", headcount: 1 },
+      { lineId: "l2", date: "2026-11-10", shiftId: "s2", headcount: 1 },
+    ]);
+  });
+
+  it("gives nothing when there are no shifts", () => {
+    expect(splitsToTargets(["l1"], ["2026-11-09"], [], [[[]]])).toEqual([]);
   });
 });
 

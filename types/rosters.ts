@@ -155,7 +155,21 @@ export type GenerateView = {
   shifts: GenerateShift[];
   lines: GenerateLine[];
   existingRosterId: string | null;
+  // A confirmed roster cannot be generated again, so the page opens it instead.
+  existingStatus: RosterStatus | null;
   version: string | null;
+};
+
+export type GenerateFormProps = { view: GenerateView };
+
+export type ShiftGridProps = {
+  line: GenerateLine;
+  days: string[];
+  shifts: GenerateShift[];
+  // The first day that does not add up, or null when every day does.
+  invalidDay: number | null;
+  disabled: boolean;
+  onChange: (day: number, shiftIndex: number, value: number) => void;
 };
 
 export type ReplacementCandidate = {

@@ -555,7 +555,7 @@ export async function getGenerateView(
   const lines = await loadRequestLines(db, request.id);
 
   const [existing] = await db
-    .select({ id: roster.id, updatedAt: roster.updatedAt })
+    .select({ id: roster.id, status: roster.status, updatedAt: roster.updatedAt })
     .from(roster)
     .where(eq(roster.requestId, request.id));
 
@@ -602,6 +602,7 @@ export async function getGenerateView(
     shifts,
     lines: generateLines,
     existingRosterId: existing?.id ?? null,
+    existingStatus: existing ? (existing.status as RosterStatus) : null,
     version: existing ? existing.updatedAt.toISOString() : null,
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useForm, useStore } from "@tanstack/react-form";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { WorkRulesScopeFields } from "@/components/dashboard/settings/work-rules-scope-fields";
@@ -15,9 +16,12 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   WorkRuleCardFooterProps,
   WorkRuleCardShellProps,
+  WorkRuleFormOptions,
+  WorkRuleFormProps,
   WorkRuleNumberFieldProps,
   WorkRulesActionResult,
 } from "@/types/settings";
+import { workRuleFormErrors } from "@/validation/settings";
 
 // The frame every work-rule card shares: title, description, and the level picker.
 export function WorkRuleCardShell({
@@ -36,6 +40,80 @@ export function WorkRuleCardShell({
       <WorkRulesScopeFields {...scope} locationId={rules.locationId} />
       {children}
     </section>
+  );
+}
+
+// The form plumbing every card shares: the zod check on submit, the save, "Use inherited",
+// and the result handling. Each card only supplies its values, schema, input builder, action.
+// A target issue has no field to show it, so it comes back as the form-level error.
+export function useWorkRuleForm<TValues, TInput>({
+  defaultValues,
+  schema,
+  toInput,
+  action,
+}: WorkRuleFormOptions<TValues, TInput>) {
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [inheriting, startInherit] = useTransition();
+
+  const report = (result: WorkRulesActionResult) => {
+    if (!result.ok) {
+      setActionError(result.formError);
+      return;
+    }
+
+    setActionError(null);
+    toast.success("Work rules updated");
+  };
+
+  const form = useForm({
+    defaultValues,
+    validators: {
+      onSubmit: ({ value }) => {
+        const parsed = schema.safeParse(toInput(value));
+
+        return parsed.success ? undefined : workRuleFormErrors(parsed.error.issues);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      setActionError(null);
+      report(await action(toInput(value)));
+    },
+  });
+
+  const isSubmitting = useStore(form.store, (state) => state.isSubmitting);
+  const validationError = useStore(
+    form.store,
+    (state) => state.errors.find((error) => typeof error === "string") ?? null,
+  );
+
+  const inheritWith = (input: TInput) => {
+    startInherit(async () => {
+      setActionError(null);
+      report(await action(input));
+    });
+  };
+
+  return {
+    form,
+    pending: isSubmitting || inheriting,
+    formError: actionError ?? validationError,
+    inheritWith,
+  };
+}
+
+export function WorkRuleForm({ onSubmit, children }: WorkRuleFormProps) {
+  return (
+    <form
+      className="flex flex-col gap-5"
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSubmit();
+      }}
+    >
+      {children}
+    </form>
   );
 }
 
@@ -105,29 +183,4 @@ export function WorkRuleCardFooter({
       )}
     </>
   );
-}
-
-// The result handling every card shares, for Save and for "Use inherited".
-export function useWorkRuleResult() {
-  const [formError, setFormError] = useState<string | null>(null);
-  const [inheriting, startInherit] = useTransition();
-
-  const report = (result: WorkRulesActionResult) => {
-    if (!result.ok) {
-      setFormError(result.formError);
-      return;
-    }
-
-    setFormError(null);
-    toast.success("Work rules updated");
-  };
-
-  const inherit = (run: () => Promise<WorkRulesActionResult>) => {
-    startInherit(async () => {
-      setFormError(null);
-      report(await run());
-    });
-  };
-
-  return { formError, setFormError, report, inheriting, inherit };
 }

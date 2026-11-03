@@ -1,51 +1,33 @@
 "use client";
 
-import { useForm } from "@tanstack/react-form";
 import { CheckIcon, XIcon } from "lucide-react";
 import { updateWorkRuleShiftChange } from "@/app/dashboard/settings/actions";
 import { workRuleTargetFor } from "@/app/dashboard/settings/settings-rules";
 import { RuleSourceLine } from "@/components/dashboard/settings/rule-source-line";
 import {
-  useWorkRuleResult,
+  useWorkRuleForm,
   WorkRuleCardFooter,
   WorkRuleCardShell,
+  WorkRuleForm,
   WorkRuleNumberField,
 } from "@/components/dashboard/settings/work-rule-card-shell";
 import type { WorkRuleCardProps } from "@/types/settings";
-import { shiftChangeRuleSchema, toWholeNumber, workRuleFormErrors } from "@/validation/settings";
+import { shiftChangeRuleSchema, toWholeNumber } from "@/validation/settings";
 
 // Display only: the order of shifts is fixed by the rule, so these moves are not stored.
 const ALLOWED_MOVES = ["1 → 2", "2 → 3", "1 → 3"];
 const BLOCKED_MOVES = ["2 → 1", "3 → 1", "3 → 2"];
 
 export function ShiftChangeCard({ rules, scope, canEdit }: WorkRuleCardProps) {
-  const { formError, setFormError, report, inheriting, inherit } = useWorkRuleResult();
   const target = workRuleTargetFor(rules);
-  const toInput = (value: { shiftExceptionDays: string }) => ({
-    target,
-    shiftExceptionDays: toWholeNumber(value.shiftExceptionDays),
-  });
-
-  const form = useForm({
+  const { form, pending, formError, inheritWith } = useWorkRuleForm({
     defaultValues: { shiftExceptionDays: String(rules.resolved.values.shiftExceptionDays) },
-    validators: {
-      onSubmit: ({ value }) => {
-        const parsed = shiftChangeRuleSchema.safeParse(toInput(value));
-
-        if (parsed.success) {
-          return undefined;
-        }
-
-        const errors = workRuleFormErrors(parsed.error.issues);
-        setFormError(errors.form ?? null);
-
-        return errors;
-      },
-    },
-    onSubmit: async ({ value }) => {
-      setFormError(null);
-      report(await updateWorkRuleShiftChange(toInput(value)));
-    },
+    schema: shiftChangeRuleSchema,
+    toInput: (value) => ({
+      target,
+      shiftExceptionDays: toWholeNumber(value.shiftExceptionDays),
+    }),
+    action: updateWorkRuleShiftChange,
   });
 
   return (
@@ -55,15 +37,7 @@ export function ShiftChangeCard({ rules, scope, canEdit }: WorkRuleCardProps) {
       scope={scope}
       rules={rules}
     >
-      <form
-        className="flex flex-col gap-5"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void form.handleSubmit();
-        }}
-      >
+      <WorkRuleForm onSubmit={() => void form.handleSubmit()}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <p className="text-xs font-medium text-muted-foreground">Allowed</p>
@@ -94,44 +68,36 @@ export function ShiftChangeCard({ rules, scope, canEdit }: WorkRuleCardProps) {
             </ul>
           </div>
         </div>
-        <form.Subscribe selector={(state) => state.isSubmitting}>
-          {(isSubmitting) => (
-            <>
-              <form.Field name="shiftExceptionDays">
-                {(field) => (
-                  <WorkRuleNumberField
-                    id={field.name}
-                    label="Exception after"
-                    suffix="working days"
-                    value={field.state.value}
-                    errors={field.state.meta.errors}
-                    disabled={!canEdit || isSubmitting || inheriting}
-                    onChange={field.handleChange}
-                    onBlur={field.handleBlur}
-                  />
-                )}
-              </form.Field>
-              <RuleSourceLine
-                ruleKey="shiftExceptionDays"
-                scope={rules.scope}
-                rules={rules}
-                canEdit={canEdit}
-                pending={isSubmitting || inheriting}
-                onUseInherited={() =>
-                  inherit(() => updateWorkRuleShiftChange({ target, shiftExceptionDays: null }))
-                }
-              />
-              <WorkRuleCardFooter
-                helper="A worker who has worked this many working days may move to a lower shift number."
-                readOnlyNote={null}
-                formError={formError}
-                canEdit={canEdit}
-                pending={isSubmitting || inheriting}
-              />
-            </>
+        <form.Field name="shiftExceptionDays">
+          {(field) => (
+            <WorkRuleNumberField
+              id={field.name}
+              label="Exception after"
+              suffix="working days"
+              value={field.state.value}
+              errors={field.state.meta.errors}
+              disabled={!canEdit || pending}
+              onChange={field.handleChange}
+              onBlur={field.handleBlur}
+            />
           )}
-        </form.Subscribe>
-      </form>
+        </form.Field>
+        <RuleSourceLine
+          ruleKey="shiftExceptionDays"
+          scope={rules.scope}
+          rules={rules}
+          canEdit={canEdit}
+          pending={pending}
+          onUseInherited={() => inheritWith({ target, shiftExceptionDays: null })}
+        />
+        <WorkRuleCardFooter
+          helper="A worker who has worked this many working days may move to a lower shift number."
+          readOnlyNote={null}
+          formError={formError}
+          canEdit={canEdit}
+          pending={pending}
+        />
+      </WorkRuleForm>
     </WorkRuleCardShell>
   );
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ZodType } from "zod";
 import type { SiteChoice } from "@/types/locations";
 import type { AppRole } from "@/types/roles";
 
@@ -154,6 +155,18 @@ export type WorkRuleNumberFieldProps = {
   onChange: (value: string) => void;
   onBlur: () => void;
 };
+
+// The plumbing every card shares. toInput turns the form values (numbers kept as text) into the
+// action input, so the schema check and the save see the same input. TInput is read from the
+// action, so "Use inherited" may pass null.
+export type WorkRuleFormOptions<TValues, TInput> = {
+  defaultValues: TValues;
+  schema: ZodType;
+  toInput: (values: TValues) => NoInfer<TInput>;
+  action: (input: TInput) => Promise<WorkRulesActionResult>;
+};
+
+export type WorkRuleFormProps = { onSubmit: () => void; children: ReactNode };
 
 export type WorkRuleCardFooterProps = {
   helper: string;

@@ -54,6 +54,18 @@ export type RosterPage = {
   pageSize: number;
 };
 
+export type RosterDataTableProps = { page: RosterPage };
+
+export type RosterFiltersProps = {
+  filters: RosterFilters;
+  // Empty unless the actor picks the site: a superadmin with more than one site.
+  sites: { id: string; name: string }[];
+  // The locations the location filter offers. Fewer than two hides the filter.
+  locations: { id: string; name: string; siteId: string }[];
+};
+
+export type RosterStatusBadgeProps = { status: RosterListStatus };
+
 // One day of a worker's row in the grid. null is a day with no assignment.
 export type RosterCell =
   | { kind: "work"; shiftOrder: number }

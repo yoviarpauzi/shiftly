@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   evenSplit,
+  formatRosterTime,
   monthKey,
   monthName,
   requestDays,
@@ -115,6 +116,16 @@ describe("targetsTotalError", () => {
         ],
       ),
     ).toBeNull();
+  });
+});
+
+describe("formatRosterTime", () => {
+  it("shows the day, month, and time in Jakarta whatever the server zone is", () => {
+    expect(formatRosterTime("2026-11-03T14:17:54.584Z")).toBe("3 Nov 21:17");
+  });
+
+  it("rolls over to the next day in Jakarta", () => {
+    expect(formatRosterTime("2026-11-30T20:05:00.000Z")).toBe("1 Dec 03:05");
   });
 });
 

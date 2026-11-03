@@ -1,3 +1,4 @@
+import { dateInZone } from "@/lib/indonesia-date";
 import type { EngineRules, TargetsTotalError } from "@/types/rosters";
 
 export const REQUEST_NOT_APPROVED_MESSAGE = "This request is no longer approved.";
@@ -87,6 +88,22 @@ export function targetsTotalError(
   }
 
   return null;
+}
+
+const JAKARTA_CLOCK = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Jakarta",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// "3 Nov 21:17" in Jakarta time. The zone is fixed, so the server and the browser print the same
+// text and the page does not mismatch on hydration.
+export function formatRosterTime(iso: string): string {
+  const moment = new Date(iso);
+  const [, month, day] = dateInZone("Asia/Jakarta", moment).split("-").map(Number);
+
+  return `${day} ${MONTHS_SHORT[month - 1]} ${JAKARTA_CLOCK.format(moment)}`;
 }
 
 export function targetsTotalMessage(date: string, sum: number, required: number): string {

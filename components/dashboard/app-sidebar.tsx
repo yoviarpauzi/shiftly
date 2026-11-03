@@ -26,6 +26,7 @@ import {
   HardHatIcon,
   ClockIcon,
   ClipboardListIcon,
+  CalendarDaysIcon,
 } from "lucide-react";
 
 const data = {
@@ -81,6 +82,12 @@ const data = {
       title: "Request",
       url: "/dashboard/requests",
       icon: <ClipboardListIcon />,
+      roles: ["superadmin", "ho", "admin_site"],
+    },
+    {
+      title: "Roster",
+      url: "/dashboard/rosters",
+      icon: <CalendarDaysIcon />,
       roles: ["superadmin", "ho", "admin_site"],
     },
   ],

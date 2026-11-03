@@ -8,7 +8,9 @@ import {
   requestDays,
   rulesForLocation,
   shortDate,
+  isUniqueViolation,
   targetsTotalError,
+  targetsTotalMessage,
 } from "./roster-rules";
 
 describe("addDays", () => {
@@ -113,6 +115,31 @@ describe("targetsTotalError", () => {
         ],
       ),
     ).toBeNull();
+  });
+});
+
+describe("targetsTotalMessage", () => {
+  it("names the day, the sum, and what the request needs", () => {
+    expect(targetsTotalMessage("2026-11-10", 4, 5)).toBe(
+      "Tue 10 Nov adds up to 4, but the request needs 5. Make each day add up to the request.",
+    );
+  });
+});
+
+describe("isUniqueViolation", () => {
+  it("recognises a Postgres unique violation", () => {
+    expect(isUniqueViolation({ code: "23505" })).toBe(true);
+  });
+
+  it("recognises one that Drizzle wraps as the cause", () => {
+    expect(isUniqueViolation(new Error("failed", { cause: { code: "23505" } }))).toBe(true);
+  });
+
+  it("does not take another error for one", () => {
+    expect(isUniqueViolation({ code: "23503" })).toBe(false);
+    expect(isUniqueViolation(new Error("boom"))).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
+    expect(isUniqueViolation("23505")).toBe(false);
   });
 });
 

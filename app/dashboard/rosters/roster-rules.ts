@@ -5,6 +5,11 @@ export const ROSTER_CONFIRMED_MESSAGE = "This roster is confirmed and cannot be 
 export const ROSTER_CHANGED_MESSAGE = "The roster changed. Reload and try again.";
 export const ROSTER_NOT_FOUND_MESSAGE = "Roster not found";
 export const ROSTER_EXISTS_MESSAGE = "This request already has a roster.";
+export const TARGETS_MISMATCH_MESSAGE =
+  "The lines, days, or shifts no longer match the request. Reload and try again.";
+export const ROSTER_LINE_MISSING_MESSAGE = "That line is not in this roster.";
+export const ROSTER_WORKER_MISSING_MESSAGE = "That worker has no shifts on this line.";
+export const REPLACEMENT_WORKER_MISSING_MESSAGE = "That worker is not available at this location.";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -82,6 +87,19 @@ export function targetsTotalError(
   }
 
   return null;
+}
+
+export function targetsTotalMessage(date: string, sum: number, required: number): string {
+  return `${shortDate(date)} adds up to ${sum}, but the request needs ${required}. Make each day add up to the request.`;
+}
+
+// Postgres reports a unique violation with code 23505. Drizzle wraps the driver's error, so the
+// code can sit on the cause.
+export function isUniqueViolation(error: unknown): boolean {
+  const code = (value: unknown) =>
+    typeof value === "object" && value !== null && "code" in value ? value.code : undefined;
+
+  return code(error) === "23505" || code((error as { cause?: unknown } | null)?.cause) === "23505";
 }
 
 // Until the Settings menu exists, every location gets the built-in defaults. When it does, the body

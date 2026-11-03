@@ -16,6 +16,9 @@ export type RosterFilters = {
   query: string;
 };
 
+// The first day whose per-shift headcounts do not add up to the request's headcount.
+export type TargetsTotalError = { dayIndex: number; sum: number; required: number };
+
 export type RosterActionResult =
   | { ok: true; message?: string }
   | { ok: false; formError: string; fieldErrors?: Record<string, string> };

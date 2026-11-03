@@ -16,8 +16,10 @@ import {
   ruleSourceText,
   settingsHref,
   SITE_NOT_FOUND_MESSAGE,
+  summaryNumber,
   WORK_RULE_DEFAULTS,
   workDaysDescription,
+  workRuleCardKey,
   workRulesEmptyFor,
   workRuleTargetFor,
 } from "./settings-rules";
@@ -345,6 +347,75 @@ describe("settingsHref", () => {
     expect(settingsHref({ scope: "location", siteId: null, locationId: null })).toBe(
       "/dashboard/settings?tab=work-rules&scope=location",
     );
+  });
+});
+
+describe("workRuleCardKey", () => {
+  const CARDS = [
+    "workDaysPerWeek",
+    "maxWorkingDaysPerMonth",
+    "breakDays",
+    "annualOffDays",
+    "shiftExceptionDays",
+    "requirePositionMatch",
+  ] as const;
+  const noneOwn = {
+    workDaysPerWeek: false,
+    breakDays: false,
+    breakCycleMonths: false,
+    annualOffDays: false,
+    shiftExceptionDays: false,
+    requirePositionMatch: false,
+    maxWorkingDaysPerMonth: false,
+  };
+  const level = (
+    fields: Partial<Pick<LocationWorkRules, "scope" | "siteId" | "locationId" | "own">>,
+  ): Pick<LocationWorkRules, "scope" | "siteId" | "locationId" | "own"> => ({
+    scope: "location",
+    siteId: SITE_A,
+    locationId: LOCATION_A,
+    own: noneOwn,
+    ...fields,
+  });
+
+  it("gives each of the six cards its own key on the same level", () => {
+    for (const rules of [level({}), level({ scope: "global", siteId: null, locationId: null })]) {
+      const keys = CARDS.map((card) => workRuleCardKey(card, rules));
+
+      expect(new Set(keys).size).toBe(CARDS.length);
+    }
+  });
+
+  it("changes with the level, the site, and the location", () => {
+    const base = workRuleCardKey("breakDays", level({}));
+
+    expect(workRuleCardKey("breakDays", level({ scope: "site", locationId: null }))).not.toBe(base);
+    expect(workRuleCardKey("breakDays", level({ siteId: SITE_B }))).not.toBe(base);
+    expect(workRuleCardKey("breakDays", level({ locationId: LOCATION_B }))).not.toBe(base);
+  });
+
+  it("changes when the level starts or stops setting the card's own value", () => {
+    const base = workRuleCardKey("breakDays", level({}));
+
+    expect(workRuleCardKey("breakDays", level({ own: { ...noneOwn, breakDays: true } }))).not.toBe(
+      base,
+    );
+    expect(
+      workRuleCardKey("breakDays", level({ own: { ...noneOwn, annualOffDays: true } })),
+    ).toBe(base);
+  });
+});
+
+describe("summaryNumber", () => {
+  it("gives the number for whole-number text", () => {
+    expect(summaryNumber("20")).toBe(20);
+    expect(summaryNumber(" 4 ")).toBe(4);
+  });
+
+  it("gives null for text the summary should not echo", () => {
+    for (const text of ["", " ", "abc", "1.5", "4a"]) {
+      expect(summaryNumber(text)).toBeNull();
+    }
   });
 });
 

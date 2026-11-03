@@ -13,7 +13,7 @@ import type {
   WorkRuleValues,
   WorkRulesResolved,
 } from "@/types/settings";
-import type { WorkRuleTarget } from "@/validation/settings";
+import { toWholeNumber, type WorkRuleTarget } from "@/validation/settings";
 
 export const DEFAULT_WORK_DAYS = 5;
 
@@ -139,6 +139,24 @@ export function settingsHref(target: SettingsTarget): string {
   }
 
   return `/dashboard/settings?${params.toString()}`;
+}
+
+// The React key of one card. The card name keeps the six cards apart. The level, site, and
+// location reset the form when the level changes. Whether the level sets the card's own value
+// resets it after a first save or "Use inherited", so it shows the value that now applies.
+export function workRuleCardKey(
+  card: WorkRuleKey,
+  rules: Pick<LocationWorkRules, "scope" | "siteId" | "locationId" | "own">,
+): string {
+  return `${card}-${rules.scope}-${rules.siteId}-${rules.locationId}-${rules.own[card]}`;
+}
+
+// The number a card summary shows, or null while the field holds text that is not a whole
+// number, so the summary never echoes invalid input.
+export function summaryNumber(text: string): number | null {
+  const value = toWholeNumber(text);
+
+  return Number.isFinite(value) ? value : null;
 }
 
 // The action input for the level a card was loaded for.

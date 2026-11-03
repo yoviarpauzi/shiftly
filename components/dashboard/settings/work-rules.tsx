@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2Icon, MapPinIcon } from "lucide-react";
-import { readOnlyNoteFor } from "@/app/dashboard/settings/settings-rules";
+import { readOnlyNoteFor, workRuleCardKey } from "@/app/dashboard/settings/settings-rules";
 import { AnnualOffCard } from "@/components/dashboard/settings/annual-off-card";
 import { BreakCard } from "@/components/dashboard/settings/break-card";
 import { MaxWorkingDaysCard } from "@/components/dashboard/settings/max-working-days-card";
@@ -73,11 +73,8 @@ export function WorkRules({
     );
   }
 
-  // The level is part of each form's key, so a card starts over on the values of the new level.
-  // Whether the level sets the card's own value is part of it too, so "Use inherited" shows the
-  // inherited value once the page reloads.
-  const keyFor = (key: WorkRuleKey) =>
-    `${rules.scope}-${rules.siteId}-${rules.locationId}-${rules.own[key]}`;
+  // workRuleCardKey keeps the six keys apart and resets a card when its level or own value changes.
+  const keyFor = (card: WorkRuleKey) => workRuleCardKey(card, rules);
   const cardProps = { rules, scope: scopeProps, canEdit };
 
   return (

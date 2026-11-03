@@ -138,3 +138,39 @@ export const rosterEdit = pgTable("roster_edit", {
   editedBy: text("edited_by").references(() => user.id, { onDelete: "set null" }),
   editedAt: timestamp("edited_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// An audit trail of cell edits on the grid. A cell is one worker and day: its before and after are
+// a kind and a shift. A null kind is an empty cell, so a work kind has a shift and no other kind does.
+export const rosterCellEdit = pgTable(
+  "roster_cell_edit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rosterId: uuid("roster_id")
+      .notNull()
+      .references(() => roster.id, { onDelete: "cascade" }),
+    requestLineId: uuid("request_line_id")
+      .notNull()
+      .references(() => rosterRequestLine.id, { onDelete: "restrict" }),
+    workerId: uuid("worker_id")
+      .notNull()
+      .references(() => worker.id, { onDelete: "restrict" }),
+    workDate: date("work_date", { mode: "string" }).notNull(),
+    beforeKind: text("before_kind").$type<AssignmentKind>(),
+    beforeShiftId: uuid("before_shift_id").references(() => shift.id, { onDelete: "restrict" }),
+    afterKind: text("after_kind").$type<AssignmentKind>(),
+    afterShiftId: uuid("after_shift_id").references(() => shift.id, { onDelete: "restrict" }),
+    editedBy: text("edited_by").references(() => user.id, { onDelete: "set null" }),
+    editedAt: timestamp("edited_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("roster_cell_edit_roster_workDate_idx").on(table.rosterId, table.workDate),
+    check(
+      "roster_cell_edit_before_check",
+      sql`(${table.beforeKind} is null or ${table.beforeKind} in ('work', 'off', 'break')) and (coalesce(${table.beforeKind} = 'work', false) = (${table.beforeShiftId} is not null))`,
+    ),
+    check(
+      "roster_cell_edit_after_check",
+      sql`(${table.afterKind} is null or ${table.afterKind} in ('work', 'off', 'break')) and (coalesce(${table.afterKind} = 'work', false) = (${table.afterShiftId} is not null))`,
+    ),
+  ],
+);

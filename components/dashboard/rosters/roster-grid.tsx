@@ -1,6 +1,7 @@
 import { EllipsisIcon, UserRoundPenIcon } from "lucide-react";
 import { dayLabel } from "@/app/dashboard/rosters/roster-rules";
 import type { RosterCell, RosterGridProps } from "@/types/rosters";
+import { ShiftChip } from "@/components/dashboard/shift-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,13 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-// Three tints that repeat for further shifts, so a shift keeps its colour across the roster.
-const SHIFT_TINTS = [
-  "bg-primary/10 text-primary",
-  "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  "bg-muted text-muted-foreground",
-];
-
 const chip = "inline-flex h-6 min-w-10 items-center justify-center rounded-md px-2 text-xs font-medium";
 
 function Cell({ cell }: { cell: RosterCell }) {
@@ -27,11 +21,7 @@ function Cell({ cell }: { cell: RosterCell }) {
   }
 
   if (cell.kind === "work") {
-    return (
-      <span className={cn(chip, SHIFT_TINTS[(cell.shiftOrder - 1 + SHIFT_TINTS.length) % SHIFT_TINTS.length])}>
-        S{cell.shiftOrder}
-      </span>
-    );
+    return <ShiftChip order={cell.shiftOrder} />;
   }
 
   if (cell.kind === "off") {

@@ -91,6 +91,52 @@ export type AttendanceChoices = {
   shifts: { id: string; name: string }[];
 };
 
+// The saved values plus what the admin has chosen so far in the form.
+export type AttendanceFormRow = AttendanceRow & {
+  draftStatus: AttendanceStatus | null;
+  draftReason: string;
+};
+
+export type AttendanceFormProps = {
+  date: string;
+  // Today in the location's time zone, for the Today button.
+  today: string;
+  rows: AttendanceRow[];
+  // True for a day after today, which can be viewed and not marked.
+  readOnly: boolean;
+};
+
+export type AttendanceDateRowProps = {
+  date: string;
+  today: string;
+  canSave: boolean;
+  canMarkAll: boolean;
+  onMarkAll: () => void;
+  onSave: () => void;
+  isSaving: boolean;
+};
+
+export type AttendanceFiltersProps = {
+  filters: AttendanceFilters;
+  choices: AttendanceChoices;
+};
+
+export type AttendanceSummaryProps = { summary: AttendanceSummary };
+
+export type AttendanceEmptyProps = { locationName: string };
+
+// What a row of the table or a card does to the form. Both take the row's assignment id.
+export type AttendanceRowActions = {
+  onStatusChange: (assignmentId: string, status: AttendanceStatus | null) => void;
+  onReasonChange: (assignmentId: string, reason: string) => void;
+  // Rows the server refused in the last save, and rows changed since the last save.
+  errorIds: ReadonlySet<string>;
+  changedIds: ReadonlySet<string>;
+  disabled: boolean;
+};
+
+export type AttendanceCardsProps = AttendanceRowActions & { rows: AttendanceFormRow[] };
+
 export type AttendanceActionResult =
   | { ok: true; saved: number; cleared: number }
   | { ok: false; formError: string; entryErrors?: Record<number, string> };

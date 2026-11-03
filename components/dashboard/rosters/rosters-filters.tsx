@@ -1,18 +1,8 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { RosterFiltersProps } from "@/types/rosters";
+import { ALL_OPTION as ALL, FilterSelect } from "@/components/dashboard/filter-select";
 import { RequestsSearch } from "@/components/dashboard/requests/requests-search";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const ALL = "all";
 
 const STATUS_OPTIONS = [
   { value: ALL, label: "All roster statuses" },
@@ -26,64 +16,6 @@ const TYPE_OPTIONS = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
 ];
-
-type FilterSelectProps = {
-  // The URL parameter this filter writes.
-  param: string;
-  value: string;
-  options: { value: string; label: string }[];
-  label: string;
-  className: string;
-  // Parameters to drop when this one changes.
-  resets?: string[];
-};
-
-// One filter in the URL. "All" removes the parameter, and any change goes back to page 1.
-function FilterSelect({ param, value, options, label, className, resets = [] }: FilterSelectProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function change(next: string) {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (next === ALL) {
-      params.delete(param);
-    } else {
-      params.set(param, next);
-    }
-    for (const reset of resets) {
-      params.delete(reset);
-    }
-    params.set("page", "1");
-    router.push(`${pathname}?${params.toString()}`);
-  }
-
-  return (
-    <Select
-      value={value}
-      onValueChange={(next) => {
-        if (next) {
-          change(next);
-        }
-      }}
-      items={options}
-    >
-      <SelectTrigger aria-label={label} className={className}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  );
-}
 
 // Search, roster status, type, site, then location. A superadmin picks both site and location, HO
 // picks a location, and admin site sees neither. The location belongs to its site, so changing the

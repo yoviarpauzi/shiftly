@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { AttendanceDraftRow, AttendanceStatus } from "@/types/attendance";
+import type { AttendanceDraftRow, AttendanceFormRow, AttendanceStatus } from "@/types/attendance";
 
 import {
   ATTENDANCE_STATUS_LABELS,
+  changedEntries,
+  rowsSignature,
   isFutureDay,
   markAllPresent,
   NOT_SCHEDULED_MESSAGE,
@@ -13,6 +15,90 @@ import {
 
 const rows = (...statuses: (AttendanceStatus | null)[]) =>
   statuses.map((status) => ({ status }));
+
+const formRow = (overrides: Partial<AttendanceFormRow> = {}): AttendanceFormRow => ({
+  assignmentId: "a1",
+  employeeId: "E-1",
+  workerName: "Budi",
+  departmentName: "Produksi",
+  positionName: "Operator",
+  shiftOrder: 1,
+  shiftName: "Pagi",
+  startTime: "07:00",
+  endTime: "15:00",
+  status: null,
+  reason: null,
+  draftStatus: null,
+  draftReason: "",
+  ...overrides,
+});
+
+describe("changedEntries", () => {
+  it("gives nothing when the form matches what is saved", () => {
+    expect(
+      changedEntries([
+        formRow(),
+        formRow({ assignmentId: "a2", status: "sick", reason: "Fever", draftStatus: "sick", draftReason: "Fever" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("gives a newly marked worker with the trimmed reason", () => {
+    expect(
+      changedEntries([formRow({ draftStatus: "present", draftReason: "  on time  " })]),
+    ).toEqual([{ assignmentId: "a1", status: "present", reason: "on time" }]);
+  });
+
+  it("gives a blank reason as null", () => {
+    expect(changedEntries([formRow({ draftStatus: "absent", draftReason: "   " })])).toEqual([
+      { assignmentId: "a1", status: "absent", reason: null },
+    ]);
+  });
+
+  it("gives a changed reason on its own", () => {
+    expect(
+      changedEntries([
+        formRow({ status: "sick", reason: "Fever", draftStatus: "sick", draftReason: "Flu" }),
+      ]),
+    ).toEqual([{ assignmentId: "a1", status: "sick", reason: "Flu" }]);
+  });
+
+  it("clears a worker set back to Not marked, with no reason", () => {
+    expect(
+      changedEntries([
+        formRow({ status: "sick", reason: "Fever", draftStatus: null, draftReason: "Fever" }),
+      ]),
+    ).toEqual([{ assignmentId: "a1", status: null, reason: null }]);
+  });
+
+  it("ignores a reason typed while the worker is Not marked and was never marked", () => {
+    expect(changedEntries([formRow({ draftStatus: null, draftReason: "stray" })])).toEqual([]);
+  });
+
+  it("treats a saved null reason and an empty draft as the same", () => {
+    expect(
+      changedEntries([formRow({ status: "leave", reason: null, draftStatus: "leave", draftReason: "" })]),
+    ).toEqual([]);
+  });
+});
+
+describe("rowsSignature", () => {
+  const row = { assignmentId: "a1", status: "present", reason: null } as const;
+
+  it("is the same for the same rows", () => {
+    expect(rowsSignature([row])).toBe(rowsSignature([{ ...row }]));
+  });
+
+  it("changes when a status, a reason, or the rows change", () => {
+    const base = rowsSignature([row]);
+
+    expect(rowsSignature([{ ...row, status: "absent" }])).not.toBe(base);
+    expect(rowsSignature([{ ...row, reason: "Late bus" }])).not.toBe(base);
+    expect(rowsSignature([{ ...row, status: null }])).not.toBe(base);
+    expect(rowsSignature([row, { ...row, assignmentId: "a2" }])).not.toBe(base);
+    expect(rowsSignature([])).not.toBe(base);
+  });
+});
 
 describe("scheduledWorkError", () => {
   const scheduled = {

@@ -67,11 +67,13 @@ export type RosterFiltersProps = {
 
 export type RosterStatusBadgeProps = { status: RosterListStatus };
 
-// One day of a worker's row in the grid. null is a day with no assignment.
+// One day of a worker's row in the grid. null is a day with no assignment. edited is set when the
+// cell was changed by hand, warning when the cell breaks a rule.
 export type RosterCell =
-  | { kind: "work"; shiftOrder: number }
-  | { kind: "off" }
-  | { kind: "break" }
+  | (({ kind: "work"; shiftOrder: number } | { kind: "off" } | { kind: "break" }) & {
+      edited: boolean;
+      warning: boolean;
+    })
   | null;
 
 export type RosterWorkerRow = {
@@ -102,11 +104,23 @@ export type RosterConflictView = {
   message: string;
 };
 
+// A rule warning as the panel lists it. workerId and workerName are null for a warning about a
+// cell group, which marks no cell.
+export type RosterWarningView = {
+  lineId: string;
+  lineTitle: string;
+  workerId: string | null;
+  workerName: string | null;
+  date: string;
+  message: string;
+};
+
 export type RosterCounts = {
   workers: number;
   shiftsAssigned: number;
   conflicts: number;
   edits: number;
+  warnings: number;
 };
 
 export type RosterDetail = {
@@ -130,6 +144,7 @@ export type RosterDetail = {
   days: string[];
   lines: RosterLineView[];
   conflicts: RosterConflictView[];
+  warnings: RosterWarningView[];
   counts: RosterCounts;
 };
 
@@ -396,6 +411,41 @@ export type CellTarget =
   | { kind: "clear" };
 
 export type CellChange = { lineId: string; workerId: string; date: string; to: CellTarget };
+
+// What evaluating and storing one cell edit reads from the database. workers are the listed
+// workers, cells every assignment of the roster, busy the days a listed worker works in another
+// roster, and previousConflicts the roster's stored conflicts before the edit.
+export type CellContext = {
+  dates: string[];
+  shifts: { id: string; order: number }[];
+  line: { id: string; positionId: string; positionName: string };
+  workers: {
+    id: string;
+    employeeId: string;
+    name: string;
+    endContract: string;
+    positionIds: string[];
+    positionNames: string[];
+    active: boolean;
+  }[];
+  cells: EvalCell[];
+  targets: { lineId: string; date: string; shiftId: string; shiftOrder: number; headcount: number }[];
+  busy: { workerId: string; date: string }[];
+  history: EngineHistory[];
+  rules: EngineRules;
+  previousConflicts: {
+    lineId: string;
+    date: string;
+    shiftId: string | null;
+    shortfall: number;
+    message: string;
+  }[];
+  lines: { id: string; positionId: string; positionName: string }[];
+};
+
+export type CellContextResult =
+  | { ok: true; context: CellContext }
+  | { ok: false; reason: "line" | "worker" | "date" };
 
 // A stored shortage: a shift that has fewer workers than its target.
 export type ShortageRow = {

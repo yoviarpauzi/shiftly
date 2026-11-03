@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SiteChoice } from "@/types/locations";
-import type { LocationChoice, WorkRuleRow } from "@/types/settings";
+import type { LocationChoice, LocationWorkRules, WorkRuleRow } from "@/types/settings";
 import {
+  appliesToText,
   DEFAULT_WORK_DAYS,
   effectiveWorkDays,
   INCORRECT_PASSWORD_MESSAGE,
@@ -10,9 +11,15 @@ import {
   pickSettingsScope,
   pickSettingsSite,
   READ_ONLY_MESSAGE,
+  readOnlyNoteFor,
   resolveWorkRules,
+  ruleSourceText,
+  settingsHref,
   SITE_NOT_FOUND_MESSAGE,
   WORK_RULE_DEFAULTS,
+  workDaysDescription,
+  workRulesEmptyFor,
+  workRuleTargetFor,
 } from "./settings-rules";
 
 const SITE_A = "11111111-1111-4111-8111-111111111111";
@@ -224,5 +231,137 @@ describe("messages", () => {
     expect(LOCATION_NOT_FOUND_MESSAGE).toBe("Location not found");
     expect(READ_ONLY_MESSAGE).toBe("You can view these work rules but not change them");
     expect(INCORRECT_PASSWORD_MESSAGE).toBe("Current password is incorrect");
+  });
+});
+
+describe("ruleSourceText", () => {
+  it("describes the global level the same way whatever the source", () => {
+    for (const source of ["global", "default"] as const) {
+      expect(ruleSourceText({ scope: "global", source, own: true, siteName: null })).toBe(
+        "Applies to every site and location that does not set its own.",
+      );
+    }
+  });
+
+  it("says the value is set at the chosen level", () => {
+    expect(
+      ruleSourceText({ scope: "location", source: "location", own: true, siteName: "Nestle" }),
+    ).toBe("Set for this location");
+    expect(ruleSourceText({ scope: "site", source: "site", own: true, siteName: "Nestle" })).toBe(
+      "Set for this site",
+    );
+  });
+
+  it("names the site a location inherits from", () => {
+    expect(
+      ruleSourceText({
+        scope: "location",
+        source: "site",
+        own: false,
+        siteName: "Nestle Kejayan",
+      }),
+    ).toBe("Inherited from site Nestle Kejayan");
+  });
+
+  it("treats the built-in default as inherited from global", () => {
+    for (const scope of ["site", "location"] as const) {
+      for (const source of ["global", "default"] as const) {
+        expect(ruleSourceText({ scope, source, own: false, siteName: "Nestle" })).toBe(
+          "Inherited from global",
+        );
+      }
+    }
+  });
+});
+
+describe("scope copy", () => {
+  it("changes the working-days description with the scope", () => {
+    expect(workDaysDescription("global")).toBe(
+      "Default for workers in every site and location that does not set its own. A worker's own setting, chosen in the Worker menu, takes priority.",
+    );
+    expect(workDaysDescription("site")).toBe(
+      "Default for workers in this site's locations unless a location sets its own. A worker's own setting, chosen in the Worker menu, takes priority.",
+    );
+    expect(workDaysDescription("location")).toBe(
+      "Default for workers in this site and location. A worker's own setting, chosen in the Worker menu, takes priority.",
+    );
+  });
+
+  it("changes the applies-to helper with the scope", () => {
+    expect(appliesToText("global")).toBe(
+      "Applies to all workers in every location unless a site or location sets its own.",
+    );
+    expect(appliesToText("site")).toBe(
+      "Applies to all workers in this site's locations unless a location sets its own.",
+    );
+    expect(appliesToText("location")).toBe("Applies to all workers in this location.");
+  });
+
+  it("explains who can change a read-only level", () => {
+    expect(readOnlyNoteFor("global")).toBe("Only superadmin can change global rules.");
+    expect(readOnlyNoteFor("site")).toBe(
+      "Only superadmin and HO can change this level. Admin site can change the location level.",
+    );
+    expect(readOnlyNoteFor("location")).toBeNull();
+  });
+});
+
+describe("workRulesEmptyFor", () => {
+  it("is no-site when no site resolves, at any scope", () => {
+    for (const scope of ["global", "site", "location"] as const) {
+      expect(workRulesEmptyFor({ scope, siteId: null, locationId: null })).toBe("no-site");
+    }
+  });
+
+  it("is no-location only at location scope", () => {
+    expect(workRulesEmptyFor({ scope: "location", siteId: SITE_A, locationId: null })).toBe(
+      "no-location",
+    );
+    expect(workRulesEmptyFor({ scope: "site", siteId: SITE_A, locationId: null })).toBeNull();
+    expect(workRulesEmptyFor({ scope: "global", siteId: SITE_A, locationId: null })).toBeNull();
+  });
+
+  it("is null when the target resolves", () => {
+    expect(
+      workRulesEmptyFor({ scope: "location", siteId: SITE_A, locationId: LOCATION_A }),
+    ).toBeNull();
+  });
+});
+
+describe("settingsHref", () => {
+  it("keeps the Work rules tab open and drops ids the scope does not use", () => {
+    expect(settingsHref({ scope: "global", siteId: SITE_A, locationId: LOCATION_A })).toBe(
+      `/dashboard/settings?tab=work-rules&scope=global&site=${SITE_A}`,
+    );
+    expect(settingsHref({ scope: "site", siteId: SITE_A, locationId: LOCATION_A })).toBe(
+      `/dashboard/settings?tab=work-rules&scope=site&site=${SITE_A}`,
+    );
+    expect(settingsHref({ scope: "location", siteId: SITE_A, locationId: LOCATION_A })).toBe(
+      `/dashboard/settings?tab=work-rules&scope=location&site=${SITE_A}&location=${LOCATION_A}`,
+    );
+  });
+
+  it("leaves out a missing site or location", () => {
+    expect(settingsHref({ scope: "location", siteId: null, locationId: null })).toBe(
+      "/dashboard/settings?tab=work-rules&scope=location",
+    );
+  });
+});
+
+describe("workRuleTargetFor", () => {
+  const loaded = (
+    fields: Pick<LocationWorkRules, "scope" | "siteId" | "locationId">,
+  ): Pick<LocationWorkRules, "scope" | "siteId" | "locationId"> => fields;
+
+  it("builds the action target from the loaded level", () => {
+    expect(workRuleTargetFor(loaded({ scope: "global", siteId: null, locationId: null }))).toEqual(
+      { scope: "global" },
+    );
+    expect(workRuleTargetFor(loaded({ scope: "site", siteId: SITE_A, locationId: null }))).toEqual(
+      { scope: "site", siteId: SITE_A },
+    );
+    expect(
+      workRuleTargetFor(loaded({ scope: "location", siteId: SITE_B, locationId: LOCATION_A })),
+    ).toEqual({ scope: "location", locationId: LOCATION_A });
   });
 });

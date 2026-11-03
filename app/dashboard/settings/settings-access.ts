@@ -1,5 +1,9 @@
 import { isAllowedRole } from "@/lib/roles";
-import type { SettingsAccess, WorkRuleAccessTarget } from "@/types/settings";
+import type {
+  LocationWorkRules,
+  SettingsAccess,
+  WorkRuleAccessTarget,
+} from "@/types/settings";
 import type { UserScope } from "@/types/users";
 
 // Superadmin sees every site. HO sees its own site. Admin site sees its own location, so the
@@ -79,4 +83,26 @@ export function canEditWorkRule(access: SettingsAccess, target: WorkRuleAccessTa
     target.locationId !== null &&
     target.locationId === access.locationId
   );
+}
+
+// The access target for a level loaded by workRulesFor, in the shape the actions check, so the
+// page shows Save only where the action would accept it. A location is checked by the site that
+// owns it, as read from the database.
+export function workRuleAccessTargetFor(
+  rules: Pick<LocationWorkRules, "scope" | "siteId" | "locationId">,
+): WorkRuleAccessTarget {
+  if (rules.scope === "site") {
+    return { scope: "site", siteId: rules.siteId, locationId: null, locationSiteId: null };
+  }
+
+  if (rules.scope === "location") {
+    return {
+      scope: "location",
+      siteId: null,
+      locationId: rules.locationId,
+      locationSiteId: rules.siteId,
+    };
+  }
+
+  return { scope: "global", siteId: null, locationId: null, locationSiteId: null };
 }

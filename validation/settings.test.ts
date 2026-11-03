@@ -6,9 +6,14 @@ import {
   breakRuleSchema,
   changePasswordSchema,
   maxWorkingDaysRuleSchema,
+  parseSettingsLocation,
+  parseSettingsScope,
+  parseSettingsTab,
   qualificationRuleSchema,
   shiftChangeRuleSchema,
+  toWholeNumber,
   workDaysRuleSchema,
+  workRuleFormErrors,
   workRuleTargetSchema,
 } from "./settings";
 
@@ -299,5 +304,95 @@ describe("qualificationRuleSchema", () => {
 
   it("rejects null at global scope", () => {
     expect(messages("global", null)).toEqual(["Choose on or off"]);
+  });
+});
+
+describe("toWholeNumber", () => {
+  it("converts whole-number text", () => {
+    expect(toWholeNumber("26")).toBe(26);
+    expect(toWholeNumber(" 4 ")).toBe(4);
+    expect(toWholeNumber("0")).toBe(0);
+  });
+
+  it("returns NaN for blank or non-integer text", () => {
+    for (const text of ["", "  ", "1.5", "abc", "4a", "1e2", "-", "+"]) {
+      expect(toWholeNumber(text)).toBeNaN();
+    }
+  });
+
+  it("keeps a negative whole number so the range check rejects it", () => {
+    expect(toWholeNumber("-3")).toBe(-3);
+  });
+
+  it("gives the schema a value it rejects with the whole-number message", () => {
+    const parsed = annualOffRuleSchema.safeParse({
+      target: { scope: "global" },
+      annualOffDays: toWholeNumber(""),
+    });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0].message).toBe("Enter a whole number");
+  });
+});
+
+describe("workRuleFormErrors", () => {
+  it("keeps the first message per field and moves target issues to the form", () => {
+    const parsed = breakRuleSchema.safeParse({
+      target: { scope: "site", siteId: "not-a-uuid" },
+      breakDays: toWholeNumber("x"),
+      breakCycleMonths: 13,
+    });
+
+    expect(parsed.success).toBe(false);
+    expect(workRuleFormErrors(parsed.error?.issues ?? [])).toEqual({
+      form: "Choose a site",
+      fields: {
+        breakDays: { message: "Enter a whole number" },
+        breakCycleMonths: { message: "Enter a number from 1 to 12" },
+      },
+    });
+  });
+});
+
+describe("parseSettingsScope", () => {
+  it("keeps a known scope", () => {
+    expect(parseSettingsScope("global")).toBe("global");
+    expect(parseSettingsScope(["site", "global"])).toBe("site");
+    expect(parseSettingsScope("location")).toBe("location");
+  });
+
+  it("returns null for anything else", () => {
+    expect(parseSettingsScope(undefined)).toBeNull();
+    expect(parseSettingsScope("all")).toBeNull();
+    expect(parseSettingsScope([])).toBeNull();
+  });
+});
+
+describe("parseSettingsLocation", () => {
+  const locations = [{ id: LOCATION_ID, name: "Gudang Utara", siteId: SITE_ID }];
+
+  it("keeps a listed location id", () => {
+    expect(parseSettingsLocation(LOCATION_ID, locations)).toBe(LOCATION_ID);
+    expect(parseSettingsLocation([LOCATION_ID, "x"], locations)).toBe(LOCATION_ID);
+  });
+
+  it("returns null for an unlisted or missing id", () => {
+    expect(parseSettingsLocation("not-a-uuid", locations)).toBeNull();
+    expect(parseSettingsLocation(SITE_ID, locations)).toBeNull();
+    expect(parseSettingsLocation(undefined, locations)).toBeNull();
+    expect(parseSettingsLocation(LOCATION_ID, [])).toBeNull();
+  });
+});
+
+describe("parseSettingsTab", () => {
+  it("opens Work rules only when asked and available", () => {
+    expect(parseSettingsTab("work-rules", true)).toBe("work-rules");
+    expect(parseSettingsTab(["work-rules"], true)).toBe("work-rules");
+  });
+
+  it("falls back to Account", () => {
+    expect(parseSettingsTab("work-rules", false)).toBe("account");
+    expect(parseSettingsTab(undefined, true)).toBe("account");
+    expect(parseSettingsTab("other", true)).toBe("account");
   });
 });

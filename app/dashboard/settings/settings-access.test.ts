@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { SettingsAccess, WorkRuleAccessTarget } from "@/types/settings";
-import { canEditWorkRule, canViewWorkRule, settingsAccessFor } from "./settings-access";
+import {
+  canEditWorkRule,
+  canViewWorkRule,
+  settingsAccessFor,
+  workRuleAccessTargetFor,
+} from "./settings-access";
 
 const SITE_A = "11111111-1111-4111-8111-111111111111";
 const SITE_B = "22222222-2222-4222-8222-222222222222";
@@ -167,5 +172,47 @@ describe("canViewWorkRule", () => {
   it("lets admin site view its own location only, not another of the same site", () => {
     expect(canViewWorkRule(ADMIN_SITE, locationTarget(LOCATION_A, SITE_A))).toBe(true);
     expect(canViewWorkRule(ADMIN_SITE, locationTarget(LOCATION_B, SITE_A))).toBe(false);
+  });
+});
+
+describe("workRuleAccessTargetFor", () => {
+  it("checks global with no ids", () => {
+    expect(workRuleAccessTargetFor({ scope: "global", siteId: null, locationId: null })).toEqual({
+      scope: "global",
+      siteId: null,
+      locationId: null,
+      locationSiteId: null,
+    });
+  });
+
+  it("checks a site by its id", () => {
+    expect(workRuleAccessTargetFor({ scope: "site", siteId: SITE_A, locationId: null })).toEqual({
+      scope: "site",
+      siteId: SITE_A,
+      locationId: null,
+      locationSiteId: null,
+    });
+  });
+
+  it("checks a location with the site that owns it", () => {
+    expect(
+      workRuleAccessTargetFor({ scope: "location", siteId: SITE_B, locationId: LOCATION_A }),
+    ).toEqual({ scope: "location", siteId: null, locationId: LOCATION_A, locationSiteId: SITE_B });
+  });
+
+  it("lets an HO edit a location of its site but not one of another site", () => {
+    const own = workRuleAccessTargetFor({
+      scope: "location",
+      siteId: SITE_A,
+      locationId: LOCATION_A,
+    });
+    const other = workRuleAccessTargetFor({
+      scope: "location",
+      siteId: SITE_B,
+      locationId: LOCATION_B,
+    });
+
+    expect(canEditWorkRule(HO, own)).toBe(true);
+    expect(canEditWorkRule(HO, other)).toBe(false);
   });
 });

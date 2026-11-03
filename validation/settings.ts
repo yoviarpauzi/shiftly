@@ -1,5 +1,10 @@
 import { z } from "zod";
-import type { WorkRuleKey } from "@/types/settings";
+import type {
+  SettingsLocation,
+  SettingsTab,
+  WorkRuleKey,
+  WorkRuleScope,
+} from "@/types/settings";
 
 export const WORK_DAYS = [5, 7] as const;
 
@@ -138,3 +143,63 @@ export const maxWorkingDaysRuleSchema = z
   );
 
 export type MaxWorkingDaysRuleInput = z.infer<typeof maxWorkingDaysRuleSchema>;
+
+// The card forms keep numbers as text. Blank or non-integer text becomes NaN, which the schemas
+// reject with "Enter a whole number".
+export function toWholeNumber(text: string): number {
+  const trimmed = text.trim();
+
+  return /^-?\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
+}
+
+// TanStack Form errors for a failed parse: the first message of each field, and the first
+// target issue (which no field shows) as the form error.
+export function workRuleFormErrors(
+  issues: { path: PropertyKey[]; message: string }[],
+): { form?: string; fields: Record<string, { message: string }> } {
+  const fields: Record<string, { message: string }> = {};
+  let form: string | undefined;
+
+  for (const issue of issues) {
+    const key = String(issue.path[0]);
+
+    if (key === "target") {
+      form ??= issue.message;
+    } else {
+      fields[key] ??= { message: issue.message };
+    }
+  }
+
+  return { form, fields };
+}
+
+const SETTINGS_SCOPES: readonly WorkRuleScope[] = ["global", "site", "location"];
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Reads ?scope=. Anything else is null, and pickSettingsScope then falls back to location.
+export function parseSettingsScope(value: string | string[] | undefined): WorkRuleScope | null {
+  const first = firstParam(value);
+
+  return SETTINGS_SCOPES.find((scope) => scope === first) ?? null;
+}
+
+// Reads ?location=. Only ids from the caller's own location list count.
+export function parseSettingsLocation(
+  value: string | string[] | undefined,
+  locations: SettingsLocation[],
+): string | null {
+  const first = firstParam(value);
+
+  return locations.some((location) => location.id === first) ? (first as string) : null;
+}
+
+// Reads ?tab=, so a scope change (which reloads the page) stays on the Work rules tab.
+export function parseSettingsTab(
+  value: string | string[] | undefined,
+  hasWorkRules: boolean,
+): SettingsTab {
+  return hasWorkRules && firstParam(value) === "work-rules" ? "work-rules" : "account";
+}

@@ -148,6 +148,13 @@
       "when": 1793767283152,
       "tag": "0020_strange_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793775623015,
+      "tag": "0021_shift_per_location",
+      "breakpoints": true
     }
   ]
 }

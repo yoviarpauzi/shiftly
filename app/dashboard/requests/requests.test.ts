@@ -6,6 +6,7 @@ import {
   rosterRequestLine,
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
+import { location } from "@/database/schema/location-schema";
 import { shift } from "@/database/schema/shift-schema";
 import type { RequestAccess } from "@/types/requests";
 
@@ -26,6 +27,7 @@ const fake = vi.hoisted(() => ({
     lines: [] as unknown[],
     days: [] as unknown[],
     shifts: [] as unknown[],
+    locations: [] as unknown[],
   },
 }));
 
@@ -36,6 +38,7 @@ function result(call: Call): unknown {
   if (call.table === rosterRequestLine) return fake.rows.lines;
   if (call.table === rosterRequestLineDay) return fake.rows.days;
   if (call.table === shift) return fake.rows.shifts;
+  if (call.table === location) return fake.rows.locations;
   return [];
 }
 
@@ -67,7 +70,7 @@ function builder(call: Call) {
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { select: () => builder({}) } }));
 
-const { getRequest } = await import("./requests");
+const { getRequest, requestChoicesFor } = await import("./requests");
 
 const REQUEST_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const LINE_1 = "b1111111-1111-4111-8111-111111111111";
@@ -135,7 +138,7 @@ function renderHeaderWhere(): { sql: string; params: unknown[] } {
 
 beforeEach(() => {
   fake.calls = [];
-  fake.rows = { header: [], lines: [], days: [], shifts: [] };
+  fake.rows = { header: [], lines: [], days: [], shifts: [], locations: [] };
 });
 
 describe("getRequest", () => {
@@ -225,14 +228,14 @@ describe("getRequest", () => {
         order: 3,
         startTime: "22:00:00",
         endTime: "06:00:00",
-        siteId: SITE_A,
+        locationId: LOCATION_A,
       },
     ];
 
     const res = await getRequest(access, REQUEST_ID);
 
     expect(res?.lineShifts).toEqual([
-      { id: SHIFT_1, name: "Lama", order: 3, startTime: "22:00", endTime: "06:00", siteId: SITE_A },
+      { id: SHIFT_1, name: "Lama", order: 3, startTime: "22:00", endTime: "06:00", locationId: LOCATION_A },
     ]);
     const call = fake.calls.find((c) => c.table === shift);
 
@@ -324,5 +327,47 @@ describe("getRequest", () => {
       '"roster_request_line_day"."line_id" asc, "roster_request_line_day"."day_offset" asc',
     );
     expect(renderOrderBy(rosterRequestLine)).toBe('"roster_request_line"."id" asc');
+  });
+});
+
+describe("requestChoicesFor", () => {
+  const LOCATION_A2 = "44444444-4444-4444-8444-444444444444";
+
+  it("reads the shifts of the locations, ordered by location then shift order", async () => {
+    fake.rows.locations = [
+      { id: LOCATION_A, name: "Gudang Utara", siteId: SITE_A, timezone: "Asia/Jakarta" },
+      { id: LOCATION_A2, name: "Gudang Selatan", siteId: SITE_A, timezone: "Asia/Jakarta" },
+    ];
+    fake.rows.shifts = [
+      {
+        id: SHIFT_1,
+        name: "Pagi",
+        order: 1,
+        startTime: "06:00:00",
+        endTime: "14:00:00",
+        locationId: LOCATION_A,
+      },
+    ];
+
+    const res = await requestChoicesFor(access);
+    const call = fake.calls.find((c) => c.table === shift);
+    const where = dialect.sqlToQuery(call?.where as SQL);
+
+    expect(where.params).toEqual([LOCATION_A, LOCATION_A2]);
+    expect(where.sql).toContain('"shift"."location_id" in');
+    expect((call?.orderBy as SQL[]).map((term) => dialect.sqlToQuery(term).sql)).toEqual([
+      '"shift"."location_id" asc',
+      '"shift"."order" asc',
+    ]);
+    expect(res.shifts).toEqual([
+      {
+        id: SHIFT_1,
+        name: "Pagi",
+        order: 1,
+        startTime: "06:00",
+        endTime: "14:00",
+        locationId: LOCATION_A,
+      },
+    ]);
   });
 });

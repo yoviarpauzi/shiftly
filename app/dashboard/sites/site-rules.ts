@@ -19,20 +19,13 @@ function plural(count: number, singular: string, pluralForm: string) {
 export function canDeleteSite({
   activeLocations,
   activePositions,
-  activeShifts,
   assignedUsers,
 }: {
   activeLocations: number;
   activePositions: number;
-  activeShifts: number;
   assignedUsers: number;
 }): { ok: true } | { ok: false; formError: string } {
-  if (
-    activeLocations === 0 &&
-    activePositions === 0 &&
-    activeShifts === 0 &&
-    assignedUsers === 0
-  ) {
+  if (activeLocations === 0 && activePositions === 0 && assignedUsers === 0) {
     return { ok: true };
   }
 
@@ -44,10 +37,6 @@ export function canDeleteSite({
 
   if (activePositions > 0) {
     blockers.push(plural(activePositions, "active position", "active positions"));
-  }
-
-  if (activeShifts > 0) {
-    blockers.push(plural(activeShifts, "active shift", "active shifts"));
   }
 
   if (assignedUsers > 0) {

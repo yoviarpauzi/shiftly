@@ -38,7 +38,7 @@ export const shiftUpdateSchema = shiftFieldsSchema.refine(
 export type ShiftUpdateInput = z.infer<typeof shiftUpdateSchema>;
 
 export const shiftSchema = shiftFieldsSchema
-  .extend({ siteId: z.string().uuid("Choose a site") })
+  .extend({ locationId: z.string().uuid("Choose a location") })
   .refine(endDiffersFromStart.check, endDiffersFromStart.params);
 
 export type ShiftInput = z.infer<typeof shiftSchema>;

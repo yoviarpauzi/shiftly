@@ -19,11 +19,11 @@ import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
-import type { SiteChoice } from "@/types/locations";
 import type { Reader } from "@/types/rosters";
 import type {
   ShiftAccess,
   ShiftListParams,
+  ShiftLocationChoice,
   ShiftPage,
   ShiftSortColumn,
   ShiftStatus,
@@ -32,7 +32,7 @@ import type { SortCriterion } from "@/types/sort";
 import { toHourMinute } from "./shift-rules";
 
 const DEFAULT_SORT: SortCriterion<ShiftSortColumn>[] = [
-  { column: "site", direction: "asc" },
+  { column: "location", direction: "asc" },
   { column: "order", direction: "asc" },
 ];
 
@@ -40,13 +40,23 @@ const DEFAULT_SORT: SortCriterion<ShiftSortColumn>[] = [
 const SHIFT_SORT_EXPRESSIONS: Record<ShiftSortColumn, SQLWrapper> = {
   order: shift.order,
   name: shift.name,
-  site: site.name,
+  location: sql`concat(${site.name}, ' / ', ${location.name})`,
   status: sql`(${shift.deletedAt} is not null)`,
 };
 
-// Superadmin sees every shift. HO and admin site see the shifts of their own site.
+// Superadmin sees every shift. HO sees the shifts of the locations of its site. Admin site sees the
+// shifts of its own location. The site case is a subquery rather than a join, so a select or an
+// update on shift alone can carry the filter.
 export function shiftScopeFilter(access: ShiftAccess): SQL | undefined {
-  return access.siteId ? eq(shift.siteId, access.siteId) : undefined;
+  if (access.locationId) {
+    return eq(shift.locationId, access.locationId);
+  }
+
+  if (access.siteId) {
+    return sql`${shift.locationId} in (select ${location.id} from ${location} where ${location.siteId} = ${access.siteId})`;
+  }
+
+  return undefined;
 }
 
 // The statuses of the requests whose lines use the shift, one entry per status.
@@ -66,13 +76,13 @@ function shiftFilter(
   access: ShiftAccess,
   query: string,
   status: ShiftStatus,
-  siteId: string | null,
+  locationId: string | null,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     shiftScopeFilter(access),
-    siteId ? eq(shift.siteId, siteId) : undefined,
+    locationId ? eq(shift.locationId, locationId) : undefined,
     status === "active" ? isNull(shift.deletedAt) : undefined,
     status === "deleted" ? isNotNull(shift.deletedAt) : undefined,
     query ? ilike(shift.name, pattern) : undefined,
@@ -81,12 +91,12 @@ function shiftFilter(
 
 export async function listShifts(
   access: ShiftAccess,
-  { page, pageSize, query, status, siteId, sort }: ShiftListParams,
+  { page, pageSize, query, status, locationId, sort }: ShiftListParams,
 ): Promise<ShiftPage> {
-  const filter = shiftFilter(access, query, status, siteId);
+  const filter = shiftFilter(access, query, status, locationId);
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
-  // Counted from the shift table alone, so the site join does not inflate the total.
+  // Counted from the shift table alone, so the joins do not inflate the total.
   const [{ total }] = await db.select({ total: count() }).from(shift).where(filter);
 
   const currentPage = clampPage(page, total, pageSize);
@@ -98,12 +108,14 @@ export async function listShifts(
       name: shift.name,
       startTime: shift.startTime,
       endTime: shift.endTime,
-      siteId: shift.siteId,
+      locationId: shift.locationId,
+      locationName: location.name,
       siteName: site.name,
       deletedAt: shift.deletedAt,
     })
     .from(shift)
-    .innerJoin(site, eq(site.id, shift.siteId))
+    .innerJoin(location, eq(location.id, shift.locationId))
+    .innerJoin(site, eq(site.id, location.siteId))
     .where(filter)
     .orderBy(...sortTerms(criteria, SHIFT_SORT_EXPRESSIONS), asc(shift.id))
     .limit(pageSize)
@@ -121,36 +133,37 @@ export async function listShifts(
   };
 }
 
-// HO and admin site get their own site as fixed text. Superadmin picks from the active sites.
-export async function shiftSiteChoiceFor(access: ShiftAccess): Promise<SiteChoice> {
-  if (access.siteId) {
+// Admin site gets its own location as fixed text. Superadmin and HO pick from the active locations
+// in scope, which for HO are the locations of its site.
+export async function shiftLocationChoiceFor(access: ShiftAccess): Promise<ShiftLocationChoice> {
+  const option = {
+    id: location.id,
+    name: location.name,
+    siteName: site.name,
+  };
+
+  if (access.locationId) {
     const [own] = await db
-      .select({ id: site.id, name: site.name })
-      .from(site)
-      .where(and(eq(site.id, access.siteId), isNull(site.deletedAt)));
+      .select(option)
+      .from(location)
+      .innerJoin(site, eq(site.id, location.siteId))
+      .where(and(eq(location.id, access.locationId), isNull(location.deletedAt)));
 
     if (!own) {
       notFound();
     }
 
-    return { mode: "fixed", site: own };
+    return { mode: "fixed", location: own };
   }
 
-  const sites = await db
-    .select({ id: site.id, name: site.name })
-    .from(site)
-    .where(isNull(site.deletedAt))
-    .orderBy(asc(site.name), asc(site.id));
-
-  return { mode: "pick", sites };
-}
-
-// The site that holds a location. Admin site users reach shifts through it.
-export async function findLocationSiteId(locationId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ siteId: location.siteId })
+  const locations = await db
+    .select(option)
     .from(location)
-    .where(eq(location.id, locationId));
+    .innerJoin(site, eq(site.id, location.siteId))
+    .where(
+      and(isNull(location.deletedAt), access.siteId ? eq(location.siteId, access.siteId) : undefined),
+    )
+    .orderBy(asc(site.name), asc(location.name), asc(location.id));
 
-  return row?.siteId ?? null;
+  return { mode: "pick", locations };
 }

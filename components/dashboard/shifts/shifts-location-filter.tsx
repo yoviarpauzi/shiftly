@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { SiteOption } from "@/types/locations";
+import { shiftLocationLabel } from "@/app/dashboard/shifts/shift-rules";
+import type { ShiftLocationOption } from "@/types/shifts";
 import {
   Select,
   SelectContent,
@@ -11,31 +12,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ALL_SITES = "all";
+const ALL_LOCATIONS = "all";
 
-export function ShiftsSiteFilter({
-  siteId,
-  sites,
+export function ShiftsLocationFilter({
+  locationId,
+  locations,
 }: {
-  siteId: string | null;
-  sites: SiteOption[];
+  locationId: string | null;
+  locations: ShiftLocationOption[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const options = [
-    { value: ALL_SITES, label: "All sites" },
-    ...sites.map((site) => ({ value: site.id, label: site.name })),
+    { value: ALL_LOCATIONS, label: "All locations" },
+    ...locations.map((location) => ({
+      value: location.id,
+      label: shiftLocationLabel(location),
+    })),
   ];
 
-  function setSite(next: string) {
+  function setLocation(next: string) {
     const params = new URLSearchParams(searchParams.toString());
 
-    if (next === ALL_SITES) {
-      params.delete("site");
+    if (next === ALL_LOCATIONS) {
+      params.delete("location");
     } else {
-      params.set("site", next);
+      params.set("location", next);
     }
     params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
@@ -43,15 +47,18 @@ export function ShiftsSiteFilter({
 
   return (
     <Select
-      value={siteId ?? ALL_SITES}
+      value={locationId ?? ALL_LOCATIONS}
       onValueChange={(value) => {
         if (value) {
-          setSite(value);
+          setLocation(value);
         }
       }}
       items={options}
     >
-      <SelectTrigger aria-label="Filter shifts by site" className="h-9 w-48">
+      <SelectTrigger
+        aria-label="Filter shifts by location"
+        className="h-9 w-56"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

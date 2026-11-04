@@ -1,7 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { findLocationSiteId } from "@/app/dashboard/shifts/shifts";
+import { findLocationSiteId } from "@/app/dashboard/positions/positions";
 import type { RequestAccess, RequestActor } from "@/types/requests";
 import { requestAccessFor } from "./request-access";
 

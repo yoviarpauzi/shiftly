@@ -5,14 +5,20 @@ import {
   canDeleteShift,
   canRestoreShift,
   formatShiftRange,
+  DUPLICATE_SHIFT_NAME_MESSAGE,
+  DUPLICATE_SHIFT_ORDER_MESSAGE,
+  LOCATION_DELETED_MESSAGE,
+  LOCATION_NOT_FOUND_MESSAGE,
   shiftConflictField,
   SHIFT_IN_USE_MESSAGE,
+  SHIFT_RESTORE_CONFLICT_MESSAGE,
   shiftFieldErrors,
+  shiftLocationLabel,
   toHourMinute,
 } from "./shift-rules";
 
-const ORDER_INDEX = "shift_siteId_order_active_unique";
-const NAME_INDEX = "shift_siteId_lowerName_active_unique";
+const ORDER_INDEX = "shift_locationId_order_active_unique";
+const NAME_INDEX = "shift_locationId_lowerName_active_unique";
 
 describe("canDeleteShift", () => {
   const blocked = { ok: false, formError: "This shift is used by a pending or approved request" };
@@ -42,15 +48,38 @@ describe("canDeleteShift", () => {
 });
 
 describe("canRestoreShift", () => {
-  it("blocks restoring a shift whose site is deleted", () => {
-    expect(canRestoreShift({ siteDeleted: true })).toEqual({
+  it("blocks restoring a shift whose location is deleted", () => {
+    expect(canRestoreShift({ locationDeleted: true })).toEqual({
       ok: false,
-      formError: "Restore the site first",
+      formError: "Restore the location first",
     });
   });
 
-  it("allows restoring a shift whose site is active", () => {
-    expect(canRestoreShift({ siteDeleted: false })).toEqual({ ok: true });
+  it("allows restoring a shift whose location is active", () => {
+    expect(canRestoreShift({ locationDeleted: false })).toEqual({ ok: true });
+  });
+});
+
+describe("shift messages", () => {
+  it("scopes the duplicate messages to the location", () => {
+    expect(DUPLICATE_SHIFT_ORDER_MESSAGE).toBe("Order is already used in this location");
+    expect(DUPLICATE_SHIFT_NAME_MESSAGE).toBe("Name is already used in this location");
+  });
+
+  it("names the location in the not found, deleted and restore conflict messages", () => {
+    expect(LOCATION_NOT_FOUND_MESSAGE).toBe("Location not found");
+    expect(LOCATION_DELETED_MESSAGE).toBe("Restore the location first");
+    expect(SHIFT_RESTORE_CONFLICT_MESSAGE).toBe(
+      "Another active shift in this location already uses this order or name. Change that shift before restoring.",
+    );
+  });
+});
+
+describe("shiftLocationLabel", () => {
+  it("joins the site and the location name", () => {
+    expect(shiftLocationLabel({ id: "l1", name: "Gudang", siteName: "Nestle" })).toBe(
+      "Nestle / Gudang",
+    );
   });
 });
 

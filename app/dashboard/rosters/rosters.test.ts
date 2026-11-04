@@ -469,7 +469,7 @@ describe("buildGenerateLines", () => {
     expect(line).toMatchObject({ shiftLabel: "Shift 2", fixedShiftId: "s2" });
   });
 
-  it("leaves the split of a line empty per day when the site has no shifts", () => {
+  it("leaves the split of a line empty per day when the location has no shifts", () => {
     const [line] = buildGenerateLines({ days, shiftIds: [], lines: [anyLine], stored: null });
 
     expect(line.split).toEqual([[], [], []]);

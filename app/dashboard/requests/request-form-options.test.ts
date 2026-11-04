@@ -46,6 +46,7 @@ const POS_A = "9a000000-0000-4000-8000-000000000000";
 const POS_B = "9b000000-0000-4000-8000-000000000000";
 const SHIFT_1 = "51000000-0000-4000-8000-000000000000";
 const SHIFT_2 = "52000000-0000-4000-8000-000000000000";
+const SHIFT_A2 = "5a000000-0000-4000-8000-000000000000";
 const SHIFT_B1 = "5b000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
@@ -72,9 +73,10 @@ const choices: RequestChoices = {
     { id: POS_B, name: "Porter", siteId: SITE_B },
   ],
   shifts: [
-    { id: SHIFT_1, name: "Pagi", order: 1, startTime: "06:00", endTime: "14:00", siteId: SITE_A },
-    { id: SHIFT_2, name: "Siang", order: 2, startTime: "14:00", endTime: "22:00", siteId: SITE_A },
-    { id: SHIFT_B1, name: "Reguler", order: 1, startTime: "08:00", endTime: "16:00", siteId: SITE_B },
+    { id: SHIFT_1, name: "Pagi", order: 1, startTime: "06:00", endTime: "14:00", locationId: LOC_A1 },
+    { id: SHIFT_2, name: "Siang", order: 2, startTime: "14:00", endTime: "22:00", locationId: LOC_A1 },
+    { id: SHIFT_A2, name: "Malam", order: 1, startTime: "22:00", endTime: "06:00", locationId: LOC_A2 },
+    { id: SHIFT_B1, name: "Reguler", order: 1, startTime: "08:00", endTime: "16:00", locationId: LOC_B1 },
   ],
 };
 
@@ -195,8 +197,9 @@ describe("positionsFor", () => {
 });
 
 describe("shiftsFor", () => {
-  it("lists the shifts of the location's site only, in order", () => {
+  it("lists the shifts of the location only, in order", () => {
     expect(shiftsFor(choices, LOC_A1).map((row) => row.id)).toEqual([SHIFT_1, SHIFT_2]);
+    expect(shiftsFor(choices, LOC_A2).map((row) => row.id)).toEqual([SHIFT_A2]);
     expect(shiftsFor(choices, LOC_B1).map((row) => row.id)).toEqual([SHIFT_B1]);
   });
 
@@ -268,10 +271,10 @@ describe("shiftsForRequest", () => {
     order: 3,
     startTime: "22:00",
     endTime: "06:00",
-    siteId: SITE_A,
+    locationId: LOC_A1,
   };
 
-  it("is the site's shifts for a new request", () => {
+  it("is the location's shifts for a new request", () => {
     expect(shiftsForRequest(choices, LOC_A1, null).map((row) => row.id)).toEqual([
       SHIFT_1,
       SHIFT_2,
@@ -307,7 +310,7 @@ describe("requestFormDefaults shifts", () => {
       order: 3,
       startTime: "22:00",
       endTime: "06:00",
-      siteId: SITE_A,
+      locationId: LOC_A1,
     };
     const rejected = {
       ...detail,
@@ -320,7 +323,7 @@ describe("requestFormDefaults shifts", () => {
   });
 
 
-  it("keeps a stored shift that is still one of the site's shifts", () => {
+  it("keeps a stored shift that is still one of the location's shifts", () => {
     expect(requestFormDefaults(detail, choices).lines.map((row) => row.shiftId)).toEqual([
       SHIFT_1,
       null,

@@ -93,7 +93,7 @@ export const rosterRequestLine = pgTable(
     positionId: uuid("position_id")
       .notNull()
       .references(() => position.id, { onDelete: "restrict" }),
-    // Null is Any shift: the roster may split the line across the site's shifts.
+    // Null is Any shift: the roster may split the line across the location's shifts.
     shiftId: uuid("shift_id").references(() => shift.id, { onDelete: "restrict" }),
   },
   (table) => [

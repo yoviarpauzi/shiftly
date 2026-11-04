@@ -305,14 +305,14 @@ describe("request actions module", () => {
 });
 
 describe("createRequest shifts", () => {
-  it("refuses a line whose shift is not an active shift of the site, and writes nothing", async () => {
+  it("refuses a line whose shift is not an active shift of the location, and writes nothing", async () => {
     seedLocationChoices();
 
     const res = await createRequest({ ...createInput, lines: [{ ...line, shiftId: SHIFT_B }] });
 
     expect(res).toEqual({
       ok: false,
-      fieldErrors: { lines: "Choose a shift of this site" },
+      fieldErrors: { lines: "Choose a shift of this location" },
     });
     expect(writes()).toEqual([]);
   });
@@ -326,7 +326,7 @@ describe("createRequest shifts", () => {
     expect(lineInserts()[0].values).toEqual([expect.objectContaining({ shiftId: SHIFT_A })]);
   });
 
-  it("reads the site's shifts under a share lock", async () => {
+  it("reads the location's shifts under a share lock", async () => {
     seedLocationChoices();
 
     await createRequest({ ...createInput, lines: [{ ...line, shiftId: SHIFT_A }] });
@@ -334,11 +334,13 @@ describe("createRequest shifts", () => {
     const read = fake.calls.find((call) => call.op === "select" && call.table === shift);
 
     expect(read?.lock).toBe("share");
+    expect(whereParams(read?.where)).toContain(LOCATION_A);
+    expect(whereParams(read?.where)).not.toContain(SITE_A);
   });
 });
 
 describe("updateRequest shifts", () => {
-  it("refuses a shift of another site and writes nothing", async () => {
+  it("refuses a shift of another location and writes nothing", async () => {
     seedLocationChoices();
     fake.rows.request = [storedRequest()];
 
@@ -349,7 +351,7 @@ describe("updateRequest shifts", () => {
 
     expect(res).toEqual({
       ok: false,
-      fieldErrors: { lines: "Choose a shift of this site" },
+      fieldErrors: { lines: "Choose a shift of this location" },
     });
     expect(writes()).toEqual([]);
   });

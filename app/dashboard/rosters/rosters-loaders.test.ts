@@ -12,7 +12,7 @@ import type { WorkRuleRow } from "@/types/settings";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: {} }));
 
-const { loadEngineInput, loadReplacementContext } = await import("./rosters");
+const { loadCellContext, loadEngineInput, loadReplacementContext } = await import("./rosters");
 
 const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_ID = "33333333-3333-4333-8333-333333333333";
@@ -189,6 +189,18 @@ describe("loadEngineInput", () => {
     expect(params).toEqual([["global"], ["site", SITE_ID], ["location", LOCATION_ID]]);
   });
 
+  it("reads the active shifts of the request's location, not its site", async () => {
+    seedEngineInput();
+
+    await loadEngineInput(reader, REQUEST_ID);
+
+    const shiftSelect = fake.calls.find((call) => call.table === shift);
+    const params = dialect.sqlToQuery(shiftSelect?.where as SQL).params;
+
+    expect(params).toContain(LOCATION_ID);
+    expect(params).not.toContain(SITE_ID);
+  });
+
   it("keeps the defaults when no work rule is saved", async () => {
     seedEngineInput();
 
@@ -258,5 +270,38 @@ describe("loadReplacementContext", () => {
       .map((call) => dialect.sqlToQuery(call.where as SQL).params);
 
     expect(params).toEqual([["global"], ["site", SITE_ID], ["location", LOCATION_ID]]);
+  });
+});
+
+// loadReplacementContext reads no shifts, so the shift read of a roster's cell menu is checked here.
+describe("loadCellContext", () => {
+  it("reads the active shifts of the request's location, not its site", async () => {
+    fake.rows.set(roster, [
+      {
+        requestId: REQUEST_ID,
+        type: "weekly",
+        startDate: "2026-11-09",
+        siteId: SITE_ID,
+        locationId: LOCATION_ID,
+      },
+    ]);
+    fake.rows.set(rosterRequestLine, [
+      { lineId: LINE_ID, positionId: POSITION_ID, positionName: "Operator" },
+    ]);
+    fake.rows.set(shift, [{ id: SHIFT_ID, order: 1 }]);
+
+    const loaded = await loadCellContext(reader, {
+      rosterId: ROSTER_ID,
+      lineId: LINE_ID,
+      workerIds: [],
+    });
+
+    expect(loaded.ok).toBe(true);
+
+    const shiftSelect = fake.calls.find((call) => call.table === shift);
+    const params = dialect.sqlToQuery(shiftSelect?.where as SQL).params;
+
+    expect(params).toContain(LOCATION_ID);
+    expect(params).not.toContain(SITE_ID);
   });
 });

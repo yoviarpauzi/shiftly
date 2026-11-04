@@ -14,8 +14,8 @@ import { bulkShiftRestoreMessage } from "@/app/dashboard/shifts/shift-rules";
 import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
-import type { SiteChoice } from "@/types/locations";
 import type {
+  ShiftLocationChoice,
   ShiftPage,
   ShiftRow,
   ShiftSortColumn,
@@ -30,7 +30,7 @@ import {
 import { DeleteShiftDialog } from "@/components/dashboard/shifts/delete-shift-dialog";
 import { ShiftFormDialog } from "@/components/dashboard/shifts/shift-form-dialog";
 import { ShiftsSearch } from "@/components/dashboard/shifts/shifts-search";
-import { ShiftsSiteFilter } from "@/components/dashboard/shifts/shifts-site-filter";
+import { ShiftsLocationFilter } from "@/components/dashboard/shifts/shifts-location-filter";
 import { ShiftsStatusFilter } from "@/components/dashboard/shifts/shifts-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,14 +55,14 @@ async function restoreWithToast(shift: ShiftRow) {
 export function ShiftsDataTable({
   data,
   status,
-  siteId,
-  siteChoice,
+  locationId,
+  locationChoice,
   sort,
 }: {
   data: ShiftPage;
   status: ShiftStatus;
-  siteId: string | null;
-  siteChoice: SiteChoice;
+  locationId: string | null;
+  locationChoice: ShiftLocationChoice;
   sort: SortCriterion<ShiftSortColumn>[];
 }) {
   const router = useRouter();
@@ -171,8 +171,11 @@ export function ShiftsDataTable({
         <div className="flex items-center gap-2">
           <ShiftsSearch />
           <ShiftsStatusFilter status={status} />
-          {siteChoice.mode === "pick" && (
-            <ShiftsSiteFilter siteId={siteId} sites={siteChoice.sites} />
+          {locationChoice.mode === "pick" && (
+            <ShiftsLocationFilter
+              locationId={locationId}
+              locations={locationChoice.locations}
+            />
           )}
         </div>
         <Button onClick={() => openForm(null)}>
@@ -276,7 +279,7 @@ export function ShiftsDataTable({
       <ShiftFormDialog
         key={formKey}
         shift={editingShift}
-        siteChoice={siteChoice}
+        locationChoice={locationChoice}
         open={formOpen}
         onOpenChange={setFormOpen}
       />

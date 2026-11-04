@@ -5,9 +5,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/departments/department-rules";
 import { createShift, updateShift } from "@/app/dashboard/shifts/actions";
-import { shiftFieldErrors } from "@/app/dashboard/shifts/shift-rules";
-import type { SiteChoice } from "@/types/locations";
-import type { ShiftFormDialogProps, ShiftRow } from "@/types/shifts";
+import {
+  shiftFieldErrors,
+  shiftLocationLabel,
+} from "@/app/dashboard/shifts/shift-rules";
+import type {
+  ShiftFormDialogProps,
+  ShiftLocationChoice,
+  ShiftRow,
+} from "@/types/shifts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,18 +41,21 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { shiftSchema, shiftUpdateSchema } from "@/validation/shift";
 
-// A fixed site starts the form on it. An edit keeps the shift's own site.
-function defaultSiteId(shift: ShiftRow | null, siteChoice: SiteChoice) {
+// A fixed location starts the form on it. An edit keeps the shift's own location.
+function defaultLocationId(
+  shift: ShiftRow | null,
+  locationChoice: ShiftLocationChoice,
+) {
   if (shift) {
-    return shift.siteId;
+    return shift.locationId;
   }
 
-  return siteChoice.mode === "fixed" ? siteChoice.site.id : "";
+  return locationChoice.mode === "fixed" ? locationChoice.location.id : "";
 }
 
 export function ShiftFormDialog({
   shift,
-  siteChoice,
+  locationChoice,
   open,
   onOpenChange,
 }: ShiftFormDialogProps) {
@@ -59,9 +68,9 @@ export function ShiftFormDialog({
       name: shift?.name ?? "",
       startTime: shift?.startTime ?? "",
       endTime: shift?.endTime ?? "",
-      siteId: defaultSiteId(shift, siteChoice),
+      locationId: defaultLocationId(shift, locationChoice),
     },
-    // The site cannot change after creation, so an edit validates the other fields alone.
+    // The location cannot change after creation, so an edit validates the other fields alone.
     validators: {
       onSubmit: ({ value }) => {
         const parsed = shift
@@ -105,7 +114,7 @@ export function ShiftFormDialog({
               name: nameFieldError(result.fieldErrors?.name),
               startTime: nameFieldError(result.fieldErrors?.startTime),
               endTime: nameFieldError(result.fieldErrors?.endTime),
-              siteId: nameFieldError(result.fieldErrors?.siteId),
+              locationId: nameFieldError(result.fieldErrors?.locationId),
             },
           },
         });
@@ -250,22 +259,30 @@ export function ShiftFormDialog({
                       }}
                     </form.Field>
                   </div>
-                  <form.Field name="siteId">
+                  <form.Field name="locationId">
                     {(field) => {
                       if (shift) {
                         return (
                           <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{shift.siteName}</p>
+                            <FieldLabel>Location</FieldLabel>
+                            <p className="text-sm">
+                              {shiftLocationLabel({
+                                id: shift.locationId,
+                                name: shift.locationName,
+                                siteName: shift.siteName,
+                              })}
+                            </p>
                           </Field>
                         );
                       }
 
-                      if (siteChoice.mode === "fixed") {
+                      if (locationChoice.mode === "fixed") {
                         return (
                           <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{siteChoice.site.name}</p>
+                            <FieldLabel>Location</FieldLabel>
+                            <p className="text-sm">
+                              {shiftLocationLabel(locationChoice.location)}
+                            </p>
                           </Field>
                         );
                       }
@@ -274,7 +291,7 @@ export function ShiftFormDialog({
 
                       return (
                         <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
+                          <FieldLabel htmlFor={field.name}>Location</FieldLabel>
                           <Select
                             value={field.state.value}
                             onValueChange={(value) => {
@@ -282,9 +299,9 @@ export function ShiftFormDialog({
                                 field.handleChange(value);
                               }
                             }}
-                            items={siteChoice.sites.map((site) => ({
-                              value: site.id,
-                              label: site.name,
+                            items={locationChoice.locations.map((location) => ({
+                              value: location.id,
+                              label: shiftLocationLabel(location),
                             }))}
                             disabled={isSubmitting}
                           >
@@ -293,13 +310,16 @@ export function ShiftFormDialog({
                               aria-invalid={isInvalid || undefined}
                               className="w-full"
                             >
-                              <SelectValue placeholder="Choose a site" />
+                              <SelectValue placeholder="Choose a location" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                {siteChoice.sites.map((site) => (
-                                  <SelectItem key={site.id} value={site.id}>
-                                    {site.name}
+                                {locationChoice.locations.map((location) => (
+                                  <SelectItem
+                                    key={location.id}
+                                    value={location.id}
+                                  >
+                                    {shiftLocationLabel(location)}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>

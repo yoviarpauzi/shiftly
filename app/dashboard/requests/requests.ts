@@ -206,7 +206,7 @@ export async function getRequest(
             order: shift.order,
             startTime: shift.startTime,
             endTime: shift.endTime,
-            siteId: shift.siteId,
+            locationId: shift.locationId,
           })
           .from(shift)
           .where(inArray(shift.id, shiftIds))
@@ -241,7 +241,8 @@ export async function getRequest(
 }
 
 // The active locations the actor can write to, the active sites that hold them, their active
-// departments and sub-departments, and the active positions of those sites.
+// departments and sub-departments, the active positions of those sites and the active shifts of
+// those locations.
 export async function requestChoicesFor(access: RequestAccess): Promise<RequestChoices> {
   const locations = await db
     .select({
@@ -316,11 +317,11 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
       order: shift.order,
       startTime: shift.startTime,
       endTime: shift.endTime,
-      siteId: shift.siteId,
+      locationId: shift.locationId,
     })
     .from(shift)
-    .where(and(inArray(shift.siteId, siteIds), isNull(shift.deletedAt)))
-    .orderBy(asc(shift.siteId), asc(shift.order));
+    .where(and(inArray(shift.locationId, locationIds), isNull(shift.deletedAt)))
+    .orderBy(asc(shift.locationId), asc(shift.order));
 
   return {
     sites,

@@ -1,12 +1,12 @@
 import { ShiftsDataTable } from "@/components/dashboard/shifts/data-table";
-import { parseLocationSite } from "@/validation/location-site";
 import { parsePageParams } from "@/validation/pagination";
+import { parseShiftLocation } from "@/validation/shift-location";
 import { parseShiftStatus } from "@/validation/shift-status";
 import { parseSortParam } from "@/validation/sort";
 import { requireShiftManager } from "./shift-guard";
-import { listShifts, shiftSiteChoiceFor } from "./shifts";
+import { listShifts, shiftLocationChoiceFor } from "./shifts";
 
-const SHIFT_SORT_COLUMNS = ["order", "name", "site", "status"] as const;
+const SHIFT_SORT_COLUMNS = ["order", "name", "location", "status"] as const;
 
 export default async function Page({
   searchParams,
@@ -18,16 +18,16 @@ export default async function Page({
   const params = await searchParams;
   const status = parseShiftStatus(params.status);
   const sort = parseSortParam(params.sort, SHIFT_SORT_COLUMNS);
-  const siteChoice = await shiftSiteChoiceFor(access);
-  // Only superadmin picks a site, so a site-bound user gets no site filter and its ?site= is ignored.
-  const siteId = parseLocationSite(
-    params.site,
-    siteChoice.mode === "pick" ? siteChoice.sites : [],
+  const locationChoice = await shiftLocationChoiceFor(access);
+  // Only superadmin and HO pick a location, so an admin-site user gets no filter and its ?location= is ignored.
+  const locationId = parseShiftLocation(
+    params.location,
+    locationChoice.mode === "pick" ? locationChoice.locations : [],
   );
   const shifts = await listShifts(access, {
     ...parsePageParams(params),
     status,
-    siteId,
+    locationId,
     sort,
   });
 
@@ -36,14 +36,14 @@ export default async function Page({
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Shifts</h1>
         <p className="text-sm text-muted-foreground">
-          Shifts in the sites you can manage.
+          Shifts in the locations you can manage.
         </p>
       </div>
       <ShiftsDataTable
         data={shifts}
         status={status}
-        siteId={siteId}
-        siteChoice={siteChoice}
+        locationId={locationId}
+        locationChoice={locationChoice}
         sort={sort}
       />
     </div>

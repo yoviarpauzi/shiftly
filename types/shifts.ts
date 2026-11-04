@@ -1,15 +1,27 @@
-import type { SiteChoice } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 
-export type ShiftSortColumn = "order" | "name" | "site" | "status";
+export type ShiftSortColumn = "order" | "name" | "location" | "status";
 
 export type ShiftStatus = "active" | "deleted" | "all";
 
 export type ShiftAccess = {
-  // null means every site, which only superadmin gets.
+  // Both null means every location, which only superadmin gets. A site id limits access to the
+  // locations of that site (HO). A location id limits it to that one location (admin site).
   siteId: string | null;
+  locationId: string | null;
 };
+
+export type ShiftLocationOption = {
+  id: string;
+  name: string;
+  siteName: string;
+};
+
+// The form either lets the actor pick a location or has one fixed for them.
+export type ShiftLocationChoice =
+  | { mode: "pick"; locations: ShiftLocationOption[] }
+  | { mode: "fixed"; location: ShiftLocationOption };
 
 export type ShiftRow = {
   id: string;
@@ -18,7 +30,8 @@ export type ShiftRow = {
   // 24 hour HH:MM. A shift whose end is earlier than its start crosses midnight.
   startTime: string;
   endTime: string;
-  siteId: string;
+  locationId: string;
+  locationName: string;
   siteName: string;
   deletedAt: Date | null;
 };
@@ -32,12 +45,12 @@ export type ShiftPage = {
 
 export type ShiftListParams = PageParams & {
   status: ShiftStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
+  // null means every location the actor can see.
+  locationId: string | null;
   sort: SortCriterion<ShiftSortColumn>[];
 };
 
-export type ShiftField = "order" | "name" | "startTime" | "endTime" | "siteId";
+export type ShiftField = "order" | "name" | "startTime" | "endTime" | "locationId";
 
 export type ShiftFieldErrors = Partial<Record<ShiftField, string>>;
 
@@ -67,7 +80,7 @@ export type ShiftActions = {
 
 export type ShiftFormDialogProps = {
   shift: ShiftRow | null;
-  siteChoice: SiteChoice;
+  locationChoice: ShiftLocationChoice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };

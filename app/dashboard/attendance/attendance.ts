@@ -143,11 +143,11 @@ export async function attendanceChoicesFor(
         .orderBy(asc(department.name), asc(department.id))
     : [];
 
-  const shifts = selected.siteId
+  const shifts = selected.locationId
     ? await db
         .select({ id: shift.id, name: shift.name })
         .from(shift)
-        .where(and(eq(shift.siteId, selected.siteId), isNull(shift.deletedAt)))
+        .where(and(eq(shift.locationId, selected.locationId), isNull(shift.deletedAt)))
         .orderBy(asc(shift.order), asc(shift.id))
     : [];
 

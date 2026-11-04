@@ -66,10 +66,10 @@ function revalidateRequest(id: string) {
   revalidatePath(`${REQUESTS_PATH}/${id}`);
 }
 
-// The active departments of the location with their active sub-departments, and the active
-// positions and shifts of the site, in the shape lineScopeError checks against. The shifts are read
-// under a share lock, which conflicts with the update lock a shift delete takes, so a shift cannot
-// be deleted between this check and the insert.
+// The active departments of the location with their active sub-departments, the active positions
+// of the site and the active shifts of the location, in the shape lineScopeError checks against.
+// The shifts are read under a share lock, which conflicts with the update lock a shift delete
+// takes, so a shift cannot be deleted between this check and the insert.
 async function lineChoices(tx: Transaction, locationId: string, siteId: string) {
   const departments = await tx
     .select({ id: department.id })
@@ -96,7 +96,7 @@ async function lineChoices(tx: Transaction, locationId: string, siteId: string) 
   const shifts = await tx
     .select({ id: shift.id })
     .from(shift)
-    .where(and(eq(shift.siteId, siteId), isNull(shift.deletedAt)))
+    .where(and(eq(shift.locationId, locationId), isNull(shift.deletedAt)))
     .for("share");
 
   const departmentMap = new Map<string, Set<string>>(

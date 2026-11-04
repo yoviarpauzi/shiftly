@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { shiftSchema, shiftUpdateSchema } from "./shift";
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
+const LOCATION_ID = "11111111-1111-4111-8111-111111111111";
 
 const base = {
   order: 1,
   name: "Morning",
   startTime: "06:00",
   endTime: "14:00",
-  siteId: SITE_ID,
+  locationId: LOCATION_ID,
 };
 
 const issues = (input: Record<string, unknown>) => {
@@ -69,13 +69,15 @@ describe("shiftSchema", () => {
     expect(issues({ endTime }).map((issue) => issue.path)).toContainEqual(["endTime"]);
   });
 
-  it("rejects a site id that is not a uuid", () => {
-    expect(issues({ siteId: "x" })).toEqual([{ path: ["siteId"], message: "Choose a site" }]);
+  it("rejects a location id that is not a uuid", () => {
+    expect(issues({ locationId: "x" })).toEqual([
+      { path: ["locationId"], message: "Choose a location" },
+    ]);
   });
 });
 
 describe("shiftUpdateSchema", () => {
-  it("accepts input without a site id", () => {
+  it("accepts input without a location id", () => {
     const update = { order: 1, name: "Morning", startTime: "06:00", endTime: "14:00" };
 
     expect(shiftUpdateSchema.safeParse(update).success).toBe(true);

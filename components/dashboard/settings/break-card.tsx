@@ -3,6 +3,7 @@
 import { updateWorkRuleBreak } from "@/app/dashboard/settings/actions";
 import {
   appliesToText,
+  countText,
   summaryNumber,
   workRuleTargetFor,
 } from "@/app/dashboard/settings/settings-rules";
@@ -81,8 +82,9 @@ export function BreakCard({ rules, scope, canEdit }: WorkRuleCardProps) {
               days !== null &&
               months !== null && (
                 <p className="rounded-lg bg-secondary px-4 py-3 text-sm">
-                  Each worker gets <span className="font-medium">{days} break days</span> every{" "}
-                  {months} months.
+                  Each worker gets{" "}
+                  <span className="font-medium">{countText(days, "break day")}</span> every{" "}
+                  {countText(months, "month")}.
                 </p>
               )
             );

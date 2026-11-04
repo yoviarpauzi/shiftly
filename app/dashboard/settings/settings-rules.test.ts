@@ -3,6 +3,7 @@ import type { SiteChoice } from "@/types/locations";
 import type { LocationChoice, LocationWorkRules, WorkRuleRow } from "@/types/settings";
 import {
   appliesToText,
+  countText,
   DEFAULT_WORK_DAYS,
   effectiveWorkDays,
   INCORRECT_PASSWORD_MESSAGE,
@@ -403,6 +404,19 @@ describe("workRuleCardKey", () => {
     expect(
       workRuleCardKey("breakDays", level({ own: { ...noneOwn, annualOffDays: true } })),
     ).toBe(base);
+  });
+});
+
+describe("countText", () => {
+  it("uses the singular for exactly one", () => {
+    expect(countText(1, "break day")).toBe("1 break day");
+    expect(countText(1, "month")).toBe("1 month");
+  });
+
+  it("uses the plural for every other count", () => {
+    expect(countText(0, "break day")).toBe("0 break days");
+    expect(countText(4, "break day")).toBe("4 break days");
+    expect(countText(12, "month")).toBe("12 months");
   });
 });
 

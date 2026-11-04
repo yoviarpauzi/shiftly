@@ -21,7 +21,7 @@ import { changePasswordSchema } from "@/validation/settings";
 const PASSWORD_LABELS: Record<PasswordField, string> = {
   currentPassword: "Current password",
   newPassword: "New password",
-  confirmPassword: "Confirm new password",
+  confirmPassword: "Confirm password",
 };
 
 const PASSWORD_FIELDS = Object.keys(PASSWORD_LABELS) as PasswordField[];
@@ -162,8 +162,7 @@ export function PasswordForm() {
               ))}
             </FieldGroup>
             <p className="text-xs text-muted-foreground">
-              Changing your password signs you out of your other devices. You stay signed in on
-              this device.
+              Changing the password signs out every other device. This device stays signed in.
             </p>
             {formError && (
               <p role="alert" className="text-sm text-destructive">

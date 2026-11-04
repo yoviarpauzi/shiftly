@@ -155,6 +155,11 @@ export function summaryNumber(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+// "1 break day", "4 break days": the noun takes an "s" for every count but one.
+export function countText(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 // The action input for the level a card was loaded for.
 export function workRuleTargetFor(
   rules: Pick<LocationWorkRules, "scope" | "siteId" | "locationId">,

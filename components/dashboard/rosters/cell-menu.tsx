@@ -67,16 +67,16 @@ export function CellMenu({
         <DropdownMenuGroup>
           <DropdownMenuRadioGroup value={currentValue(cell)} onValueChange={handleValueChange}>
             {shifts.map((entry) => (
-              <DropdownMenuRadioItem key={entry.id} value={`shift-${entry.order}`}>
+              <DropdownMenuRadioItem key={entry.id} value={`shift-${entry.order}`} closeOnClick>
                 <ShiftChip order={entry.order} />
                 Shift {entry.order} · {entry.startTime} - {entry.endTime}
               </DropdownMenuRadioItem>
             ))}
-            <DropdownMenuRadioItem value="off">
+            <DropdownMenuRadioItem value="off" closeOnClick>
               <MoonIcon />
               Day off
             </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="break">
+            <DropdownMenuRadioItem value="break" closeOnClick>
               <CoffeeIcon />
               Break
             </DropdownMenuRadioItem>

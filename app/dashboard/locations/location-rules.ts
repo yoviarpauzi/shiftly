@@ -19,12 +19,19 @@ export function canDeleteLocation({
   assignedAdminSites,
   activeDepartments,
   activeWorkers,
+  activeShifts,
 }: {
   assignedAdminSites: number;
   activeDepartments: number;
   activeWorkers: number;
+  activeShifts: number;
 }): { ok: true } | { ok: false; formError: string } {
-  if (assignedAdminSites === 0 && activeDepartments === 0 && activeWorkers === 0) {
+  if (
+    assignedAdminSites === 0 &&
+    activeDepartments === 0 &&
+    activeWorkers === 0 &&
+    activeShifts === 0
+  ) {
     return { ok: true };
   }
 
@@ -42,17 +49,25 @@ export function canDeleteLocation({
     blockers.push(plural(activeDepartments, "active department", "active departments"));
   }
 
-  // Users and workers can be moved to another location, but a department cannot, so it has to be deleted.
+  if (activeShifts > 0) {
+    blockers.push(plural(activeShifts, "active shift", "active shifts"));
+  }
+
+  // Users and workers can be moved to another location, but departments and shifts cannot, so they have to be deleted.
   const movable = [
     assignedAdminSites > 0 ? "users" : null,
     activeWorkers > 0 ? "workers" : null,
   ].filter((label) => label !== null);
-  let action = `Move the ${movable.join(" and ")} and delete the departments first.`;
+  const deletable = [
+    activeDepartments > 0 ? "departments" : null,
+    activeShifts > 0 ? "shifts" : null,
+  ].filter((label) => label !== null);
+  let action = `Move the ${movable.join(" and ")} and delete the ${deletable.join(" and ")} first.`;
 
-  if (activeDepartments === 0) {
+  if (deletable.length === 0) {
     action = "Move them first.";
   } else if (movable.length === 0) {
-    action = activeDepartments === 1 ? "Delete it first." : "Delete them first.";
+    action = activeDepartments + activeShifts === 1 ? "Delete it first." : "Delete them first.";
   }
 
   return {

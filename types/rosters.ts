@@ -113,7 +113,7 @@ export type RosterConflictView = {
 };
 
 // A rule warning as the panel lists it. workerId and workerName are null for a warning about a
-// cell group, which marks no cell.
+// cell group, which marks the group's work cells instead of one worker's cell.
 export type RosterWarningView = {
   lineId: string;
   lineTitle: string;

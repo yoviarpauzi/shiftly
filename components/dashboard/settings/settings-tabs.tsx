@@ -15,7 +15,7 @@ export function SettingsTabs({ workRules, tab }: SettingsTabsProps) {
     <Tabs
       value={value}
       onValueChange={(next) => setValue(next as SettingsTab)}
-      className="w-full max-w-140 gap-4"
+      className="w-full gap-4"
     >
       <TabsList>
         <TabsTrigger value="account">Account</TabsTrigger>

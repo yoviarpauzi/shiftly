@@ -39,7 +39,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-const { attendanceChoicesFor } = await import("./attendance");
+const { attendanceChoicesFor, resolveSelection } = await import("./attendance");
 
 const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333331";
@@ -96,5 +96,83 @@ describe("attendanceChoicesFor", () => {
     expect(choices.locationId).toBeNull();
     expect(choices.shifts).toEqual([]);
     expect(fake.calls.some((call) => call.table === shift)).toBe(false);
+  });
+
+  it("reads no departments or shifts while the location is All", async () => {
+    seedChoices([
+      { id: LOCATION_A, name: "A" },
+      { id: LOCATION_B, name: "B" },
+    ]);
+
+    const choices = await attendanceChoicesFor(SUPERADMIN, SITE_ID, null);
+
+    expect(choices.locationId).toBeNull();
+    expect(choices.departments).toEqual([]);
+    expect(choices.shifts).toEqual([]);
+    expect(fake.calls.some((call) => call.table === department)).toBe(false);
+    expect(fake.calls.some((call) => call.table === shift)).toBe(false);
+  });
+});
+
+const SITE_B = "11111111-1111-4111-8111-111111111112";
+const LOCATION_OF_B = "33333333-3333-4333-8333-333333333333";
+
+describe("resolveSelection", () => {
+  const twoSites = [{ id: SITE_ID }, { id: SITE_B }];
+  const locations = [
+    { id: LOCATION_A, siteId: SITE_ID },
+    { id: LOCATION_B, siteId: SITE_ID },
+    { id: LOCATION_OF_B, siteId: SITE_B },
+  ];
+
+  it("is All sites and All locations when nothing is chosen and there is a choice", () => {
+    expect(resolveSelection(twoSites, locations, null, null)).toEqual({
+      siteId: null,
+      locationId: null,
+    });
+  });
+
+  it("picks the only site and the only location without being asked", () => {
+    expect(
+      resolveSelection([{ id: SITE_ID }], [{ id: LOCATION_A, siteId: SITE_ID }], null, null),
+    ).toEqual({ siteId: SITE_ID, locationId: LOCATION_A });
+  });
+
+  it("picks the only site but stays on All locations when it has two", () => {
+    expect(resolveSelection([{ id: SITE_ID }], locations.slice(0, 2), null, null)).toEqual({
+      siteId: SITE_ID,
+      locationId: null,
+    });
+  });
+
+  it("keeps a chosen site and location", () => {
+    expect(resolveSelection(twoSites, locations, SITE_ID, LOCATION_B)).toEqual({
+      siteId: SITE_ID,
+      locationId: LOCATION_B,
+    });
+  });
+
+  it("falls back to All for a site that is not allowed", () => {
+    expect(
+      resolveSelection(twoSites, locations, "99999999-9999-4999-8999-999999999999", LOCATION_A),
+    ).toEqual({ siteId: null, locationId: null });
+  });
+
+  it("falls back to All locations for a location of another site", () => {
+    expect(resolveSelection(twoSites, locations, SITE_ID, LOCATION_OF_B)).toEqual({
+      siteId: SITE_ID,
+      locationId: null,
+    });
+  });
+
+  it("ignores a location when no site is chosen", () => {
+    expect(resolveSelection(twoSites, locations, null, LOCATION_A)).toEqual({
+      siteId: null,
+      locationId: null,
+    });
+  });
+
+  it("gives null for both when there are no sites", () => {
+    expect(resolveSelection([], [], null, null)).toEqual({ siteId: null, locationId: null });
   });
 });

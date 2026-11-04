@@ -32,6 +32,7 @@ import { RosterSummary } from "@/components/dashboard/rosters/roster-summary";
 import { WarningsPanel } from "@/components/dashboard/rosters/warnings-panel";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { buttonVariants, Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const NO_FILTERS: RosterLineFilters = {
   departmentId: null,
@@ -129,11 +130,12 @@ export function RosterDetailView({ header, roster, generateInput }: RosterDetail
   }
 
   return (
-    <div className="flex max-w-7xl flex-col gap-4 md:gap-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        {header}
+    <div className="flex flex-col gap-4 md:gap-5">
+      {header}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <RosterSummary counts={roster.counts} />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:shrink-0">
-          <Link href="/dashboard/rosters" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/dashboard/rosters" className={cn(buttonVariants({ variant: "outline" }))}>
             Back to rosters
           </Link>
           {draft && generateInput && (
@@ -144,7 +146,6 @@ export function RosterDetailView({ header, roster, generateInput }: RosterDetail
           {draft && <Button onClick={() => setConfirming(true)}>Confirm roster</Button>}
         </div>
       </div>
-      <RosterSummary counts={roster.counts} />
       <RosterGridFilters
         filters={filters}
         options={lineFilterOptions(roster.lines, filters.departmentId)}

@@ -3,6 +3,7 @@ import {
   createColumnHelper,
   tableFeatures,
 } from "@tanstack/react-table";
+import { rowLocationLabel } from "@/app/dashboard/attendance/attendance-rules";
 import { REASON_MAX_LENGTH } from "@/validation/attendance";
 import type { AttendanceFormRow, AttendanceRowActions } from "@/types/attendance";
 import { StatusSelect } from "@/components/dashboard/attendance/attendance-status";
@@ -20,6 +21,7 @@ export function createAttendanceColumns({
   onReasonChange,
   errorIds,
   disabled,
+  locationView,
 }: AttendanceRowActions) {
   return columnHelper.columns([
     columnHelper.accessor("employeeId", {
@@ -29,6 +31,12 @@ export function createAttendanceColumns({
     columnHelper.accessor("workerName", {
       header: () => <span>Name</span>,
       cell: ({ row }) => <span className="font-medium">{row.original.workerName}</span>,
+    }),
+    // Hidden while one location is chosen. RowsView turns it on for the All scopes.
+    columnHelper.display({
+      id: "location",
+      header: () => <span>Location</span>,
+      cell: ({ row }) => rowLocationLabel(row.original, locationView),
     }),
     columnHelper.accessor("departmentName", {
       header: () => <span>Department</span>,
@@ -76,7 +84,7 @@ export function createAttendanceColumns({
           maxLength={REASON_MAX_LENGTH}
           disabled={disabled || row.original.draftStatus === null}
           aria-label={`Reason for ${row.original.workerName}`}
-          className="h-9 min-w-56"
+          className="h-9 min-w-56 disabled:bg-transparent"
         />
       ),
       enableHiding: false,

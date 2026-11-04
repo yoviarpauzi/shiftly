@@ -1,4 +1,7 @@
-import { ATTENDANCE_STATUS_LABELS } from "@/app/dashboard/attendance/attendance-rules";
+import {
+  ATTENDANCE_STATUS_LABELS,
+  rowLocationLabel,
+} from "@/app/dashboard/attendance/attendance-rules";
 import { REASON_MAX_LENGTH } from "@/validation/attendance";
 import type { AttendanceCardsProps, AttendanceStatus } from "@/types/attendance";
 import { ShiftChip } from "@/components/dashboard/shift-chip";
@@ -17,6 +20,7 @@ export function AttendanceCards({
   errorIds,
   changedIds,
   disabled,
+  locationView,
 }: AttendanceCardsProps) {
   return (
     <ul className="flex flex-col gap-3">
@@ -33,7 +37,9 @@ export function AttendanceCards({
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="font-medium">{row.workerName}</span>
               <span className="text-sm text-muted-foreground">
-                {row.employeeId} · {row.departmentName} · {row.positionName}
+                {[row.employeeId, rowLocationLabel(row, locationView), row.departmentName, row.positionName]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </div>
             <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground tabular-nums">
@@ -64,6 +70,7 @@ export function AttendanceCards({
             maxLength={REASON_MAX_LENGTH}
             disabled={disabled || row.draftStatus === null}
             aria-label={`Reason for ${row.workerName}`}
+            className="disabled:bg-transparent"
           />
         </li>
       ))}

@@ -2,6 +2,8 @@ import type {
   AttendanceDraftRow,
   AttendanceEntry,
   AttendanceFormRow,
+  AttendanceLocationView,
+  AttendanceLock,
   AttendanceStatus,
   AttendanceSummary,
 } from "@/types/attendance";
@@ -51,6 +53,17 @@ export function rowsSignature(
   return `${rows.length}-${hash.toString(36)}`;
 }
 
+// What makes the form start again from the saved rows: the day, whether one location is chosen, and
+// the saved statuses and reasons. Unsaved drafts must not follow the user to another day or into the
+// All view, where they would look saved.
+export function attendanceFormKey(
+  date: string,
+  locationId: string | null,
+  rows: { assignmentId: string; status: AttendanceStatus | null; reason: string | null }[],
+): string {
+  return `${date}-${locationId ?? "all"}-${rowsSignature(rows)}`;
+}
+
 // Whether an assignment can be marked on a date: a work assignment of a confirmed roster, on
 // that date, whose request is still approved. Returns the message when it cannot.
 export function scheduledWorkError(
@@ -92,6 +105,65 @@ export function summarize(rows: { status: AttendanceStatus | null }[]): Attendan
 // passes today in the location's time zone.
 export function isFutureDay(date: string, today: string): boolean {
   return date > today;
+}
+
+// Why the day cannot be marked. A location not chosen yet (All) wins over a future day, because
+// saving needs one location. When the access has no location at all there is nothing to choose, so
+// that reason does not apply.
+export function attendanceLock(
+  locationId: string | null,
+  isFuture: boolean,
+  locationCount: number,
+): AttendanceLock {
+  if (locationId === null && locationCount > 0) return "scope";
+
+  return isFuture ? "future" : null;
+}
+
+// What the Location column shows for the scope on screen.
+export function locationViewFor(choices: {
+  siteId: string | null;
+  locationId: string | null;
+}): AttendanceLocationView {
+  if (choices.locationId !== null) return "none";
+
+  return choices.siteId !== null ? "location" : "site-location";
+}
+
+// The text of the Location column. Under All sites it names the site too, because two sites can
+// each have a location of the same name.
+export function rowLocationLabel(
+  row: { siteName: string; locationName: string },
+  view: AttendanceLocationView,
+): string | null {
+  if (view === "none") return null;
+
+  return view === "location" ? row.locationName : `${row.siteName} · ${row.locationName}`;
+}
+
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+// "2026-11-09" as "Mon, 9 Nov 2026". Fixed English names and UTC arithmetic, so the text does not
+// change with the browser's locale or the ICU version. The date is already a real calendar date.
+export function formatAttendanceDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+
+  return `${WEEKDAY_NAMES[weekday]}, ${day} ${MONTH_NAMES[month - 1]} ${year}`;
 }
 
 // Fills Present only where nothing is chosen yet. Every reason and every chosen status stays.

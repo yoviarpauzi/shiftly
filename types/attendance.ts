@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AppRole } from "@/types/roles";
 import type { LocationTimezone } from "@/validation/location";
 
@@ -54,6 +55,9 @@ export type AttendanceRow = {
   workerName: string;
   departmentName: string;
   positionName: string;
+  // The place of the request, so a list that spans locations can tell the rows apart.
+  locationName: string;
+  siteName: string;
   shiftOrder: number;
   shiftName: string;
   startTime: string;
@@ -72,16 +76,16 @@ export type AttendanceJoinedRow = Omit<AttendanceRow, "status"> & {
 
 export type AttendanceListResult = {
   rows: AttendanceRow[];
-  // Counts every worker of the date and location, before the department, shift, status, and query
+  // Counts every worker of the date and scope, before the department, shift, status, and query
   // filters.
   summary: AttendanceSummary;
-  // Today in the location's time zone.
+  // Today in the chosen location's time zone, or in the default zone while the location is All.
   today: string;
   isFuture: boolean;
 };
 
-// What the page offers in its filters, and the site and location it resolved to. Both are null
-// when the access allows no site or no location.
+// What the page offers in its filters, and the site and location it resolved to. Null means All, or
+// that the access allows none.
 export type AttendanceChoices = {
   siteId: string | null;
   locationId: string | null;
@@ -97,13 +101,28 @@ export type AttendanceFormRow = AttendanceRow & {
   draftReason: string;
 };
 
+// Why the page cannot be marked: "future" is a day after today, "scope" is a location not chosen
+// yet (All). Null means it can.
+export type AttendanceLock = "future" | "scope" | null;
+
+// The Location column: none, the location name, or the site and the location.
+export type AttendanceLocationView = "none" | "location" | "site-location";
+
 export type AttendanceFormProps = {
   date: string;
   // Today in the location's time zone, for the Today button.
   today: string;
   rows: AttendanceRow[];
-  // True for a day after today, which can be viewed and not marked.
-  readOnly: boolean;
+  // The form starts again from `rows` when this changes. It is not a React key, which would also
+  // remount the filters below and cost the search box its focus.
+  resetKey: string;
+  lock: AttendanceLock;
+  locationView: AttendanceLocationView;
+  // The server-rendered parts that sit between the date row and the table.
+  filters: ReactNode;
+  summary: ReactNode;
+  // Shown in place of the table when there are no rows.
+  empty: ReactNode;
 };
 
 export type AttendanceDateRowProps = {
@@ -114,6 +133,12 @@ export type AttendanceDateRowProps = {
   onMarkAll: () => void;
   onSave: () => void;
   isSaving: boolean;
+};
+
+export type AttendanceDateButtonProps = {
+  // YYYY-MM-DD.
+  date: string;
+  onPick: (date: string) => void;
 };
 
 export type AttendanceFiltersProps = {
@@ -133,6 +158,7 @@ export type AttendanceRowActions = {
   errorIds: ReadonlySet<string>;
   changedIds: ReadonlySet<string>;
   disabled: boolean;
+  locationView: AttendanceLocationView;
 };
 
 export type AttendanceCardsProps = AttendanceRowActions & { rows: AttendanceFormRow[] };

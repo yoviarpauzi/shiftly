@@ -1,4 +1,4 @@
-import type { AttendanceAccess } from "@/types/attendance";
+import type { AttendanceAccess, AttendanceChoices } from "@/types/attendance";
 import type { UserScope } from "@/types/users";
 
 // Superadmin sees every location. HO sees the locations of its own site. Admin site sees its own
@@ -38,4 +38,21 @@ export function canAccessAttendanceLocation(
   const locationOk = access.locationId === null || access.locationId === location.id;
 
   return siteOk && locationOk;
+}
+
+// The locations a list may read: the chosen location, else the chosen site's locations, else every
+// location in the choices. Each one still has to pass canAccessAttendanceLocation, so a list or a
+// URL that names a place outside the access gives nothing.
+export function attendanceScope(
+  access: AttendanceAccess,
+  choices: Pick<AttendanceChoices, "siteId" | "locationId" | "locations">,
+): string[] {
+  return choices.locations
+    .filter(
+      (entry) =>
+        (choices.locationId === null || entry.id === choices.locationId) &&
+        (choices.siteId === null || entry.siteId === choices.siteId) &&
+        canAccessAttendanceLocation(access, entry),
+    )
+    .map((entry) => entry.id);
 }

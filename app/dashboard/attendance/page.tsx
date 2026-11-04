@@ -6,7 +6,7 @@ import { dateInZone } from "@/lib/indonesia-date";
 import { parseAttendanceFilters } from "@/validation/attendance";
 import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import { requireAttendanceAccess } from "./attendance-guard";
-import { rowsSignature } from "./attendance-rules";
+import { attendanceFormKey, attendanceLock, locationViewFor } from "./attendance-rules";
 import { attendanceChoicesFor, listAttendance } from "./attendance";
 
 export default async function Page({
@@ -36,7 +36,7 @@ export default async function Page({
     shiftId: choices.shifts.some((entry) => entry.id === parsed.shiftId) ? parsed.shiftId : null,
   };
 
-  const list = await listAttendance(access, filters);
+  const list = await listAttendance(access, filters, choices);
   const filtered =
     filters.status !== "all" || filters.query !== "" || filters.departmentId || filters.shiftId;
 
@@ -48,23 +48,26 @@ export default async function Page({
           Mark who came to work each day. Only workers scheduled in a confirmed roster appear.
         </p>
       </div>
-      <AttendanceFilters filters={filters} choices={choices} />
-      <AttendanceSummary summary={list.summary} />
-      {list.rows.length > 0 ? (
-        <AttendanceForm
-          key={`${filters.date}-${rowsSignature(list.rows)}`}
-          date={filters.date}
-          today={list.today}
-          rows={list.rows}
-          readOnly={list.isFuture}
-        />
-      ) : filtered && list.summary.scheduled > 0 ? (
-        <p className="rounded-lg border px-4 py-12 text-center text-sm text-muted-foreground">
-          No workers match these filters
-        </p>
-      ) : (
-        <AttendanceEmpty locationName={chosen?.name ?? "this location"} />
-      )}
+      <AttendanceForm
+        date={filters.date}
+        today={list.today}
+        rows={list.rows}
+        resetKey={attendanceFormKey(filters.date, choices.locationId, list.rows)}
+        lock={attendanceLock(choices.locationId, list.isFuture, choices.locations.length)}
+        locationView={locationViewFor(choices)}
+        filters={<AttendanceFilters filters={filters} choices={choices} />}
+        // The Figma frame for a day with no roster has no counts, since they would all be zero.
+        summary={list.summary.scheduled > 0 ? <AttendanceSummary summary={list.summary} /> : null}
+        empty={
+          filtered && list.summary.scheduled > 0 ? (
+            <p className="rounded-lg border px-4 py-12 text-center text-sm text-muted-foreground">
+              No workers match these filters
+            </p>
+          ) : (
+            <AttendanceEmpty locationName={chosen?.name ?? "these locations"} />
+          )
+        }
+      />
     </div>
   );
 }

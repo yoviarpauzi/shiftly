@@ -25,6 +25,8 @@ const joined = (overrides: Record<string, unknown> = {}) => ({
   departmentId: "d1",
   departmentName: "Produksi",
   positionName: "Operator",
+  locationName: "Gudang Utara",
+  siteName: "Site Utama",
   shiftId: "s1",
   shiftOrder: 1,
   shiftName: "Pagi",
@@ -158,16 +160,20 @@ describe("resolveSelection", () => {
     expect(resolveSelection(sites, locations, "s1", "l2")).toEqual({ siteId: "s1", locationId: "l2" });
   });
 
-  it("falls back to the first site and its first location for unknown values", () => {
+  it("falls back to All for unknown values when there is a choice", () => {
     expect(resolveSelection(sites, locations, "nope", "nope")).toEqual({
-      siteId: "s1",
-      locationId: "l1",
+      siteId: null,
+      locationId: null,
     });
-    expect(resolveSelection(sites, locations, null, null)).toEqual({ siteId: "s1", locationId: "l1" });
+    expect(resolveSelection(sites, locations, null, null)).toEqual({ siteId: null, locationId: null });
   });
 
-  it("falls back to the site's first location when the location belongs to another site", () => {
+  it("picks the site's only location when the location belongs to another site", () => {
     expect(resolveSelection(sites, locations, "s2", "l1")).toEqual({ siteId: "s2", locationId: "l3" });
+  });
+
+  it("falls back to All locations when the site has several and the location is another site's", () => {
+    expect(resolveSelection(sites, locations, "s1", "l3")).toEqual({ siteId: "s1", locationId: null });
   });
 
   it("gives nulls when nothing is allowed", () => {

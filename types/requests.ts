@@ -49,6 +49,9 @@ export type RequestDetail = RequestRow & {
   siteName: string;
   rejectReason: string | null;
   lines: RequestLineInput[];
+  // The shifts the lines name, deleted ones included, so a request that was rejected or cancelled
+  // before its shift was deleted still shows the shift it asked for.
+  lineShifts: RequestShiftChoice[];
 };
 
 export type RequestPage = {

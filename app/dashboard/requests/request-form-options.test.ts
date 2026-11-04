@@ -25,6 +25,7 @@ import {
   returnsToPending,
   shiftOptionLabel,
   shiftsFor,
+  shiftsForRequest,
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
@@ -90,6 +91,7 @@ const detail: RequestDetail = {
   lineCount: 1,
   createdByName: "Admin",
   rejectReason: null,
+  lineShifts: [],
   lines: [
     {
       departmentId: DEPT_A1,
@@ -258,7 +260,66 @@ describe("line rules", () => {
   });
 });
 
+describe("shiftsForRequest", () => {
+  const GONE = "5d000000-0000-4000-8000-000000000000";
+  const gone = {
+    id: GONE,
+    name: "Lama",
+    order: 3,
+    startTime: "22:00",
+    endTime: "06:00",
+    siteId: SITE_A,
+  };
+
+  it("is the site's shifts for a new request", () => {
+    expect(shiftsForRequest(choices, LOC_A1, null).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+    ]);
+  });
+
+  it("adds a shift the request's lines use that is no longer offered, in order", () => {
+    const request = { ...detail, lineShifts: [gone] };
+
+    expect(shiftsForRequest(choices, LOC_A1, request).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+      GONE,
+    ]);
+  });
+
+  it("does not repeat a shift that is already offered", () => {
+    const request = { ...detail, lineShifts: [choices.shifts[0]] };
+
+    expect(shiftsForRequest(choices, LOC_A1, request).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+    ]);
+  });
+});
+
 describe("requestFormDefaults shifts", () => {
+  it("keeps a line's shift that is deleted now but known from the request", () => {
+    const GONE = "5d000000-0000-4000-8000-000000000000";
+    const gone = {
+      id: GONE,
+      name: "Lama",
+      order: 3,
+      startTime: "22:00",
+      endTime: "06:00",
+      siteId: SITE_A,
+    };
+    const rejected = {
+      ...detail,
+      status: "rejected" as const,
+      lineShifts: [gone],
+      lines: [{ ...detail.lines[0], shiftId: GONE }],
+    };
+
+    expect(requestFormDefaults(rejected, choices).lines[0].shiftId).toBe(GONE);
+  });
+
+
   it("keeps a stored shift that is still one of the site's shifts", () => {
     expect(requestFormDefaults(detail, choices).lines.map((row) => row.shiftId)).toEqual([
       SHIFT_1,

@@ -193,6 +193,25 @@ export async function getRequest(
     .where(eq(rosterRequestLine.requestId, id))
     .orderBy(asc(rosterRequestLineDay.lineId), asc(rosterRequestLineDay.dayOffset));
 
+  const shiftIds = [...new Set(lineRows.flatMap((line) => (line.shiftId ? [line.shiftId] : [])))];
+
+  // No deletedAt filter: the detail keeps showing the shift a line asked for after it is deleted.
+  const lineShifts =
+    shiftIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: shift.id,
+            name: shift.name,
+            order: shift.order,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            siteId: shift.siteId,
+          })
+          .from(shift)
+          .where(inArray(shift.id, shiftIds))
+          .orderBy(asc(shift.order));
+
   const headcountsByLine = new Map<string, number[]>();
 
   for (const day of dayRows) {
@@ -213,6 +232,11 @@ export async function getRequest(
     status: row.status as RequestStatus,
     lineCount: lines.length,
     lines,
+    lineShifts: lineShifts.map((row) => ({
+      ...row,
+      startTime: toHourMinute(row.startTime),
+      endTime: toHourMinute(row.endTime),
+    })),
   };
 }
 

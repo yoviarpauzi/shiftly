@@ -88,6 +88,21 @@ export function shiftsFor(choices: RequestChoices, locationId: string): RequestS
   return choices.shifts.filter((row) => row.siteId === siteId);
 }
 
+// The shifts the Shift select offers: the site's active shifts, plus any shift the request's own
+// lines name that is no longer active, so a read-only request still shows what it asked for.
+export function shiftsForRequest(
+  choices: RequestChoices,
+  locationId: string,
+  request: Pick<RequestDetail, "lineShifts"> | null,
+): RequestShiftChoice[] {
+  const offered = shiftsFor(choices, locationId);
+  const own = (request?.lineShifts ?? []).filter(
+    (row) => !offered.some((shift) => shift.id === row.id),
+  );
+
+  return [...offered, ...own].sort((a, b) => a.order - b.order);
+}
+
 export function shiftOptionLabel(
   shift: Pick<RequestShiftChoice, "order" | "startTime" | "endTime">,
 ): string {
@@ -212,9 +227,11 @@ export function requestFormDefaults(
       locationId: request.locationId,
       lines: request.lines.map((line) => {
         const formLine = formLineFromInput(line);
-        const shiftKnown = choices.shifts.some((row) => row.id === formLine.shiftId);
+        const shiftKnown =
+          choices.shifts.some((row) => row.id === formLine.shiftId) ||
+          request.lineShifts.some((row) => row.id === formLine.shiftId);
 
-        // A shift that is no longer offered opens as Any shift rather than as an empty select.
+        // A shift nobody knows opens as Any shift rather than as an empty select.
         return shiftKnown ? formLine : { ...formLine, shiftId: null };
       }),
     };

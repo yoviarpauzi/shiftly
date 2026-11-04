@@ -20,7 +20,7 @@ import {
   positionsFor,
   requestFormDefaults,
   returnsToPending,
-  shiftsFor,
+  shiftsForRequest,
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
@@ -168,7 +168,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
   const siteLocations = locationsFor(choices, siteId);
   const departments = departmentsFor(choices, locationId);
   const positions = positionsFor(choices, locationId);
-  const shifts = shiftsFor(choices, locationId);
+  const shifts = shiftsForRequest(choices, locationId, request);
   const isEdit = request !== null;
 
   return (

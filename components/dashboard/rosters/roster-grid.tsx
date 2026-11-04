@@ -94,10 +94,11 @@ function Legend({ editable }: { editable: boolean }) {
   );
 }
 
-// One group per line: a row per worker, then the shifts nobody could fill. It scrolls sideways
-// inside its card, so a week does not widen the page. In a draft every cell is a button. One edit
-// saves at a time: every cell is disabled until it is done. A line the page cuts has its header on
-// both pages, but the Unfilled row belongs to the page that holds its last worker.
+// One group per line: a row per worker, then the shifts nobody could fill. It scrolls inside its own
+// box, so a long roster does not push the toolbar away and a week does not widen the page. The day
+// header and the worker names stay in view while it scrolls. In a draft every cell is a button. One
+// edit saves at a time: every cell is disabled until it is done. A line the page cuts has its
+// header on both pages, but the Unfilled row belongs to the page that holds its last worker.
 export function RosterGrid({
   days,
   shifts,
@@ -124,11 +125,11 @@ export function RosterGrid({
   return (
     <div className="flex flex-col gap-3">
       <Legend editable={editable} />
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="max-h-[70vh] overflow-auto rounded-lg border">
         <table className="w-full min-w-max text-sm">
-          <thead className="bg-muted">
+          <thead className="sticky top-0 z-20 bg-muted">
             <tr>
-              <th scope="col" className="px-3 py-2 text-left font-medium">
+              <th scope="col" className="sticky left-0 bg-muted px-3 py-2 text-left font-medium">
                 Worker
               </th>
               {days.map((date) => (
@@ -157,7 +158,10 @@ export function RosterGrid({
               </tr>
               {line.workers.map((worker) => (
                 <tr key={worker.workerId} className="border-t">
-                  <th scope="row" className="px-3 py-2 text-left font-normal">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 bg-background px-3 py-2 text-left font-normal"
+                  >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{worker.name}</span>
                       <span className="text-xs text-muted-foreground">{worker.employeeId}</span>
@@ -243,7 +247,10 @@ export function RosterGrid({
               ))}
               {line.endsHere && line.unfilled.length > 0 && (
                 <tr className="border-t bg-destructive/5">
-                  <th scope="row" className="px-3 py-2 text-left font-medium text-destructive">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 bg-[color-mix(in_oklab,var(--background),var(--destructive)_5%)] px-3 py-2 text-left font-medium text-destructive"
+                  >
                     Unfilled
                   </th>
                   {days.map((date) => (

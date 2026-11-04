@@ -1,16 +1,52 @@
 -- Shifts move from a site to a location. Every old shift is copied once per location of its site
 -- (deleted locations included), every reference is repointed to the copy for the owning request's
 -- location, and the old rows are deleted.
+-- A location can be moved to another site, so a reference made before the move uses a shift of the
+-- location's old site. Each such (shift, location) pair also gets a copy, soft-deleted so it keeps
+-- the history but is never offered again.
 ALTER TABLE "shift" ADD COLUMN "location_id" uuid;--> statement-breakpoint
 -- The copies of one shift share site_id, order and name, so the old indexes must go before the copy.
 DROP INDEX "shift_siteId_order_active_unique";--> statement-breakpoint
 DROP INDEX "shift_siteId_lowerName_active_unique";--> statement-breakpoint
+-- One row per (old shift, location): each location of the shift's own site, plus each location whose
+-- request references the shift from another site (the location was moved; "moved" marks those).
 CREATE TEMP TABLE "shift_map" AS
-SELECT s."id" AS "old_id", l."id" AS "location_id", gen_random_uuid() AS "new_id"
-FROM "shift" s
-JOIN "location" l ON l."site_id" = s."site_id";--> statement-breakpoint
+SELECT p."old_id", p."location_id", p."moved", gen_random_uuid() AS "new_id"
+FROM (
+  SELECT s."id" AS "old_id", l."id" AS "location_id", false AS "moved"
+  FROM "shift" s
+  JOIN "location" l ON l."site_id" = s."site_id"
+  UNION ALL
+  SELECT ref."old_id", ref."location_id", true
+  FROM (
+    SELECT t."shift_id" AS "old_id", rr."location_id" FROM "roster_request_line" t
+    JOIN "roster_request" rr ON rr."id" = t."request_id"
+    UNION
+    SELECT t."shift_id", rr."location_id" FROM "roster_shift_target" t
+    JOIN "roster" r ON r."id" = t."roster_id" JOIN "roster_request" rr ON rr."id" = r."request_id"
+    UNION
+    SELECT t."shift_id", rr."location_id" FROM "roster_assignment" t
+    JOIN "roster" r ON r."id" = t."roster_id" JOIN "roster_request" rr ON rr."id" = r."request_id"
+    UNION
+    SELECT t."shift_id", rr."location_id" FROM "roster_conflict" t
+    JOIN "roster" r ON r."id" = t."roster_id" JOIN "roster_request" rr ON rr."id" = r."request_id"
+    UNION
+    SELECT t."before_shift_id", rr."location_id" FROM "roster_cell_edit" t
+    JOIN "roster" r ON r."id" = t."roster_id" JOIN "roster_request" rr ON rr."id" = r."request_id"
+    UNION
+    SELECT t."after_shift_id", rr."location_id" FROM "roster_cell_edit" t
+    JOIN "roster" r ON r."id" = t."roster_id" JOIN "roster_request" rr ON rr."id" = r."request_id"
+  ) ref
+  JOIN "shift" s ON s."id" = ref."old_id"
+  JOIN "location" l ON l."id" = ref."location_id"
+  -- Pairs of the shift's own site are already in the first branch.
+  WHERE l."site_id" <> s."site_id"
+) p;--> statement-breakpoint
+-- A copy for a moved location is soft-deleted: it is history, and active copies of the location's new
+-- site may already use its order and name.
 INSERT INTO "shift" ("id", "site_id", "location_id", "order", "name", "start_time", "end_time", "created_at", "updated_at", "deleted_at")
-SELECT m."new_id", s."site_id", m."location_id", s."order", s."name", s."start_time", s."end_time", s."created_at", s."updated_at", coalesce(s."deleted_at", l."deleted_at")
+SELECT m."new_id", s."site_id", m."location_id", s."order", s."name", s."start_time", s."end_time", s."created_at", s."updated_at",
+  CASE WHEN m."moved" THEN coalesce(s."deleted_at", l."deleted_at", now()) ELSE coalesce(s."deleted_at", l."deleted_at") END
 FROM "shift_map" m
 JOIN "shift" s ON s."id" = m."old_id"
 JOIN "location" l ON l."id" = m."location_id";--> statement-breakpoint
@@ -32,8 +68,8 @@ WHERE t."roster_id" = r."id" AND r."request_id" = rr."id" AND m."old_id" = t."be
 UPDATE "roster_cell_edit" t SET "after_shift_id" = m."new_id"
 FROM "shift_map" m, "roster" r, "roster_request" rr
 WHERE t."roster_id" = r."id" AND r."request_id" = rr."id" AND m."old_id" = t."after_shift_id" AND m."location_id" = rr."location_id";--> statement-breakpoint
--- A reference still on an old shift could not be mapped (its request's location is not in the
--- shift's site). Stop rather than lose it.
+-- A reference still on an old shift could not be mapped (no copy exists for its request's location).
+-- Stop rather than lose it.
 DO $$
 DECLARE
   remaining bigint;

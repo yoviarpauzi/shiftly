@@ -29,22 +29,25 @@ function byText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-// The site and location the page shows. A value that is not allowed falls back to the first allowed
-// site, and then to the first allowed location of that site, the way the Roster menu does.
+// The site and location the page shows. Null means All. A value that is not allowed becomes All for
+// that level, and a level with only one choice is that choice, so nobody is left on All when there
+// is nothing to choose between. A location is only read once a site is chosen.
 export function resolveSelection(
   sites: { id: string }[],
   locations: { id: string; siteId: string }[],
   siteId: string | null,
   locationId: string | null,
 ): { siteId: string | null; locationId: string | null } {
-  const chosenSite = sites.find((entry) => entry.id === siteId) ?? sites[0] ?? null;
+  const chosenSite =
+    sites.find((entry) => entry.id === siteId) ?? (sites.length === 1 ? sites[0] : null);
 
   if (!chosenSite) {
     return { siteId: null, locationId: null };
   }
 
   const inSite = locations.filter((entry) => entry.siteId === chosenSite.id);
-  const chosenLocation = inSite.find((entry) => entry.id === locationId) ?? inSite[0] ?? null;
+  const chosenLocation =
+    inSite.find((entry) => entry.id === locationId) ?? (inSite.length === 1 ? inSite[0] : null);
 
   return { siteId: chosenSite.id, locationId: chosenLocation?.id ?? null };
 }

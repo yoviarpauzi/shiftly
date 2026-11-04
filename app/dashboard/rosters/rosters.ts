@@ -40,6 +40,7 @@ import type {
   AssignmentKind,
   CellContextResult,
   EngineHistory,
+  EvalCell,
   GenerateLine,
   GenerateShift,
   GenerateView,
@@ -57,6 +58,7 @@ import type {
   RosterRow,
   RosterSortColumn,
   RosterStatus,
+  RosterWarning,
 } from "@/types/rosters";
 import type { SortCriterion } from "@/types/sort";
 import { parseRequestId } from "@/validation/request-id";
@@ -224,6 +226,37 @@ export function buildLineViews(input: {
       unfilled,
     };
   });
+}
+
+// The cells the grid marks as breaking a rule, as "lineId|workerId|date". A warning about a worker
+// marks that worker's cell. A warning about a cell group, such as a shift with more workers than it
+// needs, has no worker, so it marks every work cell of its line, day, and shift.
+export function warningCellKeys(warnings: RosterWarning[], cells: EvalCell[]): Set<string> {
+  const keys = new Set<string>();
+
+  for (const warning of warnings) {
+    if (warning.workerId !== null) {
+      keys.add(`${warning.lineId}|${warning.workerId}|${warning.date}`);
+      continue;
+    }
+
+    if (warning.shiftOrder === null) {
+      continue;
+    }
+
+    for (const cell of cells) {
+      if (
+        cell.kind === "work" &&
+        cell.lineId === warning.lineId &&
+        cell.date === warning.date &&
+        cell.shiftOrder === warning.shiftOrder
+      ) {
+        keys.add(`${cell.lineId}|${cell.workerId}|${cell.date}`);
+      }
+    }
+  }
+
+  return keys;
 }
 
 // The conflicts as the summary lists them: by date, then line, then shift.
@@ -571,8 +604,17 @@ export async function getRoster(
   const key = (entry: { lineId: string; workerId: string | null; date: string }) =>
     `${entry.lineId}|${entry.workerId}|${entry.date}`;
 
-  // A warning about a cell group has no worker and marks no cell.
-  const warningKeys = new Set(warnings.filter((warning) => warning.workerId !== null).map(key));
+  const warningKeys = warningCellKeys(
+    warnings,
+    assignmentRows.map((row) => ({
+      lineId: row.lineId,
+      workerId: row.workerId,
+      date: row.date,
+      kind: row.kind,
+      shiftOrder: row.shiftOrder,
+      shiftId: row.shiftId,
+    })),
+  );
 
   return {
     id: head.id,

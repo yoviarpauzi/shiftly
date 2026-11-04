@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it, vi } from "vitest";
+import type { EvalCell, RosterWarning } from "@/types/rosters";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: {} }));
@@ -14,6 +15,7 @@ const {
   lineTitle,
   rosterCounts,
   shapeRosterRow,
+  warningCellKeys,
   workerHistory,
 } = await import("./rosters");
 
@@ -299,6 +301,89 @@ describe("buildLineViews", () => {
     });
 
     expect(first).toMatchObject({ lineId: "l1", title: "Produksi / Packing / Operator", perDay: [2, 2, 2] });
+  });
+});
+
+describe("warningCellKeys", () => {
+  const cell = (
+    lineId: string,
+    workerId: string,
+    date: string,
+    kind: "work" | "off" | "break",
+    shiftOrder: number | null,
+  ): EvalCell => ({
+    lineId,
+    workerId,
+    date,
+    kind,
+    shiftOrder,
+    shiftId: shiftOrder === null ? null : `s${shiftOrder}`,
+  });
+  const workerWarning = (lineId: string, workerId: string, date: string): RosterWarning => ({
+    code: "weekly",
+    lineId,
+    workerId,
+    date,
+    shiftOrder: 1,
+    message: "Would exceed 5 working days this week.",
+  });
+  const groupWarning = (lineId: string, date: string, shiftOrder: number | null): RosterWarning => ({
+    code: "over",
+    lineId,
+    workerId: null,
+    date,
+    shiftOrder,
+    message: "Thu 12 Nov · Shift 3: 1 assigned, 0 needed.",
+  });
+
+  it("marks the cell of the worker a warning names", () => {
+    const keys = warningCellKeys(
+      [workerWarning("l1", "w1", "2026-11-10")],
+      [cell("l1", "w1", "2026-11-10", "work", 1), cell("l1", "w2", "2026-11-10", "work", 1)],
+    );
+
+    expect([...keys]).toEqual(["l1|w1|2026-11-10"]);
+  });
+
+  it("marks every work cell of the line, day and shift a cell-group warning names", () => {
+    const keys = warningCellKeys(
+      [groupWarning("l1", "2026-11-10", 3)],
+      [cell("l1", "w1", "2026-11-10", "work", 3), cell("l1", "w2", "2026-11-10", "work", 3)],
+    );
+
+    expect([...keys].sort()).toEqual(["l1|w1|2026-11-10", "l1|w2|2026-11-10"]);
+  });
+
+  it("leaves the other shifts, lines and days of a cell-group warning unmarked", () => {
+    const keys = warningCellKeys(
+      [groupWarning("l1", "2026-11-10", 3)],
+      [
+        cell("l1", "w1", "2026-11-10", "work", 3),
+        cell("l1", "w2", "2026-11-10", "work", 1),
+        cell("l2", "w3", "2026-11-10", "work", 3),
+        cell("l1", "w4", "2026-11-11", "work", 3),
+      ],
+    );
+
+    expect([...keys]).toEqual(["l1|w1|2026-11-10"]);
+  });
+
+  it("does not mark an off or break cell for a cell-group warning", () => {
+    const keys = warningCellKeys(
+      [groupWarning("l1", "2026-11-10", 3)],
+      [cell("l1", "w1", "2026-11-10", "off", null), cell("l1", "w2", "2026-11-10", "break", null)],
+    );
+
+    expect([...keys]).toEqual([]);
+  });
+
+  it("marks nothing for a cell-group warning without a shift", () => {
+    const keys = warningCellKeys(
+      [groupWarning("l1", "2026-11-10", null)],
+      [cell("l1", "w1", "2026-11-10", "work", 3)],
+    );
+
+    expect([...keys]).toEqual([]);
   });
 });
 

@@ -21,6 +21,7 @@ import {
 import { canWriteToSite } from "./shift-access";
 import { requireShiftManager } from "./shift-guard";
 import {
+  canDeleteShift,
   canRestoreShift,
   DUPLICATE_SHIFT_NAME_MESSAGE,
   DUPLICATE_SHIFT_ORDER_MESSAGE,
@@ -30,7 +31,7 @@ import {
   shiftFieldErrors,
   SITE_NOT_FOUND_MESSAGE,
 } from "./shift-rules";
-import { shiftScopeFilter } from "./shifts";
+import { shiftRequestStatuses, shiftScopeFilter } from "./shifts";
 
 const SHIFTS_PATH = "/dashboard/shifts";
 
@@ -141,18 +142,31 @@ export async function updateShift(
   return { ok: true };
 }
 
-// Soft-deletes one shift. The caller has already passed requireShiftManager(). Nothing refers to a
-// shift yet, so one guarded update is enough. Once rosters exist, check their usage here.
+// Soft-deletes one shift. The caller has already passed requireShiftManager(). The update lock on
+// the shift conflicts with the share lock a request takes on it, so no request can start using the
+// shift between the usage check and the delete, and a request that already holds it finishes first.
 async function softDeleteShift(id: string, access: ShiftAccess): Promise<ShiftActionResult> {
-  const deleted = await db
-    .update(shift)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(shift.id, id), isNull(shift.deletedAt), shiftScopeFilter(access)))
-    .returning({ id: shift.id });
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select({ id: shift.id })
+      .from(shift)
+      .where(and(eq(shift.id, id), isNull(shift.deletedAt), shiftScopeFilter(access)))
+      .for("update");
 
-  return deleted.length === 0
-    ? { ok: false, formError: SHIFT_NOT_FOUND_MESSAGE }
-    : { ok: true };
+    if (!target) {
+      return { ok: false as const, formError: SHIFT_NOT_FOUND_MESSAGE };
+    }
+
+    const verdict = canDeleteShift({ requestStatuses: await shiftRequestStatuses(tx, id) });
+
+    if (!verdict.ok) {
+      return { ok: false as const, formError: verdict.formError };
+    }
+
+    await tx.update(shift).set({ deletedAt: new Date() }).where(eq(shift.id, id));
+
+    return { ok: true as const };
+  });
 }
 
 export async function deleteShift(id: string): Promise<ShiftActionResult> {

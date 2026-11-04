@@ -24,6 +24,8 @@ export type RequestLineInput = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
+  // null is Any shift.
+  shiftId: string | null;
   // One number for a daily request, seven for a weekly one. The index is the day offset from the
   // start date.
   headcounts: number[];
@@ -47,6 +49,9 @@ export type RequestDetail = RequestRow & {
   siteName: string;
   rejectReason: string | null;
   lines: RequestLineInput[];
+  // The shifts the lines name, deleted ones included, so a request that was rejected or cancelled
+  // before its shift was deleted still shows the shift it asked for.
+  lineShifts: RequestShiftChoice[];
 };
 
 export type RequestPage = {
@@ -66,12 +71,23 @@ export type RequestListParams = PageParams & {
   sort: SortCriterion<RequestSortColumn>[];
 };
 
+// An active shift of a site, offered by the Shift select. Times are HH:mm.
+export type RequestShiftChoice = {
+  id: string;
+  name: string;
+  order: number;
+  startTime: string;
+  endTime: string;
+  siteId: string;
+};
+
 export type RequestChoices = {
   sites: { id: string; name: string }[];
   locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
   departments: { id: string; name: string; locationId: string }[];
   subDepartments: { id: string; name: string; departmentId: string }[];
   positions: { id: string; name: string; siteId: string }[];
+  shifts: RequestShiftChoice[];
 };
 
 export type RequestField = "type" | "startDate" | "locationId" | "lines";
@@ -158,6 +174,8 @@ export type RequestFormLine = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
+  // null is Any shift.
+  shiftId: string | null;
   headcount: number;
   perDay: boolean;
   dayHeadcounts: number[];
@@ -188,6 +206,7 @@ export type RequestLineFieldsProps = {
   departments: RequestOption[];
   subDepartments: RequestOption[];
   positions: RequestOption[];
+  shifts: RequestShiftChoice[];
   disabled: boolean;
   canRemove: boolean;
   // Hidden when the form is read-only.

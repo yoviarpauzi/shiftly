@@ -126,6 +126,39 @@ export function evenSplit(total: number, shiftIds: string[]): number[] {
   return shiftIds.map((_, index) => base + (index < remainder ? 1 : 0));
 }
 
+// "Any shift" for a line the roster may split, or "Shift N" for a line fixed to the shift of that
+// order. It follows the line's title in the headers of the roster and the Generate screen.
+export function shiftLabel(order: number | null): string {
+  return order === null ? "Any shift" : `Shift ${order}`;
+}
+
+// The split of a line fixed to one shift: each day's whole headcount on that shift, 0 on the rest.
+// split[day][shiftIndex] follows the order of shiftIds.
+export function fixedSplit(
+  required: number[],
+  shiftIds: string[],
+  fixedShiftId: string,
+): number[][] {
+  return required.map((headcount) =>
+    shiftIds.map((shiftId) => (shiftId === fixedShiftId ? headcount : 0)),
+  );
+}
+
+// True when a target puts headcount on a shift other than the one its line is fixed to. Lines set
+// to Any shift (shiftId null) can be split any way.
+export function targetsMoveFixedLine(
+  lines: { lineId: string; shiftId: string | null }[],
+  targets: { lineId: string; shiftId: string; headcount: number }[],
+): boolean {
+  const fixed = new Map(lines.map((line) => [line.lineId, line.shiftId]));
+
+  return targets.some((target) => {
+    const fixedShiftId = fixed.get(target.lineId) ?? null;
+
+    return fixedShiftId !== null && target.headcount > 0 && target.shiftId !== fixedShiftId;
+  });
+}
+
 // split[day] holds the headcount of each shift on that day. Returns the first day whose shifts do
 // not add up to the request's headcount for that day.
 export function targetsTotalError(

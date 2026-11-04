@@ -13,7 +13,7 @@ async function NewRequest() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">New request</h1>
         <p className="text-sm text-muted-foreground">
-          Ask for workers by department and position. The PO number is issued on save.
+          Ask for workers by department, position, and shift. The PO number is issued on save.
         </p>
       </div>
       <RequestForm request={null} choices={choices} readOnly={false} />

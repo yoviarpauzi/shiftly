@@ -358,6 +358,45 @@ describe("generateRoster", () => {
     expect(writes()).toEqual([]);
   });
 
+  it("refuses a split that moves a fixed line to another shift and writes nothing", async () => {
+    fake.rows.request = [storedRequest()];
+    fake.lines = [
+      {
+        lineId: LINE_A,
+        positionId: POSITION_A,
+        positionName: "Operator",
+        title: "Produksi / Operator",
+        shiftId: SHIFT_1,
+        shiftLabel: "Shift 1",
+        perDay: [2],
+      },
+    ];
+
+    const res = await generateRoster(generateInput({ targets: targets(1, 1) }));
+
+    expect(res).toEqual({ ok: false, formError: TARGETS_MISMATCH_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+
+  it("accepts a fixed line whose whole headcount is on its shift", async () => {
+    fake.rows.request = [storedRequest()];
+    fake.lines = [
+      {
+        lineId: LINE_A,
+        positionId: POSITION_A,
+        positionName: "Operator",
+        title: "Produksi / Operator",
+        shiftId: SHIFT_1,
+        shiftLabel: "Shift 1",
+        perDay: [2],
+      },
+    ];
+
+    const res = await generateRoster(generateInput({ targets: targets(2, 0) }));
+
+    expect(res.ok).toBe(true);
+  });
+
   it("refuses a target for a shift or line the request does not have", async () => {
     fake.rows.request = [storedRequest()];
     const stray = "99999999-9999-4999-8999-999999999999";

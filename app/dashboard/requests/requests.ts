@@ -16,6 +16,7 @@ import { department, subDepartment } from "@/database/schema/department-schema";
 import { user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
+import { shift } from "@/database/schema/shift-schema";
 import {
   rosterRequest,
   rosterRequestLine,
@@ -36,6 +37,7 @@ import type {
   RequestType,
 } from "@/types/requests";
 import type { SortCriterion } from "@/types/sort";
+import { toHourMinute } from "../shifts/shift-rules";
 
 const DEFAULT_SORT: SortCriterion<RequestSortColumn>[] = [
   { column: "date", direction: "desc" },
@@ -176,6 +178,7 @@ export async function getRequest(
       departmentId: rosterRequestLine.departmentId,
       subDepartmentId: rosterRequestLine.subDepartmentId,
       positionId: rosterRequestLine.positionId,
+      shiftId: rosterRequestLine.shiftId,
     })
     .from(rosterRequestLine)
     .where(eq(rosterRequestLine.requestId, id))
@@ -189,6 +192,25 @@ export async function getRequest(
     .innerJoin(rosterRequestLine, eq(rosterRequestLine.id, rosterRequestLineDay.lineId))
     .where(eq(rosterRequestLine.requestId, id))
     .orderBy(asc(rosterRequestLineDay.lineId), asc(rosterRequestLineDay.dayOffset));
+
+  const shiftIds = [...new Set(lineRows.flatMap((line) => (line.shiftId ? [line.shiftId] : [])))];
+
+  // No deletedAt filter: the detail keeps showing the shift a line asked for after it is deleted.
+  const lineShifts =
+    shiftIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: shift.id,
+            name: shift.name,
+            order: shift.order,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            siteId: shift.siteId,
+          })
+          .from(shift)
+          .where(inArray(shift.id, shiftIds))
+          .orderBy(asc(shift.order));
 
   const headcountsByLine = new Map<string, number[]>();
 
@@ -210,6 +232,11 @@ export async function getRequest(
     status: row.status as RequestStatus,
     lineCount: lines.length,
     lines,
+    lineShifts: lineShifts.map((row) => ({
+      ...row,
+      startTime: toHourMinute(row.startTime),
+      endTime: toHourMinute(row.endTime),
+    })),
   };
 }
 
@@ -234,7 +261,7 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
     .orderBy(asc(location.name), asc(location.id));
 
   if (locations.length === 0) {
-    return { sites: [], locations, departments: [], subDepartments: [], positions: [] };
+    return { sites: [], locations, departments: [], subDepartments: [], positions: [], shifts: [] };
   }
 
   const locationIds = locations.map((row) => row.id);
@@ -282,5 +309,29 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
     .where(and(inArray(position.siteId, siteIds), isNull(position.deletedAt)))
     .orderBy(asc(position.name), asc(position.id));
 
-  return { sites, locations, departments, subDepartments, positions };
+  const shifts = await db
+    .select({
+      id: shift.id,
+      name: shift.name,
+      order: shift.order,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      siteId: shift.siteId,
+    })
+    .from(shift)
+    .where(and(inArray(shift.siteId, siteIds), isNull(shift.deletedAt)))
+    .orderBy(asc(shift.siteId), asc(shift.order));
+
+  return {
+    sites,
+    locations,
+    departments,
+    subDepartments,
+    positions,
+    shifts: shifts.map((row) => ({
+      ...row,
+      startTime: toHourMinute(row.startTime),
+      endTime: toHourMinute(row.endTime),
+    })),
+  };
 }

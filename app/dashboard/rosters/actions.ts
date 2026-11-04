@@ -61,6 +61,7 @@ import {
   ROSTER_NOT_FOUND_MESSAGE,
   ROSTER_WORKER_MISSING_MESSAGE,
   TARGETS_MISMATCH_MESSAGE,
+  targetsMoveFixedLine,
   targetsTotalError,
   targetsTotalMessage,
 } from "./roster-rules";
@@ -243,6 +244,11 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
             !lineIds.has(target.lineId) || !days.has(target.date) || !shiftIds.has(target.shiftId),
         )
       ) {
+        return { ok: false, formError: TARGETS_MISMATCH_MESSAGE };
+      }
+
+      // A line the request fixed to a shift cannot take headcount on another shift.
+      if (targetsMoveFixedLine(lines, data.targets)) {
         return { ok: false, formError: TARGETS_MISMATCH_MESSAGE };
       }
 

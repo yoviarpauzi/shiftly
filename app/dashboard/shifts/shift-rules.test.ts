@@ -2,15 +2,44 @@ import { describe, expect, it } from "vitest";
 import {
   bulkShiftDeleteMessage,
   bulkShiftRestoreMessage,
+  canDeleteShift,
   canRestoreShift,
   formatShiftRange,
   shiftConflictField,
+  SHIFT_IN_USE_MESSAGE,
   shiftFieldErrors,
   toHourMinute,
 } from "./shift-rules";
 
 const ORDER_INDEX = "shift_siteId_order_active_unique";
 const NAME_INDEX = "shift_siteId_lowerName_active_unique";
+
+describe("canDeleteShift", () => {
+  const blocked = { ok: false, formError: "This shift is used by a pending or approved request" };
+
+  it("allows deleting a shift no request uses", () => {
+    expect(canDeleteShift({ requestStatuses: [] })).toEqual({ ok: true });
+  });
+
+  it("blocks a shift used by a pending request", () => {
+    expect(canDeleteShift({ requestStatuses: ["pending"] })).toEqual(blocked);
+    expect(SHIFT_IN_USE_MESSAGE).toBe(blocked.formError);
+  });
+
+  it("blocks a shift used by an approved request", () => {
+    expect(canDeleteShift({ requestStatuses: ["approved"] })).toEqual(blocked);
+  });
+
+  it("allows a shift used only by rejected and cancelled requests", () => {
+    expect(canDeleteShift({ requestStatuses: ["rejected", "cancelled"] })).toEqual({ ok: true });
+  });
+
+  it("blocks when one of several requests is pending", () => {
+    expect(canDeleteShift({ requestStatuses: ["rejected", "pending", "cancelled"] })).toEqual(
+      blocked,
+    );
+  });
+});
 
 describe("canRestoreShift", () => {
   it("blocks restoring a shift whose site is deleted", () => {

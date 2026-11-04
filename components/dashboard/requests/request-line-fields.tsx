@@ -7,6 +7,7 @@ import {
   lineAfterDepartmentChange,
   lineAfterPerDayToggle,
 } from "@/app/dashboard/requests/request-form-options";
+import { shiftOptionLabel } from "@/app/dashboard/requests/request-form-options";
 import { dayLabels } from "@/app/dashboard/requests/request-rules";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/select";
 
 const NO_SUB_DEPARTMENT = "None";
+
+const ANY_SHIFT = "Any shift";
 
 // An empty or non-numeric field becomes NaN, so the schema reports it instead of reading 0.
 function numberFromInput(value: string): number {
@@ -41,6 +44,7 @@ export function RequestLineFields({
   departments,
   subDepartments,
   positions,
+  shifts,
   disabled,
   canRemove,
   showRemove,
@@ -57,7 +61,7 @@ export function RequestLineFields({
     <div
       role="group"
       aria-label={rowLabel}
-      className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_auto] lg:items-end"
+      className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_auto] lg:items-end"
     >
       <Field>
         <FieldLabel htmlFor={id("department")}>Department</FieldLabel>
@@ -131,6 +135,32 @@ export function RequestLineFields({
               {positions.map((row) => (
                 <SelectItem key={row.id} value={row.id}>
                   {row.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={id("shift")}>Shift</FieldLabel>
+        <Select
+          value={line.shiftId}
+          onValueChange={(value) => onChange({ ...line, shiftId: value ?? null })}
+          items={[
+            { value: null, label: ANY_SHIFT },
+            ...shifts.map((row) => ({ value: row.id, label: shiftOptionLabel(row) })),
+          ]}
+          disabled={disabled}
+        >
+          <SelectTrigger id={id("shift")} className="w-full">
+            <SelectValue placeholder={ANY_SHIFT} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value={null}>{ANY_SHIFT}</SelectItem>
+              {shifts.map((row) => (
+                <SelectItem key={row.id} value={row.id}>
+                  {shiftOptionLabel(row)}
                 </SelectItem>
               ))}
             </SelectGroup>

@@ -7,6 +7,7 @@ import type {
   RequestFormValues,
   RequestLineInput,
   RequestOption,
+  RequestShiftChoice,
   RequestStatus,
   RequestType,
 } from "@/types/requests";
@@ -75,11 +76,45 @@ export function positionsFor(choices: RequestChoices, locationId: string): Reque
   return choices.positions.filter((row) => row.siteId === siteId).map(toOption);
 }
 
+// Shifts belong to a site, so the location's site decides which ones apply. They keep the order
+// the choices came in, which is by shift order.
+export function shiftsFor(choices: RequestChoices, locationId: string): RequestShiftChoice[] {
+  const siteId = choices.locations.find((row) => row.id === locationId)?.siteId;
+
+  if (!siteId) {
+    return [];
+  }
+
+  return choices.shifts.filter((row) => row.siteId === siteId);
+}
+
+// The shifts the Shift select offers: the site's active shifts, plus any shift the request's own
+// lines name that is no longer active, so a read-only request still shows what it asked for.
+export function shiftsForRequest(
+  choices: RequestChoices,
+  locationId: string,
+  request: Pick<RequestDetail, "lineShifts"> | null,
+): RequestShiftChoice[] {
+  const offered = shiftsFor(choices, locationId);
+  const own = (request?.lineShifts ?? []).filter(
+    (row) => !offered.some((shift) => shift.id === row.id),
+  );
+
+  return [...offered, ...own].sort((a, b) => a.order - b.order);
+}
+
+export function shiftOptionLabel(
+  shift: Pick<RequestShiftChoice, "order" | "startTime" | "endTime">,
+): string {
+  return `Shift ${shift.order} · ${shift.startTime} - ${shift.endTime}`;
+}
+
 export function blankLine(): RequestFormLine {
   return {
     departmentId: "",
     subDepartmentId: null,
     positionId: "",
+    shiftId: null,
     headcount: Number.NaN,
     perDay: false,
     dayHeadcounts: sevenOf(Number.NaN),
@@ -97,6 +132,7 @@ export function formLineFromInput(line: RequestLineInput): RequestFormLine {
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
+    shiftId: line.shiftId,
     headcount: perDay
       ? (headcounts.find((value) => value > 0) ?? Number.NaN)
       : (headcounts[0] ?? Number.NaN),
@@ -143,6 +179,7 @@ export function toRequestLineInputs(
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
+    shiftId: line.shiftId,
     headcounts: lineHeadcounts(type, line),
   }));
 }
@@ -188,7 +225,15 @@ export function requestFormDefaults(
       startDate: request.startDate,
       siteId: request.siteId,
       locationId: request.locationId,
-      lines: request.lines.map(formLineFromInput),
+      lines: request.lines.map((line) => {
+        const formLine = formLineFromInput(line);
+        const shiftKnown =
+          choices.shifts.some((row) => row.id === formLine.shiftId) ||
+          request.lineShifts.some((row) => row.id === formLine.shiftId);
+
+        // A shift nobody knows opens as Any shift rather than as an empty select.
+        return shiftKnown ? formLine : { ...formLine, shiftId: null };
+      }),
     };
   }
 

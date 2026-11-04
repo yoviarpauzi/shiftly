@@ -6,6 +6,7 @@ import {
   rosterRequestLine,
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
+import { shift } from "@/database/schema/shift-schema";
 import type { RequestAccess } from "@/types/requests";
 
 // The database is replaced by a recorder. Each select is logged as a Call, and its rows come from
@@ -24,6 +25,7 @@ const fake = vi.hoisted(() => ({
     header: [] as unknown[],
     lines: [] as unknown[],
     days: [] as unknown[],
+    shifts: [] as unknown[],
   },
 }));
 
@@ -33,6 +35,7 @@ function result(call: Call): unknown {
   if (call.table === rosterRequest) return fake.rows.header;
   if (call.table === rosterRequestLine) return fake.rows.lines;
   if (call.table === rosterRequestLineDay) return fake.rows.days;
+  if (call.table === shift) return fake.rows.shifts;
   return [];
 }
 
@@ -76,6 +79,7 @@ const POSITION_A = "88888888-8888-4888-8888-888888888888";
 const POSITION_B = "99999999-9999-4999-8999-999999999999";
 const SITE_A = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
+const SHIFT_1 = "51111111-1111-4111-8111-111111111111";
 
 const access: RequestAccess = { siteId: null, locationId: null };
 
@@ -101,12 +105,14 @@ const lineOne = {
   departmentId: DEPT_A,
   subDepartmentId: SUB_A,
   positionId: POSITION_A,
+  shiftId: null,
 };
 const lineTwo = {
   id: LINE_2,
   departmentId: DEPT_B,
   subDepartmentId: null,
   positionId: POSITION_B,
+  shiftId: null,
 };
 
 function dayRows(lineId: string, headcounts: number[]) {
@@ -129,7 +135,7 @@ function renderHeaderWhere(): { sql: string; params: unknown[] } {
 
 beforeEach(() => {
   fake.calls = [];
-  fake.rows = { header: [], lines: [], days: [] };
+  fake.rows = { header: [], lines: [], days: [], shifts: [] };
 });
 
 describe("getRequest", () => {
@@ -173,16 +179,64 @@ describe("getRequest", () => {
           departmentId: DEPT_A,
           subDepartmentId: SUB_A,
           positionId: POSITION_A,
+          shiftId: null,
           headcounts: [0, 3, 3, 0, 5, 5, 5],
         },
         {
           departmentId: DEPT_B,
           subDepartmentId: null,
           positionId: POSITION_B,
+          shiftId: null,
           headcounts: [1, 1, 1, 1, 1, 1, 2],
         },
       ],
+      lineShifts: [],
     });
+  });
+
+  it("carries each line's shift, and runs no shift query when no line names one", async () => {
+    fake.rows.header = [header()];
+    fake.rows.lines = [{ ...lineOne, shiftId: SHIFT_1 }, lineTwo];
+    fake.rows.days = [...dayRows(LINE_1, [3]), ...dayRows(LINE_2, [1])];
+    fake.rows.shifts = [];
+
+    const named = await getRequest(access, REQUEST_ID);
+
+    expect(named?.lines.map((line) => line.shiftId)).toEqual([SHIFT_1, null]);
+    expect(fake.calls.some((c) => c.table === shift)).toBe(true);
+
+    fake.calls = [];
+    fake.rows.lines = [lineOne, lineTwo];
+
+    const anyShift = await getRequest(access, REQUEST_ID);
+
+    expect(anyShift?.lineShifts).toEqual([]);
+    expect(fake.calls.some((c) => c.table === shift)).toBe(false);
+  });
+
+  it("returns the shifts the lines name with HH:mm times, without filtering deleted ones", async () => {
+    fake.rows.header = [header({ status: "rejected" })];
+    fake.rows.lines = [{ ...lineOne, shiftId: SHIFT_1 }];
+    fake.rows.days = dayRows(LINE_1, [3]);
+    fake.rows.shifts = [
+      {
+        id: SHIFT_1,
+        name: "Lama",
+        order: 3,
+        startTime: "22:00:00",
+        endTime: "06:00:00",
+        siteId: SITE_A,
+      },
+    ];
+
+    const res = await getRequest(access, REQUEST_ID);
+
+    expect(res?.lineShifts).toEqual([
+      { id: SHIFT_1, name: "Lama", order: 3, startTime: "22:00", endTime: "06:00", siteId: SITE_A },
+    ]);
+    const call = fake.calls.find((c) => c.table === shift);
+
+    expect(dialect.sqlToQuery(call?.where as SQL).sql).not.toContain("deleted_at");
   });
 
   it("gives a daily request one line with a single headcount", async () => {
@@ -199,6 +253,7 @@ describe("getRequest", () => {
         departmentId: DEPT_A,
         subDepartmentId: SUB_A,
         positionId: POSITION_A,
+        shiftId: null,
         headcounts: [4],
       },
     ]);

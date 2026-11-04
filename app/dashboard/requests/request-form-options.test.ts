@@ -23,6 +23,9 @@ import {
   positionsFor,
   requestFormDefaults,
   returnsToPending,
+  shiftOptionLabel,
+  shiftsFor,
+  shiftsForRequest,
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
@@ -41,6 +44,9 @@ const SUB_A1 = "5a100000-0000-4000-8000-000000000000";
 const SUB_B1 = "5b100000-0000-4000-8000-000000000000";
 const POS_A = "9a000000-0000-4000-8000-000000000000";
 const POS_B = "9b000000-0000-4000-8000-000000000000";
+const SHIFT_1 = "51000000-0000-4000-8000-000000000000";
+const SHIFT_2 = "52000000-0000-4000-8000-000000000000";
+const SHIFT_B1 = "5b000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
   sites: [
@@ -65,6 +71,11 @@ const choices: RequestChoices = {
     { id: POS_A, name: "Cook", siteId: SITE_A },
     { id: POS_B, name: "Porter", siteId: SITE_B },
   ],
+  shifts: [
+    { id: SHIFT_1, name: "Pagi", order: 1, startTime: "06:00", endTime: "14:00", siteId: SITE_A },
+    { id: SHIFT_2, name: "Siang", order: 2, startTime: "14:00", endTime: "22:00", siteId: SITE_A },
+    { id: SHIFT_B1, name: "Reguler", order: 1, startTime: "08:00", endTime: "16:00", siteId: SITE_B },
+  ],
 };
 
 const detail: RequestDetail = {
@@ -80,17 +91,20 @@ const detail: RequestDetail = {
   lineCount: 1,
   createdByName: "Admin",
   rejectReason: null,
+  lineShifts: [],
   lines: [
     {
       departmentId: DEPT_A1,
       subDepartmentId: SUB_A1,
       positionId: POS_A,
+      shiftId: SHIFT_1,
       headcounts: [0, 3, 3, 0, 5, 5, 5],
     },
     {
       departmentId: DEPT_A1_2,
       subDepartmentId: null,
       positionId: POS_A,
+      shiftId: null,
       headcounts: [4, 4, 4, 4, 4, 4, 4],
     },
   ],
@@ -103,6 +117,7 @@ function formLine(fields: Partial<RequestFormLine> = {}): RequestFormLine {
     departmentId: DEPT_A1,
     subDepartmentId: SUB_A1,
     positionId: POS_A,
+    shiftId: null,
     headcount: 2,
     perDay: false,
     dayHeadcounts: [...NAN_WEEK],
@@ -129,6 +144,10 @@ describe("afterSiteChange", () => {
     expect(next.locationId).toBe("");
     expect(next.lines).toHaveLength(1);
     expect(next.lines[0].departmentId).toBe("");
+  });
+
+  it("starts the lines over on Any shift", () => {
+    expect(afterSiteChange(choices, SITE_A).lines.map((row) => row.shiftId)).toEqual([null]);
   });
 
   it("presets the location when the new site has only one", () => {
@@ -175,6 +194,26 @@ describe("positionsFor", () => {
   });
 });
 
+describe("shiftsFor", () => {
+  it("lists the shifts of the location's site only, in order", () => {
+    expect(shiftsFor(choices, LOC_A1).map((row) => row.id)).toEqual([SHIFT_1, SHIFT_2]);
+    expect(shiftsFor(choices, LOC_B1).map((row) => row.id)).toEqual([SHIFT_B1]);
+  });
+
+  it("is empty for an unknown location or none chosen", () => {
+    expect(shiftsFor(choices, "unknown")).toEqual([]);
+    expect(shiftsFor(choices, "")).toEqual([]);
+  });
+});
+
+describe("shiftOptionLabel", () => {
+  it("formats the order and the times", () => {
+    expect(shiftOptionLabel({ order: 1, startTime: "06:00", endTime: "14:00" })).toBe(
+      "Shift 1 · 06:00 - 14:00",
+    );
+  });
+});
+
 describe("line rules", () => {
   it("starts a blank line with empty choices and an empty headcount", () => {
     const line = blankLine();
@@ -186,6 +225,10 @@ describe("line rules", () => {
     expect(line.perDay).toBe(false);
     expect(line.dayHeadcounts).toHaveLength(7);
     expect(line.dayHeadcounts.every(Number.isNaN)).toBe(true);
+  });
+
+  it("starts a blank line on Any shift", () => {
+    expect(blankLine().shiftId).toBeNull();
   });
 
   it("replaces every line with one blank line when the location changes", () => {
@@ -214,6 +257,83 @@ describe("line rules", () => {
   it("keeps at least one line", () => {
     expect(canRemoveLine(1)).toBe(false);
     expect(canRemoveLine(2)).toBe(true);
+  });
+});
+
+describe("shiftsForRequest", () => {
+  const GONE = "5d000000-0000-4000-8000-000000000000";
+  const gone = {
+    id: GONE,
+    name: "Lama",
+    order: 3,
+    startTime: "22:00",
+    endTime: "06:00",
+    siteId: SITE_A,
+  };
+
+  it("is the site's shifts for a new request", () => {
+    expect(shiftsForRequest(choices, LOC_A1, null).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+    ]);
+  });
+
+  it("adds a shift the request's lines use that is no longer offered, in order", () => {
+    const request = { ...detail, lineShifts: [gone] };
+
+    expect(shiftsForRequest(choices, LOC_A1, request).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+      GONE,
+    ]);
+  });
+
+  it("does not repeat a shift that is already offered", () => {
+    const request = { ...detail, lineShifts: [choices.shifts[0]] };
+
+    expect(shiftsForRequest(choices, LOC_A1, request).map((row) => row.id)).toEqual([
+      SHIFT_1,
+      SHIFT_2,
+    ]);
+  });
+});
+
+describe("requestFormDefaults shifts", () => {
+  it("keeps a line's shift that is deleted now but known from the request", () => {
+    const GONE = "5d000000-0000-4000-8000-000000000000";
+    const gone = {
+      id: GONE,
+      name: "Lama",
+      order: 3,
+      startTime: "22:00",
+      endTime: "06:00",
+      siteId: SITE_A,
+    };
+    const rejected = {
+      ...detail,
+      status: "rejected" as const,
+      lineShifts: [gone],
+      lines: [{ ...detail.lines[0], shiftId: GONE }],
+    };
+
+    expect(requestFormDefaults(rejected, choices).lines[0].shiftId).toBe(GONE);
+  });
+
+
+  it("keeps a stored shift that is still one of the site's shifts", () => {
+    expect(requestFormDefaults(detail, choices).lines.map((row) => row.shiftId)).toEqual([
+      SHIFT_1,
+      null,
+    ]);
+  });
+
+  it("opens a line whose shift is no longer in the choices as Any shift", () => {
+    const gone = {
+      ...detail,
+      lines: [{ ...detail.lines[0], shiftId: "5d000000-0000-4000-8000-000000000000" }],
+    };
+
+    expect(requestFormDefaults(gone, choices).lines[0].shiftId).toBeNull();
   });
 });
 
@@ -273,7 +393,17 @@ describe("requestFormDefaults", () => {
 });
 
 describe("formLineFromInput", () => {
-  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, shiftId: null };
+
+  it("keeps the stored shift", () => {
+    const line = formLineFromInput({ ...ids, shiftId: SHIFT_1, headcounts: [7] });
+
+    expect(line.shiftId).toBe(SHIFT_1);
+  });
+
+  it("opens a line with no shift as Any shift", () => {
+    expect(formLineFromInput({ ...ids, headcounts: [7] }).shiftId).toBeNull();
+  });
 
   it("opens a daily line as one number", () => {
     const line = formLineFromInput({ ...ids, headcounts: [7] });
@@ -338,7 +468,7 @@ describe("lineAfterDayChange", () => {
 });
 
 describe("toRequestLineInputs", () => {
-  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, shiftId: null };
   const perDay = formLine({ headcount: 5, perDay: true, dayHeadcounts: [0, 1, 2, 3, 4, 5, 6] });
 
   it("sends one number for a daily line, even when per day was set", () => {
@@ -346,6 +476,15 @@ describe("toRequestLineInputs", () => {
       { ...ids, headcounts: [5] },
       { ...ids, headcounts: [5] },
     ]);
+  });
+
+  it("sends each line's shift", () => {
+    expect(
+      toRequestLineInputs("daily", [
+        formLine({ headcount: 5, shiftId: SHIFT_1 }),
+        formLine({ headcount: 5, shiftId: null }),
+      ]).map((line) => line.shiftId),
+    ).toEqual([SHIFT_1, null]);
   });
 
   it("repeats the single number seven times for a weekly line", () => {

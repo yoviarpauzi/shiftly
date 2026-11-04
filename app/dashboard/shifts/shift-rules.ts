@@ -10,12 +10,27 @@ export const DUPLICATE_SHIFT_ORDER_MESSAGE = "Order is already used in this site
 
 export const DUPLICATE_SHIFT_NAME_MESSAGE = "Name is already used in this site";
 
+export const SHIFT_IN_USE_MESSAGE = "This shift is used by a pending or approved request";
+
 export const SHIFT_RESTORE_CONFLICT_MESSAGE =
   "Another active shift in this site already uses this order or name. Change that shift before restoring.";
 
 const SHIFT_ORDER_CONSTRAINT = "shift_siteId_order_active_unique";
 
 const SHIFT_NAME_CONSTRAINT = "shift_siteId_lowerName_active_unique";
+
+// Requests that are pending or approved still ask for the shift, so it cannot go. Rejected and
+// cancelled requests no longer do. requestStatuses are the statuses of every request whose lines
+// use the shift.
+export function canDeleteShift({
+  requestStatuses,
+}: {
+  requestStatuses: string[];
+}): { ok: true } | { ok: false; formError: string } {
+  const inUse = requestStatuses.some((status) => status === "pending" || status === "approved");
+
+  return inUse ? { ok: false, formError: SHIFT_IN_USE_MESSAGE } : { ok: true };
+}
 
 // A shift lives under a site, so it cannot come back while that site is deleted.
 export function canRestoreShift({

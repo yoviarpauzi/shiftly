@@ -145,7 +145,7 @@ export function RosterGrid({
             <tbody key={line.lineId} className="border-t">
               <tr className="bg-muted/50">
                 <th scope="colgroup" colSpan={columns} className="px-3 py-2 text-left font-medium">
-                  {line.title}
+                  {line.title} · {line.shiftLabel}
                   <span className="ml-2 font-normal text-muted-foreground">
                     {[...new Set(line.perDay)].length === 1
                       ? `${line.perDay[0]} per day`

@@ -66,9 +66,11 @@ import { checkReplacement, checkReplacementDetailed } from "./roster-replacement
 import {
   addDays,
   evenSplit,
+  fixedSplit,
   isRosterEditable,
   monthKey,
   requestDays,
+  shiftLabel,
 } from "./roster-rules";
 import { loadEngineRules } from "./roster-work-rules";
 
@@ -131,7 +133,7 @@ export function lineTitle(departmentName: string, subDepartmentName: string | nu
   return [departmentName, subDepartmentName, positionName].filter(Boolean).join(" / ");
 }
 
-type LineHead = { lineId: string; title: string; perDay: number[] };
+type LineHead = { lineId: string; title: string; shiftLabel: string; perDay: number[] };
 
 type AssignmentRow = {
   lineId: string;
@@ -212,6 +214,7 @@ export function buildLineViews(input: {
     return {
       lineId: line.lineId,
       title: line.title,
+      shiftLabel: line.shiftLabel,
       perDay: line.perDay,
       workers: [...workers.values()].sort(
         (a, b) =>
@@ -377,7 +380,12 @@ export async function listRosters(
   return { rows: rows.map(shapeRosterRow), total, page: currentPage, pageSize };
 }
 
-type RequestLineRow = LineHead & { positionId: string; positionName: string };
+type RequestLineRow = LineHead & {
+  positionId: string;
+  positionName: string;
+  // The shift the request fixed the line to, or null for Any shift.
+  shiftId: string | null;
+};
 
 // The lines of a request in id order, each with its headcount for every day.
 export async function loadRequestLines(reader: Reader, requestId: string): Promise<RequestLineRow[]> {
@@ -388,11 +396,15 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
       positionName: position.name,
       departmentName: department.name,
       subDepartmentName: subDepartment.name,
+      shiftId: rosterRequestLine.shiftId,
+      shiftOrder: shift.order,
     })
     .from(rosterRequestLine)
     .innerJoin(department, eq(department.id, rosterRequestLine.departmentId))
     .innerJoin(position, eq(position.id, rosterRequestLine.positionId))
     .leftJoin(subDepartment, eq(subDepartment.id, rosterRequestLine.subDepartmentId))
+    // No deletedAt filter: a line keeps its shift, and so its label, after a soft delete.
+    .leftJoin(shift, eq(shift.id, rosterRequestLine.shiftId))
     .where(eq(rosterRequestLine.requestId, requestId))
     .orderBy(asc(rosterRequestLine.id));
 
@@ -414,6 +426,8 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
     positionId: row.positionId,
     positionName: row.positionName,
     title: lineTitle(row.departmentName, row.subDepartmentName, row.positionName),
+    shiftId: row.shiftId,
+    shiftLabel: shiftLabel(row.shiftId === null ? null : (row.shiftOrder ?? null)),
     perDay: perLine.get(row.lineId) ?? [],
   }));
 }
@@ -641,6 +655,40 @@ async function loadSiteShifts(reader: Reader, siteId: string): Promise<GenerateS
   }));
 }
 
+// The lines of the Generate screen. A line fixed to a shift gets its whole headcount on that shift,
+// whatever a roster stored. An Any shift line starts from the stored split (a roster exists) or an
+// even one. stored is keyed "lineId|date|shiftId", or null when the request has no roster.
+export function buildGenerateLines(input: {
+  days: string[];
+  shiftIds: string[];
+  lines: (LineHead & { shiftId: string | null })[];
+  stored: Map<string, number> | null;
+}): GenerateLine[] {
+  const { days, shiftIds, stored } = input;
+
+  return input.lines.map((line) => ({
+    lineId: line.lineId,
+    title: line.title,
+    shiftLabel: line.shiftLabel,
+    fixedShiftId: line.shiftId,
+    required: line.perDay,
+    split:
+      line.shiftId !== null
+        ? fixedSplit(
+            days.map((_, dayIndex) => line.perDay[dayIndex] ?? 0),
+            shiftIds,
+            line.shiftId,
+          )
+        : days.map((date, dayIndex) =>
+            stored
+              ? shiftIds.map((shiftId) => stored.get(`${line.lineId}|${date}|${shiftId}`) ?? 0)
+              : shiftIds.length === 0
+                ? []
+                : evenSplit(line.perDay[dayIndex] ?? 0, shiftIds),
+          ),
+  }));
+}
+
 // The Generate screen for an approved request. A draft starts from the split it was generated with,
 // and a request with no roster starts from an even split.
 export async function getGenerateView(
@@ -706,18 +754,12 @@ export async function getGenerateView(
 
   const shiftIds = shifts.map((row) => row.id);
 
-  const generateLines: GenerateLine[] = lines.map((line) => ({
-    lineId: line.lineId,
-    title: line.title,
-    required: line.perDay,
-    split: days.map((date, dayIndex) =>
-      existing
-        ? shiftIds.map((shiftId) => stored.get(`${line.lineId}|${date}|${shiftId}`) ?? 0)
-        : shiftIds.length === 0
-          ? []
-          : evenSplit(line.perDay[dayIndex] ?? 0, shiftIds),
-    ),
-  }));
+  const generateLines = buildGenerateLines({
+    days,
+    shiftIds,
+    lines,
+    stored: existing ? stored : null,
+  });
 
   return {
     requestId: request.id,

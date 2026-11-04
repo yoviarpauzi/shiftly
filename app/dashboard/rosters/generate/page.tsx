@@ -1,10 +1,12 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { GenerateForm } from "@/components/dashboard/rosters/generate-form";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatRequestDates } from "../../requests/request-rules";
 import { requireRosterUser } from "../roster-guard";
 import { getGenerateView } from "../rosters";
 
-export default async function Page({
+async function GenerateView({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -36,5 +38,30 @@ export default async function Page({
       </div>
       <GenerateForm view={view} />
     </div>
+  );
+}
+
+// The session and the search params are read inside the Suspense, so the route's static shell is
+// the skeleton and the navigation to it is instant, as on the other pages without a loading.tsx.
+export default function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-9 w-48 self-end" />
+        </div>
+      }
+    >
+      <GenerateView searchParams={searchParams} />
+    </Suspense>
   );
 }

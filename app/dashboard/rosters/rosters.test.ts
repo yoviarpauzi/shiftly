@@ -109,6 +109,21 @@ describe("reads of other rosters leave out a request that is no longer approved"
     expect(sql).toContain('"roster_request"."status" = $');
     expect(params).toContain("approved");
   });
+
+  // A confirmed roster's own work rows would otherwise count twice: once as history, once as cells.
+  it("leaves the excluded roster out of the confirmed work", () => {
+    const ROSTER = "22222222-2222-4222-8222-222222222222";
+    const { sql, params } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15", ROSTER).toSQL();
+
+    expect(sql).toContain('"roster"."id" <> $');
+    expect(params).toContain(ROSTER);
+  });
+
+  it("reads every roster's confirmed work when none is excluded", () => {
+    const { sql } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15").toSQL();
+
+    expect(sql).not.toContain('"roster"."id" <> $');
+  });
 });
 
 describe("lineTitle", () => {
@@ -135,6 +150,11 @@ const assignment = (
   shiftOrder: number | null,
 ) => ({ lineId, workerId, employeeId, name: `Name ${employeeId}`, date, kind, shiftOrder });
 
+// No cell edited and no warning.
+const NO_KEYS = { editedKeys: new Set<string>(), warningKeys: new Set<string>() };
+
+const plain = { edited: false, warning: false };
+
 describe("buildLineViews", () => {
   it("gives one cell per day, null for a day with no assignment", () => {
     const [first] = buildLineViews({
@@ -143,10 +163,34 @@ describe("buildLineViews", () => {
       assignments: [assignment("l1", "w1", "E1", "2026-11-10", "work", 2)],
       conflicts: [],
       replacedIn: [],
+      ...NO_KEYS,
     });
 
     expect(first.workers).toHaveLength(1);
-    expect(first.workers[0].cells).toEqual([null, { kind: "work", shiftOrder: 2 }, null]);
+    expect(first.workers[0].cells).toEqual([null, { kind: "work", shiftOrder: 2, ...plain }, null]);
+  });
+
+  it("flags only the keyed cells as edited or warned, and keeps empty days null", () => {
+    const [first, second] = buildLineViews({
+      days: DAYS,
+      lines: LINES,
+      assignments: [
+        assignment("l1", "w1", "E1", "2026-11-09", "work", 1),
+        assignment("l1", "w1", "E1", "2026-11-10", "off", null),
+        assignment("l2", "w1", "E1", "2026-11-09", "work", 1),
+      ],
+      conflicts: [],
+      replacedIn: [],
+      editedKeys: new Set(["l1|w1|2026-11-10", "l1|w1|2026-11-11"]),
+      warningKeys: new Set(["l1|w1|2026-11-09", "l1|w1|2026-11-11"]),
+    });
+
+    expect(first.workers[0].cells).toEqual([
+      { kind: "work", shiftOrder: 1, edited: false, warning: true },
+      { kind: "off", edited: true, warning: false },
+      null,
+    ]);
+    expect(second.workers[0].cells).toEqual([{ kind: "work", shiftOrder: 1, ...plain }, null, null]);
   });
 
   it("maps off and break days to their own cells", () => {
@@ -160,12 +204,13 @@ describe("buildLineViews", () => {
       ],
       conflicts: [],
       replacedIn: [],
+      ...NO_KEYS,
     });
 
     expect(first.workers[0].cells).toEqual([
-      { kind: "work", shiftOrder: 1 },
-      { kind: "off" },
-      { kind: "break" },
+      { kind: "work", shiftOrder: 1, ...plain },
+      { kind: "off", ...plain },
+      { kind: "break", ...plain },
     ]);
   });
 
@@ -180,6 +225,7 @@ describe("buildLineViews", () => {
       ],
       conflicts: [],
       replacedIn: [],
+      ...NO_KEYS,
     });
 
     expect(first.workers.map((worker) => worker.employeeId)).toEqual(["A-1", "b-2"]);
@@ -197,6 +243,7 @@ describe("buildLineViews", () => {
       ],
       conflicts: [],
       replacedIn: [{ lineId: "l1", workerId: "w1" }],
+      ...NO_KEYS,
     });
 
     expect(first.workers.map((worker) => worker.replaced)).toEqual([true, false]);
@@ -214,6 +261,7 @@ describe("buildLineViews", () => {
         { lineId: "l1", date: "2026-11-09", shiftOrder: null, shortfall: 5, message: "Short." },
       ],
       replacedIn: [],
+      ...NO_KEYS,
     });
 
     expect(first.unfilled).toEqual([
@@ -230,6 +278,7 @@ describe("buildLineViews", () => {
       assignments: [],
       conflicts: [],
       replacedIn: [],
+      ...NO_KEYS,
     });
 
     expect(first).toMatchObject({ lineId: "l1", title: "Produksi / Packing / Operator", perDay: [2, 2, 2] });
@@ -255,7 +304,7 @@ describe("buildConflictViews", () => {
 });
 
 describe("rosterCounts", () => {
-  it("counts distinct workers, work assignments, conflicts, and edits", () => {
+  it("counts distinct workers, work assignments, conflicts, edits, and warnings", () => {
     expect(
       rosterCounts(
         [
@@ -266,16 +315,18 @@ describe("rosterCounts", () => {
         ],
         3,
         1,
+        2,
       ),
-    ).toEqual({ workers: 2, shiftsAssigned: 3, conflicts: 3, edits: 1 });
+    ).toEqual({ workers: 2, shiftsAssigned: 3, conflicts: 3, edits: 1, warnings: 2 });
   });
 
   it("is all zeros for an empty roster", () => {
-    expect(rosterCounts([], 0, 0)).toEqual({
+    expect(rosterCounts([], 0, 0, 0)).toEqual({
       workers: 0,
       shiftsAssigned: 0,
       conflicts: 0,
       edits: 0,
+      warnings: 0,
     });
   });
 });

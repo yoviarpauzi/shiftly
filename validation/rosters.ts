@@ -79,6 +79,71 @@ export const confirmRosterSchema = z.object({
 
 export type ConfirmRosterInput = z.infer<typeof confirmRosterSchema>;
 
+const rosterIdField = z.string({ error: "Choose a roster" }).uuid("Choose a roster");
+const lineIdField = z.string({ error: "Choose a line" }).uuid("Choose a line");
+const workerIdField = z.string({ error: "Choose a worker" }).uuid("Choose a worker");
+const cellDateField = z
+  .string({ error: "Date is required" })
+  .refine(isCalendarDate, "Date must be a real date like 2026-11-09");
+
+// What a cell becomes. clear removes the worker's cell for that day.
+const cellTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("work"),
+    shiftId: z.string({ error: "Choose a shift" }).uuid("Choose a shift"),
+  }),
+  z.object({ kind: z.literal("off") }),
+  z.object({ kind: z.literal("break") }),
+  z.object({ kind: z.literal("clear") }),
+]);
+
+const cellChangeShape = {
+  rosterId: rosterIdField,
+  lineId: lineIdField,
+  workerId: workerIdField,
+  date: cellDateField,
+  to: cellTargetSchema,
+};
+
+export const editCellSchema = z.object({ ...cellChangeShape, version: versionField });
+
+export type EditCellInput = z.infer<typeof editCellSchema>;
+
+// The same cell change without the version, for asking what an edit would do before it is made.
+export const previewCellSchema = z.object(cellChangeShape);
+
+export type PreviewCellInput = z.infer<typeof previewCellSchema>;
+
+export const swapCellSchema = z
+  .object({
+    rosterId: rosterIdField,
+    lineId: lineIdField,
+    date: cellDateField,
+    fromWorkerId: workerIdField,
+    toWorkerId: workerIdField,
+    version: versionField,
+  })
+  .superRefine((input, ctx) => {
+    if (input.fromWorkerId === input.toWorkerId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["toWorkerId"],
+        message: "Choose a different worker",
+      });
+    }
+  });
+
+export type SwapCellInput = z.infer<typeof swapCellSchema>;
+
+export const cellCandidatesSchema = z.object({
+  rosterId: rosterIdField,
+  lineId: lineIdField,
+  date: cellDateField,
+  fromWorkerId: workerIdField,
+});
+
+export type CellCandidatesInput = z.infer<typeof cellCandidatesSchema>;
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function firstValue(value: string | string[] | undefined): string {

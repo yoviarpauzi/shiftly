@@ -56,7 +56,9 @@ export function ConfirmRosterDialog({ roster, open, onOpenChange }: ConfirmRoste
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirm this roster?</AlertDialogTitle>
-          <AlertDialogDescription>{confirmDescription(roster.unfilled)}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {confirmDescription(roster.unfilled, roster.warnings)}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {formError && (
           <p role="alert" className="text-sm text-destructive">

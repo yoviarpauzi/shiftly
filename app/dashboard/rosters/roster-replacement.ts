@@ -1,77 +1,77 @@
-import type { ReplacementInput, ReplacementResult } from "@/types/rosters";
+import type { ReplacementInput, ReplacementResult, Reason } from "@/types/rosters";
 
-import { contractEnded, monthlyLimitReached, shiftMoveBlocked } from "./roster-constraints";
-import { addDays, monthKey, monthName, shortDate } from "./roster-rules";
+import {
+  contractEnded,
+  monthlyMessage,
+  monthlyOverrunEvents,
+  shiftMoveEvents,
+  shiftMoveMessage,
+} from "./roster-constraints";
+import { shortDate } from "./roster-rules";
 
 // Replays a candidate on the replaced worker's whole row against the same rule helpers the engine
 // uses, and returns every reason it breaks a rule, in a fixed order: already in the roster, the
 // position, the contract, another roster, a shift move, and the monthly limit. The weekly limit is
 // not checked: the candidate takes the same row, and the engine already kept that row within it.
-export function checkReplacement(input: ReplacementInput): ReplacementResult {
+function replacementReasons(input: ReplacementInput): Reason[] {
   const { row, candidate, position, rules, history } = input;
-  const reasons: string[] = [];
+  const reasons: Reason[] = [];
   const workDays = row.filter((day) => day.kind === "work");
 
   if (input.alreadyInRoster) {
-    reasons.push("Already in this roster.");
+    reasons.push({ hard: true, text: "Already in this roster." });
   }
 
   if (rules.requirePositionMatch && !candidate.positionIds.includes(position.id)) {
-    reasons.push(`Does not have the position ${position.name}.`);
+    reasons.push({ hard: false, text: `Does not have the position ${position.name}.` });
   }
 
   if (workDays.some((day) => contractEnded(candidate, day.date))) {
-    reasons.push(`Contract ends ${candidate.endContract}.`);
+    reasons.push({ hard: false, text: `Contract ends ${candidate.endContract}.` });
   }
 
   const other = new Set(input.otherRosterWorkDates);
 
   for (const day of workDays) {
     if (other.has(day.date)) {
-      reasons.push(`Assigned to another roster on ${shortDate(day.date)}.`);
+      reasons.push({ hard: true, text: `Assigned to another roster on ${shortDate(day.date)}.` });
     }
   }
 
-  // The history only counts as a chain when it ends the day before the row starts.
-  const first = row[0]?.date ?? null;
-  const chained = first !== null && history.lastWorkDate === addDays(first, -1);
-  let lastDate = chained ? history.lastWorkDate : null;
-  let lastOrder = chained ? history.lastShiftOrder : null;
-  let consecutive = chained ? history.consecutiveWorkDays : 0;
+  const walked = workDays.map((day) => ({ date: day.date, shiftOrder: day.shiftOrder }));
 
-  for (const day of workDays) {
-    const order = day.shiftOrder ?? 0;
-    const inChain = lastDate === addDays(day.date, -1);
-    const previousOrder = inChain ? lastOrder : null;
-    const run = inChain ? consecutive : 0;
-
-    if (shiftMoveBlocked(previousOrder, order, run, rules.shiftExceptionDays)) {
-      reasons.push(
-        `Moves from shift ${previousOrder} to shift ${order} on ${shortDate(day.date)}, before ${rules.shiftExceptionDays} working days.`,
-      );
-    }
-
-    consecutive = run + 1;
-    lastDate = day.date;
-    lastOrder = order;
+  for (const event of shiftMoveEvents(
+    walked,
+    history,
+    row[0]?.date ?? null,
+    rules.shiftExceptionDays,
+  )) {
+    reasons.push({ hard: false, text: shiftMoveMessage(event, rules.shiftExceptionDays) });
   }
 
-  const counts = new Map<string, number>();
-  const exceeded = new Set<string>();
-
-  for (const day of workDays) {
-    const month = monthKey(day.date);
-    const before = counts.get(month) ?? history.monthWorkDays[month] ?? 0;
-
-    if (monthlyLimitReached(before, rules.maxWorkingDaysPerMonth) && !exceeded.has(month)) {
-      exceeded.add(month);
-      reasons.push(
-        `Would exceed ${rules.maxWorkingDaysPerMonth} working days in ${monthName(day.date)}.`,
-      );
-    }
-
-    counts.set(month, before + 1);
+  for (const event of monthlyOverrunEvents(walked, history, rules.maxWorkingDaysPerMonth)) {
+    reasons.push({ hard: false, text: monthlyMessage(event, rules.maxWorkingDaysPerMonth) });
   }
+
+  return reasons;
+}
+
+// The same reasons split in two, each list keeping the fixed order.
+export function checkReplacementDetailed(input: ReplacementInput): {
+  hard: string[];
+  warnings: string[];
+} {
+  const reasons = replacementReasons(input);
+
+  return {
+    hard: reasons.filter((reason) => reason.hard).map((reason) => reason.text),
+    warnings: reasons.filter((reason) => !reason.hard).map((reason) => reason.text),
+  };
+}
+
+// Every reason, hard or not, in the fixed order.
+export function checkReplacement(input: ReplacementInput): ReplacementResult {
+  const reasons = replacementReasons(input).map((reason) => reason.text);
 
   return reasons.length === 0 ? { ok: true } : { ok: false, reasons };
 }

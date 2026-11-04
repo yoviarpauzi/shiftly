@@ -24,6 +24,7 @@ import { rosterRequest, rosterRequestLine, rosterRequestLineDay } from "@/databa
 import {
   roster,
   rosterAssignment,
+  rosterCellEdit,
   rosterConflict,
   rosterEdit,
   rosterShiftTarget,
@@ -37,10 +38,13 @@ import { sortTerms } from "@/lib/sort";
 import type { RequestAccess } from "@/types/requests";
 import type {
   AssignmentKind,
+  CellContextResult,
   EngineHistory,
   GenerateLine,
+  GenerateShift,
   GenerateView,
   LoadedEngineInput,
+  LocationWorker,
   Reader,
   ReplacementCandidate,
   ReplacementContextResult,
@@ -57,7 +61,8 @@ import type {
 import type { SortCriterion } from "@/types/sort";
 import { parseRequestId } from "@/validation/request-id";
 import { requestScopeFilter } from "../requests/requests";
-import { checkReplacement } from "./roster-replacement";
+import { evaluateRoster } from "./roster-evaluation";
+import { checkReplacement, checkReplacementDetailed } from "./roster-replacement";
 import {
   addDays,
   evenSplit,
@@ -151,12 +156,15 @@ function byText(a: string, b: string): number {
 }
 
 // One block per line: a row per worker with a cell per day, and what the line could not fill.
+// editedKeys and warningKeys hold "lineId|workerId|date" for the cells to flag.
 export function buildLineViews(input: {
   days: string[];
   lines: LineHead[];
   assignments: AssignmentRow[];
   conflicts: ConflictRow[];
   replacedIn: { lineId: string; workerId: string }[];
+  editedKeys: Set<string>;
+  warningKeys: Set<string>;
 }): RosterLineView[] {
   const replaced = new Set(input.replacedIn.map((edit) => `${edit.lineId}|${edit.workerId}`));
 
@@ -183,8 +191,13 @@ export function buildLineViews(input: {
 
       if (index === -1) continue;
 
+      const key = `${line.lineId}|${row.workerId}|${row.date}`;
+      const flags = { edited: input.editedKeys.has(key), warning: input.warningKeys.has(key) };
+
       entry.cells[index] =
-        row.kind === "work" ? { kind: "work", shiftOrder: row.shiftOrder ?? 0 } : { kind: row.kind };
+        row.kind === "work"
+          ? { kind: "work", shiftOrder: row.shiftOrder ?? 0, ...flags }
+          : { kind: row.kind, ...flags };
     }
 
     const unfilled = input.conflicts
@@ -236,12 +249,14 @@ export function rosterCounts(
   assignments: AssignmentRow[],
   conflicts: number,
   edits: number,
+  warnings: number,
 ): RosterCounts {
   return {
     workers: new Set(assignments.map((row) => row.workerId)).size,
     shiftsAssigned: assignments.filter((row) => row.kind === "work").length,
     conflicts,
     edits,
+    warnings,
   };
 }
 
@@ -428,6 +443,8 @@ export async function getRoster(
       type: rosterRequest.type,
       requestStatus: rosterRequest.status,
       startDate: rosterRequest.startDate,
+      siteId: rosterRequest.siteId,
+      locationId: rosterRequest.locationId,
       locationName: location.name,
       siteName: site.name,
     })
@@ -447,15 +464,18 @@ export async function getRoster(
   const days = requestDays(head.startDate, type);
   const lines = await loadRequestLines(db, head.requestId);
 
-  const assignments: AssignmentRow[] = (
+  const assignmentRows = (
     await db
       .select({
         lineId: rosterAssignment.requestLineId,
         workerId: rosterAssignment.workerId,
         employeeId: worker.employeeId,
         name: worker.name,
+        endContract: worker.endContract,
+        workDaysPerWeek: worker.workDaysPerWeek,
         date: rosterAssignment.workDate,
         kind: rosterAssignment.kind,
+        shiftId: rosterAssignment.shiftId,
         shiftOrder: shift.order,
       })
       .from(rosterAssignment)
@@ -463,6 +483,16 @@ export async function getRoster(
       .leftJoin(shift, eq(shift.id, rosterAssignment.shiftId))
       .where(eq(rosterAssignment.rosterId, rosterId))
   ).map((row) => ({ ...row, kind: row.kind as AssignmentKind }));
+
+  const assignments: AssignmentRow[] = assignmentRows.map((row) => ({
+    lineId: row.lineId,
+    workerId: row.workerId,
+    employeeId: row.employeeId,
+    name: row.name,
+    date: row.date,
+    kind: row.kind,
+    shiftOrder: row.shiftOrder,
+  }));
 
   const conflicts: ConflictRow[] = (
     await db
@@ -483,6 +513,53 @@ export async function getRoster(
     .from(rosterEdit)
     .where(eq(rosterEdit.rosterId, rosterId));
 
+  const cellEdits = await db
+    .select({
+      lineId: rosterCellEdit.requestLineId,
+      workerId: rosterCellEdit.workerId,
+      date: rosterCellEdit.workDate,
+    })
+    .from(rosterCellEdit)
+    .where(eq(rosterCellEdit.rosterId, rosterId));
+
+  // Warnings are not stored: they are worked out again from the roster as it stands.
+  const workers = new Map(assignmentRows.map((row) => [row.workerId, row]));
+  const workerIds = [...workers.keys()];
+  const positions = await loadWorkerPositions(db, workerIds);
+
+  const warnings = evaluateRoster({
+    days,
+    lines: lines.map((line) => ({
+      id: line.lineId,
+      positionId: line.positionId,
+      positionName: line.positionName,
+    })),
+    workers: workerIds.map((id) => ({
+      id,
+      endContract: workers.get(id)?.endContract ?? "",
+      positionIds: positions.get(id)?.ids ?? [],
+      workDaysPerWeek: workers.get(id)?.workDaysPerWeek ?? null,
+    })),
+    cells: assignmentRows.map((row) => ({
+      lineId: row.lineId,
+      workerId: row.workerId,
+      date: row.date,
+      kind: row.kind,
+      shiftOrder: row.shiftOrder,
+      shiftId: row.shiftId,
+    })),
+    targets: await loadTargets(db, rosterId),
+    rules: await loadEngineRules(db, { locationId: head.locationId, siteId: head.siteId }),
+    history: await loadHistories(db, workerIds, days, rosterId),
+  });
+
+  const titles = new Map(lines.map((line) => [line.lineId, line.title]));
+  const key = (entry: { lineId: string; workerId: string | null; date: string }) =>
+    `${entry.lineId}|${entry.workerId}|${entry.date}`;
+
+  // A warning about a cell group has no worker and marks no cell.
+  const warningKeys = new Set(warnings.filter((warning) => warning.workerId !== null).map(key));
+
   return {
     id: head.id,
     requestId: head.requestId,
@@ -499,10 +576,69 @@ export async function getRoster(
     confirmedAt: head.confirmedAt ? head.confirmedAt.toISOString() : null,
     version: head.updatedAt.toISOString(),
     days,
-    lines: buildLineViews({ days, lines, assignments, conflicts, replacedIn: edits }),
+    shifts: await loadSiteShifts(db, head.siteId),
+    lines: buildLineViews({
+      days,
+      lines,
+      assignments,
+      conflicts,
+      replacedIn: edits,
+      editedKeys: new Set(cellEdits.map(key)),
+      warningKeys,
+    }),
     conflicts: buildConflictViews(lines, conflicts),
-    counts: rosterCounts(assignments, conflicts.length, edits.length),
+    warnings: warnings.map((warning) => ({
+      lineId: warning.lineId,
+      lineTitle: titles.get(warning.lineId) ?? "",
+      workerId: warning.workerId,
+      workerName: warning.workerId === null ? null : (workers.get(warning.workerId)?.name ?? null),
+      date: warning.date,
+      message: warning.message,
+    })),
+    counts: rosterCounts(
+      assignments,
+      conflicts.length,
+      edits.length + cellEdits.length,
+      warnings.length,
+    ),
   };
+}
+
+// The roster's per-shift targets, each with its shift's order.
+async function loadTargets(reader: Reader, rosterId: string) {
+  return reader
+    .select({
+      lineId: rosterShiftTarget.requestLineId,
+      date: rosterShiftTarget.workDate,
+      shiftId: rosterShiftTarget.shiftId,
+      shiftOrder: shift.order,
+      headcount: rosterShiftTarget.headcount,
+    })
+    .from(rosterShiftTarget)
+    .innerJoin(shift, eq(shift.id, rosterShiftTarget.shiftId))
+    .where(eq(rosterShiftTarget.rosterId, rosterId));
+}
+
+// The active shifts of a site by order, with their times as HH:mm. The Generate screen and the
+// cell menu of the roster both list them.
+async function loadSiteShifts(reader: Reader, siteId: string): Promise<GenerateShift[]> {
+  const rows = await reader
+    .select({
+      id: shift.id,
+      name: shift.name,
+      order: shift.order,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+    })
+    .from(shift)
+    .where(and(eq(shift.siteId, siteId), isNull(shift.deletedAt)))
+    .orderBy(asc(shift.order));
+
+  return rows.map((row) => ({
+    ...row,
+    startTime: toHourMinute(row.startTime),
+    endTime: toHourMinute(row.endTime),
+  }));
 }
 
 // The Generate screen for an approved request. A draft starts from the split it was generated with,
@@ -541,23 +677,7 @@ export async function getGenerateView(
   const type = request.type === "weekly" ? "weekly" : "daily";
   const days = requestDays(request.startDate, type);
 
-  const shifts = (
-    await db
-      .select({
-        id: shift.id,
-        name: shift.name,
-        order: shift.order,
-        startTime: shift.startTime,
-        endTime: shift.endTime,
-      })
-      .from(shift)
-      .where(and(eq(shift.siteId, request.siteId), isNull(shift.deletedAt)))
-      .orderBy(asc(shift.order))
-  ).map((row) => ({
-    ...row,
-    startTime: toHourMinute(row.startTime),
-    endTime: toHourMinute(row.endTime),
-  }));
+  const shifts = await loadSiteShifts(db, request.siteId);
 
   const lines = await loadRequestLines(db, request.id);
 
@@ -658,12 +778,14 @@ export function otherRosterWorkQuery(
     );
 }
 
-// The confirmed work rows of the workers between two dates.
+// The confirmed work rows of the workers between two dates. excludeRosterId leaves a roster out of
+// its own history: a confirmed roster's rows are also its cells, and must not count twice.
 export function confirmedWorkQuery(
   reader: Reader,
   workerIds: string[],
   from: string,
   to: string,
+  excludeRosterId?: string,
 ) {
   return reader
     .select({
@@ -678,6 +800,7 @@ export function confirmedWorkQuery(
     .where(
       and(
         eq(roster.status, "confirmed"),
+        excludeRosterId ? ne(roster.id, excludeRosterId) : undefined,
         eq(rosterRequest.status, "approved"),
         eq(rosterAssignment.kind, "work"),
         inArray(rosterAssignment.workerId, workerIds),
@@ -687,10 +810,12 @@ export function confirmedWorkQuery(
 }
 
 // The confirmed work rows of the workers in the window around a roster, grouped into histories.
+// A caller reading an existing roster passes its id so the roster is not part of its own history.
 async function loadHistories(
   reader: Reader,
   workerIds: string[],
   days: string[],
+  excludeRosterId?: string,
 ): Promise<EngineHistory[]> {
   if (workerIds.length === 0 || days.length === 0) {
     return [];
@@ -704,6 +829,7 @@ async function loadHistories(
     workerIds,
     addDays(firstDay, -HISTORY_LOOKBACK_DAYS),
     addDays(days[days.length - 1], 31),
+    excludeRosterId,
   );
 
   return workerIds.map((workerId) =>
@@ -917,7 +1043,7 @@ export async function loadReplacementContext(
       ? []
       : await otherRosterWorkQuery(reader, input.rosterId, eligibleIds, days);
 
-  const histories = await loadHistories(reader, eligibleIds, days);
+  const histories = await loadHistories(reader, eligibleIds, days, input.rosterId);
 
   return {
     ok: true,
@@ -938,6 +1064,150 @@ export async function loadReplacementContext(
           .map((other) => other.date),
         history: histories[index],
       })),
+    },
+  };
+}
+
+// The active workers of a location by employee ID, each with the names of their positions. The pool
+// the Add worker dialog and the cell candidate list choose from.
+export async function loadLocationWorkers(
+  reader: Reader,
+  locationId: string,
+): Promise<LocationWorker[]> {
+  const rows = await reader
+    .select({ id: worker.id, employeeId: worker.employeeId, name: worker.name })
+    .from(worker)
+    .where(and(eq(worker.locationId, locationId), isNull(worker.deletedAt)))
+    .orderBy(asc(worker.employeeId), asc(worker.id));
+
+  const positions = await loadWorkerPositions(
+    reader,
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => ({ ...row, positionNames: positions.get(row.id)?.names ?? [] }));
+}
+
+// Loads what a cell edit is judged and stored with: the whole roster as it stands, and the listed
+// workers, who may or may not be in it yet. A listed worker who is not an active worker of the
+// location gives reason "worker". Another roster's work days count for draft and confirmed rosters.
+export async function loadCellContext(
+  reader: Reader,
+  input: { rosterId: string; lineId: string; workerIds: string[] },
+): Promise<CellContextResult> {
+  const [head] = await reader
+    .select({
+      requestId: roster.requestId,
+      type: rosterRequest.type,
+      startDate: rosterRequest.startDate,
+      siteId: rosterRequest.siteId,
+      locationId: rosterRequest.locationId,
+    })
+    .from(roster)
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .where(eq(roster.id, input.rosterId));
+
+  if (!head) {
+    return { ok: false, reason: "line" };
+  }
+
+  const lines = (await loadRequestLines(reader, head.requestId)).map((line) => ({
+    id: line.lineId,
+    positionId: line.positionId,
+    positionName: line.positionName,
+  }));
+
+  const line = lines.find((entry) => entry.id === input.lineId);
+
+  if (!line) {
+    return { ok: false, reason: "line" };
+  }
+
+  const workerIds = [...new Set(input.workerIds)];
+
+  const workers =
+    workerIds.length === 0
+      ? []
+      : await reader
+          .select({
+            id: worker.id,
+            employeeId: worker.employeeId,
+            name: worker.name,
+            endContract: worker.endContract,
+            workDaysPerWeek: worker.workDaysPerWeek,
+          })
+          .from(worker)
+          .where(
+            and(
+              inArray(worker.id, workerIds),
+              eq(worker.locationId, head.locationId),
+              isNull(worker.deletedAt),
+            ),
+          )
+          .orderBy(asc(worker.employeeId), asc(worker.id));
+
+  if (workers.length !== workerIds.length) {
+    return { ok: false, reason: "worker" };
+  }
+
+  const days = requestDays(head.startDate, head.type === "weekly" ? "weekly" : "daily");
+
+  const shifts = await reader
+    .select({ id: shift.id, order: shift.order })
+    .from(shift)
+    .where(and(eq(shift.siteId, head.siteId), isNull(shift.deletedAt)))
+    .orderBy(asc(shift.order));
+
+  const cells = (
+    await reader
+      .select({
+        lineId: rosterAssignment.requestLineId,
+        workerId: rosterAssignment.workerId,
+        date: rosterAssignment.workDate,
+        kind: rosterAssignment.kind,
+        shiftOrder: shift.order,
+        shiftId: rosterAssignment.shiftId,
+      })
+      .from(rosterAssignment)
+      .leftJoin(shift, eq(shift.id, rosterAssignment.shiftId))
+      .where(eq(rosterAssignment.rosterId, input.rosterId))
+  ).map((row) => ({ ...row, kind: row.kind as AssignmentKind }));
+
+  const previousConflicts = await reader
+    .select({
+      lineId: rosterConflict.requestLineId,
+      date: rosterConflict.workDate,
+      shiftId: rosterConflict.shiftId,
+      shortfall: rosterConflict.shortfall,
+      message: rosterConflict.message,
+    })
+    .from(rosterConflict)
+    .where(eq(rosterConflict.rosterId, input.rosterId));
+
+  const positions = await loadWorkerPositions(reader, workerIds);
+
+  return {
+    ok: true,
+    context: {
+      dates: days,
+      shifts,
+      line,
+      workers: workers.map((entry) => ({
+        ...entry,
+        positionIds: positions.get(entry.id)?.ids ?? [],
+        positionNames: positions.get(entry.id)?.names ?? [],
+        active: true,
+      })),
+      cells,
+      targets: await loadTargets(reader, input.rosterId),
+      busy:
+        workerIds.length === 0
+          ? []
+          : await otherRosterWorkQuery(reader, input.rosterId, workerIds, days),
+      history: await loadHistories(reader, workerIds, days, input.rosterId),
+      rules: await loadEngineRules(reader, { locationId: head.locationId, siteId: head.siteId }),
+      previousConflicts,
+      lines,
     },
   };
 }
@@ -979,7 +1249,7 @@ export async function replacementCandidates(
   const { context } = loaded;
 
   return context.candidates.map((candidate) => {
-    const result = checkReplacement({
+    const input = {
       row: context.row,
       candidate: {
         id: candidate.id,
@@ -991,7 +1261,8 @@ export async function replacementCandidates(
       otherRosterWorkDates: candidate.otherRosterWorkDates,
       history: candidate.history,
       rules: context.rules,
-    });
+    };
+    const result = checkReplacement(input);
 
     return {
       workerId: candidate.id,
@@ -999,6 +1270,7 @@ export async function replacementCandidates(
       name: candidate.name,
       positionNames: candidate.positionNames,
       reasons: result.ok ? [] : result.reasons,
+      hard: checkReplacementDetailed(input).hard.length > 0,
     };
   });
 }

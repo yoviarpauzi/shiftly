@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cellCandidatesSchema,
   confirmRosterSchema,
+  editCellSchema,
   generateRosterSchema,
   parseRosterFilters,
+  previewCellSchema,
   replaceWorkerSchema,
+  swapCellSchema,
 } from "./rosters";
 
 const REQUEST = "3f6c1c1e-8a53-4b7e-9d0a-5b1e2f7c9a10";
@@ -130,6 +134,99 @@ describe("confirmRosterSchema", () => {
   it("refuses a non-uuid roster id and an empty version", () => {
     expect(confirmRosterSchema.safeParse({ rosterId: "x", version: "v" }).success).toBe(false);
     expect(confirmRosterSchema.safeParse({ rosterId: REQUEST, version: "" }).success).toBe(false);
+  });
+});
+
+describe("editCellSchema", () => {
+  const base = {
+    rosterId: REQUEST,
+    lineId: LINE,
+    workerId: WORKER_A,
+    date: "2026-11-09",
+    to: { kind: "work", shiftId: SHIFT_1 },
+    version: "2026-11-06T08:52:00.000Z",
+  };
+
+  it("accepts each kind the cell can become", () => {
+    for (const to of [{ kind: "work", shiftId: SHIFT_1 }, { kind: "off" }, { kind: "break" }, { kind: "clear" }]) {
+      expect(editCellSchema.safeParse({ ...base, to }).success).toBe(true);
+    }
+  });
+
+  it("refuses a work cell without a shift, or with a shift that is not a uuid", () => {
+    expect(issues(editCellSchema.safeParse({ ...base, to: { kind: "work" } }))).toEqual([
+      { path: ["to", "shiftId"], message: "Choose a shift" },
+    ]);
+    expect(issues(editCellSchema.safeParse({ ...base, to: { kind: "work", shiftId: "x" } }))).toEqual([
+      { path: ["to", "shiftId"], message: "Choose a shift" },
+    ]);
+  });
+
+  it("refuses an unknown kind", () => {
+    expect(editCellSchema.safeParse({ ...base, to: { kind: "holiday" } }).success).toBe(false);
+  });
+
+  it("refuses a date that is not a real date", () => {
+    expect(issues(editCellSchema.safeParse({ ...base, date: "2026-02-30" }))).toEqual([
+      { path: ["date"], message: "Date must be a real date like 2026-11-09" },
+    ]);
+  });
+
+  it("refuses a non-uuid for each id and an empty version", () => {
+    for (const key of ["rosterId", "lineId", "workerId"]) {
+      expect(editCellSchema.safeParse({ ...base, [key]: "x" }).success).toBe(false);
+    }
+    expect(editCellSchema.safeParse({ ...base, version: "" }).success).toBe(false);
+  });
+
+  it("has a preview form without the version", () => {
+    const preview = { ...base, version: undefined };
+
+    expect(previewCellSchema.safeParse(preview).success).toBe(true);
+    expect(previewCellSchema.safeParse({ ...preview, date: "x" }).success).toBe(false);
+  });
+});
+
+describe("swapCellSchema", () => {
+  const base = {
+    rosterId: REQUEST,
+    lineId: LINE,
+    date: "2026-11-09",
+    fromWorkerId: WORKER_A,
+    toWorkerId: WORKER_B,
+    version: "2026-11-06T08:52:00.000Z",
+  };
+
+  it("accepts a valid swap", () => {
+    expect(swapCellSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("refuses swapping a worker with themselves", () => {
+    expect(issues(swapCellSchema.safeParse({ ...base, toWorkerId: WORKER_A }))).toEqual([
+      { path: ["toWorkerId"], message: "Choose a different worker" },
+    ]);
+  });
+
+  it("refuses a bad id, a bad date, and an empty version", () => {
+    for (const key of ["rosterId", "lineId", "fromWorkerId", "toWorkerId"]) {
+      expect(swapCellSchema.safeParse({ ...base, [key]: "x" }).success).toBe(false);
+    }
+    expect(swapCellSchema.safeParse({ ...base, date: "2026-13-01" }).success).toBe(false);
+    expect(swapCellSchema.safeParse({ ...base, version: "" }).success).toBe(false);
+  });
+});
+
+describe("cellCandidatesSchema", () => {
+  const base = { rosterId: REQUEST, lineId: LINE, date: "2026-11-09", fromWorkerId: WORKER_A };
+
+  it("accepts a cell", () => {
+    expect(cellCandidatesSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("refuses a bad id or date", () => {
+    for (const key of ["rosterId", "lineId", "fromWorkerId", "date"]) {
+      expect(cellCandidatesSchema.safeParse({ ...base, [key]: "x" }).success).toBe(false);
+    }
   });
 });
 

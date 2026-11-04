@@ -12,6 +12,11 @@ export const TARGETS_MISMATCH_MESSAGE =
 export const ROSTER_LINE_MISSING_MESSAGE = "That line is not in this roster.";
 export const ROSTER_WORKER_MISSING_MESSAGE = "That worker has no shifts on this line.";
 export const REPLACEMENT_WORKER_MISSING_MESSAGE = "That worker is not available at this location.";
+export const CELL_DATE_MESSAGE = "That day is not in this roster.";
+export const CELL_SHIFT_MESSAGE = "That shift is not available at this site.";
+export const CELL_OTHER_LINE_MESSAGE = "This worker already has a row on that day in another line.";
+export const CELL_BUSY_MESSAGE = "This worker already works on that day in another roster.";
+export const CELL_WORKS_THAT_DAY_MESSAGE = "This worker already works on that day.";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -75,18 +80,32 @@ export function dayLabel(date: string): string {
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
+// "1 warning", "2 warnings".
+export function warningsLabel(count: number): string {
+  return plural(count, "warning", "warnings");
+}
+
+// The success toast of an edit, with the rule warnings the edit introduced when there are any.
+export function warningsAddedMessage(message: string, warnings: number): string {
+  return warnings > 0 ? `${message}. ${warningsLabel(warnings)} added` : message;
+}
+
 const LOCKED_NOTE =
   "A confirmed roster is locked: you can no longer replace workers or generate it again.";
 
-export function confirmDescription(unfilled: number): string {
-  return unfilled === 0
-    ? LOCKED_NOTE
-    : `${unfilled} ${unfilled === 1 ? "shift is" : "shifts are"} still unfilled. ${LOCKED_NOTE}`;
+// What remains when the roster is confirmed: shifts nobody could fill and rules an edit broke.
+export function confirmDescription(unfilled: number, warnings: number): string {
+  const remaining = [
+    unfilled > 0 ? `${unfilled} ${unfilled === 1 ? "shift is" : "shifts are"} still unfilled` : null,
+    warnings > 0 ? `${warnings} ${warnings === 1 ? "warning remains" : "warnings remain"}` : null,
+  ].filter(Boolean);
+
+  return remaining.length === 0 ? LOCKED_NOTE : `${remaining.join(" and ")}. ${LOCKED_NOTE}`;
 }
 
 export function generateAgainDescription(edits: number, conflicts: number): string {
   const lost = [
-    edits > 0 ? plural(edits, "manual replacement", "manual replacements") : null,
+    edits > 0 ? plural(edits, "manual edit", "manual edits") : null,
     conflicts > 0 ? `the ${plural(conflicts, "conflict", "conflicts")} listed now` : null,
   ].filter(Boolean);
 

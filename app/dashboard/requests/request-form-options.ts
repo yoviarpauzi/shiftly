@@ -76,19 +76,12 @@ export function positionsFor(choices: RequestChoices, locationId: string): Reque
   return choices.positions.filter((row) => row.siteId === siteId).map(toOption);
 }
 
-// Shifts belong to a site, so the location's site decides which ones apply. They keep the order
-// the choices came in, which is by shift order.
+// Shifts belong to a location. They keep the order the choices came in, which is by shift order.
 export function shiftsFor(choices: RequestChoices, locationId: string): RequestShiftChoice[] {
-  const siteId = choices.locations.find((row) => row.id === locationId)?.siteId;
-
-  if (!siteId) {
-    return [];
-  }
-
-  return choices.shifts.filter((row) => row.siteId === siteId);
+  return choices.shifts.filter((row) => row.locationId === locationId);
 }
 
-// The shifts the Shift select offers: the site's active shifts, plus any shift the request's own
+// The shifts the Shift select offers: the location's active shifts, plus any shift the request's own
 // lines name that is no longer active, so a read-only request still shows what it asked for.
 export function shiftsForRequest(
   choices: RequestChoices,

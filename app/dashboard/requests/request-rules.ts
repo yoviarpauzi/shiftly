@@ -37,7 +37,7 @@ const UNKNOWN_SUB_DEPARTMENT_MESSAGE = "Choose a sub-department of the selected 
 
 const UNKNOWN_POSITION_MESSAGE = "Choose a position from this site";
 
-export const UNKNOWN_SHIFT_MESSAGE = "Choose a shift of this site";
+export const UNKNOWN_SHIFT_MESSAGE = "Choose a shift of this location";
 
 const WEEK_LAST_DAY_OFFSET = 6;
 

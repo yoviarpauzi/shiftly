@@ -50,18 +50,18 @@ const line = (fields: {
 });
 
 describe("lineScopeError shifts", () => {
-  it("returns the unknown shift message for a shift outside the site", () => {
+  it("returns the unknown shift message for a shift outside the location", () => {
     expect(lineScopeError([line({ shiftId: "other-site-shift" })], valid)).toBe(
       UNKNOWN_SHIFT_MESSAGE,
     );
-    expect(UNKNOWN_SHIFT_MESSAGE).toBe("Choose a shift of this site");
+    expect(UNKNOWN_SHIFT_MESSAGE).toBe("Choose a shift of this location");
   });
 
   it("accepts a null shift", () => {
     expect(lineScopeError([line({ shiftId: null })], valid)).toBeNull();
   });
 
-  it("accepts a shift of the site", () => {
+  it("accepts a shift of the location", () => {
     expect(lineScopeError([line({ shiftId: SHIFT })], valid)).toBeNull();
   });
 });

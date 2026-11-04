@@ -259,16 +259,21 @@ describe("attendanceFormKey", () => {
 
 describe("attendanceLock", () => {
   it("is scope while no location is chosen, even on a future day", () => {
-    expect(attendanceLock(null, false)).toBe("scope");
-    expect(attendanceLock(null, true)).toBe("scope");
+    expect(attendanceLock(null, false, 2)).toBe("scope");
+    expect(attendanceLock(null, true, 2)).toBe("scope");
   });
 
   it("is future for a chosen location on a day after today", () => {
-    expect(attendanceLock("l1", true)).toBe("future");
+    expect(attendanceLock("l1", true, 2)).toBe("future");
   });
 
   it("is open for a chosen location on a day that can be marked", () => {
-    expect(attendanceLock("l1", false)).toBeNull();
+    expect(attendanceLock("l1", false, 2)).toBeNull();
+  });
+
+  it("does not ask to choose a location when the access has none to choose", () => {
+    expect(attendanceLock(null, false, 0)).toBeNull();
+    expect(attendanceLock(null, true, 0)).toBe("future");
   });
 });
 

@@ -108,9 +108,14 @@ export function isFutureDay(date: string, today: string): boolean {
 }
 
 // Why the day cannot be marked. A location not chosen yet (All) wins over a future day, because
-// saving needs one location.
-export function attendanceLock(locationId: string | null, isFuture: boolean): AttendanceLock {
-  if (locationId === null) return "scope";
+// saving needs one location. When the access has no location at all there is nothing to choose, so
+// that reason does not apply.
+export function attendanceLock(
+  locationId: string | null,
+  isFuture: boolean,
+  locationCount: number,
+): AttendanceLock {
+  if (locationId === null && locationCount > 0) return "scope";
 
   return isFuture ? "future" : null;
 }
@@ -136,8 +141,21 @@ export function rowLocationLabel(
   return view === "location" ? row.locationName : `${row.siteName} · ${row.locationName}`;
 }
 
-const WEEKDAY_NAMES =["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 // "2026-11-09" as "Mon, 9 Nov 2026". Fixed English names and UTC arithmetic, so the text does not
 // change with the browser's locale or the ICU version. The date is already a real calendar date.

@@ -53,7 +53,7 @@ export default async function Page({
         today={list.today}
         rows={list.rows}
         resetKey={attendanceFormKey(filters.date, choices.locationId, list.rows)}
-        lock={attendanceLock(choices.locationId, list.isFuture)}
+        lock={attendanceLock(choices.locationId, list.isFuture, choices.locations.length)}
         locationView={locationViewFor(choices)}
         filters={<AttendanceFilters filters={filters} choices={choices} />}
         // The Figma frame for a day with no roster has no counts, since they would all be zero.

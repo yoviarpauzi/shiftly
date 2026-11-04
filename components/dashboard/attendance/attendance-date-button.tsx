@@ -13,13 +13,34 @@ export function AttendanceDateButton({ date, onPick }: AttendanceDateButtonProps
   const inputRef = React.useRef<HTMLInputElement>(null);
   const label = formatAttendanceDate(date);
 
+  // showPicker is missing in older browsers and throws when the page may not open it (a
+  // cross-origin frame, or no user gesture). Either way the input is focused and clicked, which is
+  // what those browsers open their own picker on.
+  function openPicker() {
+    const input = inputRef.current;
+
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker();
+        return;
+      }
+    } catch {
+      // Falls through to the focus and click below.
+    }
+
+    input.focus();
+    input.click();
+  }
+
   return (
     <>
       <Button
         type="button"
         variant="outline"
         aria-label={`Date, ${label}`}
-        onClick={() => inputRef.current?.showPicker?.()}
+        onClick={openPicker}
       >
         <CalendarIcon data-icon="inline-start" />
         {label}

@@ -173,6 +173,7 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
               siteId: row.siteId,
               locationId: row.locationId,
               endContract: row.endContract,
+              workDaysPerWeek: row.workDays,
             })
             .returning({ id: worker.id });
 
@@ -186,6 +187,8 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
               siteId: row.siteId,
               locationId: row.locationId,
               endContract: row.endContract,
+              // A blank cell keeps the override the worker has, so it is left out of the set.
+              ...(row.workDays === null ? {} : { workDaysPerWeek: row.workDays }),
             })
             .where(
               and(

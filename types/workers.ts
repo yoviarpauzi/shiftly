@@ -1,10 +1,14 @@
 import type { SiteChoice } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
+import type { WorkDays } from "@/types/settings";
 import type { SortCriterion } from "@/types/sort";
 
 export type WorkerSortColumn = "employeeId" | "name" | "site" | "location" | "status";
 
 export type WorkerStatus = "active" | "deleted" | "all";
+
+// What the form sends for working days. "default" clears the override.
+export type WorkDaysChoice = "default" | "5" | "7";
 
 export type WorkerAccess = {
   // null means every site, which only superadmin gets.
@@ -26,6 +30,8 @@ export type WorkerRow = {
   positions: WorkerPositionTag[];
   // YYYY-MM-DD, as stored.
   endContract: string;
+  // null means the worker follows the location's work rule.
+  workDaysPerWeek: WorkDays | null;
   deletedAt: Date | null;
 };
 
@@ -63,6 +69,7 @@ export type WorkerFieldErrors = {
   locationId?: string;
   positionIds?: string;
   endContract?: string;
+  workDays?: string;
 };
 
 export type WorkerActionResult =

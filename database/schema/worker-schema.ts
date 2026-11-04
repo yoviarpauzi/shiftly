@@ -1,14 +1,17 @@
 import { isNull, relations, sql } from "drizzle-orm";
 import {
+  check,
   date,
   index,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { WorkDays } from "@/types/settings";
 import { location } from "./location-schema";
 import { position } from "./position-schema";
 import { site } from "./site-schema";
@@ -27,6 +30,8 @@ export const worker = pgTable(
       .references(() => location.id, { onDelete: "restrict" }),
     // No default: every write sends the date. Rows that existed on 2026-11-02 got 2026-12-31.
     endContract: date("end_contract", { mode: "string" }).notNull(),
+    // Null means the worker follows the work rule of the location, site, or global level.
+    workDaysPerWeek: smallint("work_days_per_week").$type<WorkDays>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -40,6 +45,7 @@ export const worker = pgTable(
       .where(isNull(table.deletedAt)),
     index("worker_siteId_idx").on(table.siteId),
     index("worker_locationId_idx").on(table.locationId),
+    check("worker_work_days_check", sql`${table.workDaysPerWeek} in (5, 7)`),
   ],
 );
 

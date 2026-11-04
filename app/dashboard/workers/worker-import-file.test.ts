@@ -38,9 +38,35 @@ describe("readImportSheet", () => {
         location: "Gudang",
         positions: "Operator",
         end_contract: "2026-12-31",
+        work_days: null,
       });
       expect(result.rows[1].cells.positions).toBeNull();
     }
+  });
+
+  it("still reads a file from the old template, with no work_days column", async () => {
+    const result = await readImportSheet(
+      await xlsx([HEADER, ["EMP-1", "Budi", "Alpha", "Gudang", null, "2026-12-31"]]),
+    );
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.rows.every((row) => row.cells.work_days === null)).toBe(true);
+    }
+  });
+
+  it("reads the work_days cell, wherever the column is", async () => {
+    const result = await readImportSheet(
+      await xlsx([
+        ["work_days", ...HEADER],
+        [7, "EMP-1", "Budi", "Alpha", "Gudang", null, "2026-12-31"],
+        [null, "EMP-2", "Sari", "Alpha", "Gudang", null, "2026-12-31"],
+        ["5", "EMP-3", "Dewi", "Alpha", "Gudang", null, "2026-12-31"],
+      ]),
+    );
+
+    expect(result.ok && result.rows.map((row) => row.cells.work_days)).toEqual([7, null, "5"]);
   });
 
   it("keeps number cells as numbers", async () => {
@@ -194,5 +220,12 @@ describe("buildImportTemplate", () => {
     const [header] = await readSheet(await buildImportTemplate());
 
     expect(header).toContain("end_contract");
+  });
+
+  it("ends the header with the optional work_days column and gives the example worker 5", async () => {
+    const [header, example] = await readSheet(await buildImportTemplate());
+
+    expect(header.at(-1)).toBe("work_days");
+    expect(example.at(-1)).toBe(5);
   });
 });

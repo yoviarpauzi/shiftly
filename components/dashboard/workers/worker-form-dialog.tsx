@@ -5,7 +5,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/departments/department-rules";
 import { createWorker, updateWorker } from "@/app/dashboard/workers/actions";
-import type { WorkerFormDialogProps, WorkerFormOptions, WorkerRow } from "@/types/workers";
+import type {
+  WorkDaysChoice,
+  WorkerFormDialogProps,
+  WorkerFormOptions,
+  WorkerRow,
+} from "@/types/workers";
 import { WorkerPositionPicker } from "@/components/dashboard/workers/worker-position-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +33,13 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { workerSchema } from "@/validation/worker";
+
+// "Inherited" follows the location's work rule from Settings.
+const WORK_DAYS_ITEMS: { value: WorkDaysChoice; label: string }[] = [
+  { value: "default", label: "Inherited" },
+  { value: "5", label: "5 days" },
+  { value: "7", label: "7 days" },
+];
 
 // A fixed site starts the form on it. An edit starts on the worker's own site.
 function defaultSiteId(worker: WorkerRow | null, options: WorkerFormOptions) {
@@ -61,6 +73,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
       locationId: defaultLocationId(worker, options, initialSiteId),
       positionIds: worker?.positions.map((position) => position.id) ?? ([] as string[]),
       endContract: worker?.endContract ?? "",
+      workDays: (worker?.workDaysPerWeek ? String(worker.workDaysPerWeek) : "default") as WorkDaysChoice,
     },
     validators: {
       onSubmit: ({ value }) => {
@@ -99,6 +112,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
               locationId: nameFieldError(result.fieldErrors?.locationId),
               positionIds: nameFieldError(result.fieldErrors?.positionIds),
               endContract: nameFieldError(result.fieldErrors?.endContract),
+              workDays: nameFieldError(result.fieldErrors?.workDays),
             },
           },
         });
@@ -327,6 +341,45 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}
                           />
+                          {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
+                  <form.Field name="workDays">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
+
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor={field.name}>Working days</FieldLabel>
+                          <Select
+                            value={field.state.value}
+                            onValueChange={(value) => {
+                              if (value) {
+                                field.handleChange(value);
+                              }
+                            }}
+                            items={WORK_DAYS_ITEMS}
+                            disabled={isSubmitting}
+                          >
+                            <SelectTrigger
+                              id={field.name}
+                              aria-invalid={isInvalid || undefined}
+                              className="w-full"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {WORK_DAYS_ITEMS.map((item) => (
+                                  <SelectItem key={item.value} value={item.value}>
+                                    {item.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
                           {isInvalid && <FieldError errors={field.state.meta.errors} />}
                         </Field>
                       );

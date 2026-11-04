@@ -6,6 +6,8 @@ import type {
   RosterEngineOutput,
 } from "@/types/rosters";
 
+import { effectiveWorkDays } from "@/app/dashboard/settings/settings-rules";
+
 import {
   type RejectionReason,
   contractEnded,
@@ -84,7 +86,9 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
     if (rules.requirePositionMatch && !worker.positionIds.includes(positionId)) return "position";
     if (contractEnded(worker, date)) return "contract";
     if (state.assignedDates.has(date)) return "assigned";
-    if (state.workDays >= rules.workDaysPerWeek) return "weekly";
+    if (state.workDays >= effectiveWorkDays(worker.workDaysPerWeek, rules.workDaysPerWeek)) {
+      return "weekly";
+    }
 
     const chained = state.lastWorkDate === addDays(date, -1);
     const previousOrder = chained ? state.lastOrder : null;

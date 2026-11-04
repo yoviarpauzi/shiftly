@@ -1,6 +1,10 @@
 import type { PageParams } from "@/types/pagination";
+import type { Transaction } from "@/types/requests";
 import type { SortCriterion } from "@/types/sort";
 import type { GenerateRosterInput } from "@/validation/rosters";
+
+// Anything that can run a select: the database itself or a transaction.
+export type Reader = Pick<Transaction, "select">;
 
 export type RosterStatus = "draft" | "confirmed";
 
@@ -275,6 +279,8 @@ export type EngineWorker = {
   employeeId: string;
   endContract: string;
   positionIds: string[];
+  // The worker's own working days per week, or null to follow the rule.
+  workDaysPerWeek: number | null;
 };
 
 export type EngineLine = { id: string; positionId: string };

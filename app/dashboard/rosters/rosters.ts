@@ -34,13 +34,14 @@ import { worker, workerPosition } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
-import type { RequestAccess, Transaction } from "@/types/requests";
+import type { RequestAccess } from "@/types/requests";
 import type {
   AssignmentKind,
   EngineHistory,
   GenerateLine,
   GenerateView,
   LoadedEngineInput,
+  Reader,
   ReplacementCandidate,
   ReplacementContextResult,
   RosterConflictView,
@@ -63,11 +64,8 @@ import {
   isRosterEditable,
   monthKey,
   requestDays,
-  rulesForLocation,
 } from "./roster-rules";
-
-// Anything that can run a select: the database itself or a transaction.
-type Reader = Pick<Transaction, "select">;
+import { loadEngineRules } from "./roster-work-rules";
 
 const DEFAULT_SORT: SortCriterion<RosterSortColumn>[] = [
   { column: "date", direction: "desc" },
@@ -773,7 +771,12 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
   const busy = busyWorkersQuery(tx, requestId, days[0], days[days.length - 1]);
 
   const workers = await tx
-    .select({ id: worker.id, employeeId: worker.employeeId, endContract: worker.endContract })
+    .select({
+      id: worker.id,
+      employeeId: worker.employeeId,
+      endContract: worker.endContract,
+      workDaysPerWeek: worker.workDaysPerWeek,
+    })
     .from(worker)
     .where(
       and(
@@ -786,6 +789,10 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
 
   const workerIds = workers.map((row) => row.id);
   const positions = await loadWorkerPositions(tx, workerIds);
+  const rules = await loadEngineRules(tx, {
+    locationId: request.locationId,
+    siteId: request.siteId,
+  });
 
   return {
     input: {
@@ -796,7 +803,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
         ...row,
         positionIds: positions.get(row.id)?.ids ?? [],
       })),
-      rules: rulesForLocation(request.locationId),
+      rules,
       history: await loadHistories(tx, workerIds, days),
     },
     location: { id: request.locationId, siteId: request.siteId },
@@ -815,6 +822,7 @@ export async function loadReplacementContext(
   const [head] = await reader
     .select({
       requestId: roster.requestId,
+      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(roster)
@@ -866,7 +874,10 @@ export async function loadReplacementContext(
     return { ok: false, reason: "worker" };
   }
 
-  const rules = rulesForLocation(head.locationId);
+  const rules = await loadEngineRules(reader, {
+    locationId: head.locationId,
+    siteId: head.siteId,
+  });
   const inRoster = new Set(assignments.map((entry) => entry.workerId));
 
   const pool = await reader

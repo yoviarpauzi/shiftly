@@ -127,6 +127,13 @@
       "when": 1793717936244,
       "tag": "0017_classy_magma",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793760316260,
+      "tag": "0018_wakeful_vanisher",
+      "breakpoints": true
     }
   ]
 }

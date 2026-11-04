@@ -5,12 +5,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
 import { editRosterCell } from "@/app/dashboard/rosters/actions";
-import { warningsAddedMessage } from "@/app/dashboard/rosters/roster-rules";
+import {
+  filterLines,
+  GRID_PAGE_SIZE,
+  lineFilterOptions,
+  lineSummary,
+  pageLines,
+  warningsAddedMessage,
+} from "@/app/dashboard/rosters/roster-rules";
 import type {
   AddWorkerTarget,
   CellChange,
   ReplaceTarget,
   RosterDetailProps,
+  RosterLineFilters,
   SwapCellTarget,
 } from "@/types/rosters";
 import { AddWorkerDialog } from "@/components/dashboard/rosters/add-worker-dialog";
@@ -19,15 +27,43 @@ import { ConflictsPanel } from "@/components/dashboard/rosters/conflicts-panel";
 import { GenerateAgainDialog } from "@/components/dashboard/rosters/generate-again-dialog";
 import { ReplaceWorkerDialog } from "@/components/dashboard/rosters/replace-worker-dialog";
 import { RosterGrid } from "@/components/dashboard/rosters/roster-grid";
+import { RosterGridFilters } from "@/components/dashboard/rosters/roster-grid-filters";
 import { RosterSummary } from "@/components/dashboard/rosters/roster-summary";
 import { WarningsPanel } from "@/components/dashboard/rosters/warnings-panel";
+import { TablePagination } from "@/components/dashboard/pagination";
 import { buttonVariants, Button } from "@/components/ui/button";
+
+const NO_FILTERS: RosterLineFilters = {
+  departmentId: null,
+  subDepartmentId: null,
+  positionId: null,
+  shiftId: null,
+  search: "",
+};
 
 export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
   const [replacing, setReplacing] = useState<ReplaceTarget | null>(null);
   const [adding, setAdding] = useState<AddWorkerTarget | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  // The grid's filters, search, and page live here, not in the URL: a change should not load the
+  // roster and work its warnings out again.
+  const [filters, setFilters] = useState(NO_FILTERS);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(GRID_PAGE_SIZE);
+
+  const shown = filterLines(roster.lines, filters);
+  const paged = pageLines(shown, page, pageSize);
+
+  function changeFilters(patch: Partial<RosterLineFilters>) {
+    setFilters((current) => ({ ...current, ...patch }));
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setFilters(NO_FILTERS);
+    setPage(1);
+  }
 
   // A confirmed roster, or one whose request was cancelled, has no menus or buttons.
   const draft = roster.editable;
@@ -89,16 +125,40 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <RosterSummary counts={roster.counts} />
-      <RosterGrid
-        days={roster.days}
-        shifts={roster.shifts}
-        lines={roster.lines}
-        editable={draft}
-        onReplace={setReplacing}
-        onEditCell={editCell}
-        onSwapCell={swapCell}
-        onAddWorker={setAdding}
-      />
+      <div className="flex flex-col gap-3">
+        <RosterGridFilters
+          filters={filters}
+          options={lineFilterOptions(roster.lines, filters.departmentId)}
+          shifts={roster.shifts}
+          summary={lineSummary(shown, roster.lines.length)}
+          onChange={changeFilters}
+          onClear={clearFilters}
+        />
+        <RosterGrid
+          days={roster.days}
+          shifts={roster.shifts}
+          lines={paged.slices}
+          editable={draft}
+          onReplace={setReplacing}
+          onEditCell={editCell}
+          onSwapCell={swapCell}
+          onAddWorker={setAdding}
+        />
+        {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
+          <div className="flex justify-end">
+            <TablePagination
+              page={paged.page}
+              pageCount={paged.pageCount}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
       <ConflictsPanel conflicts={roster.conflicts} />
       <WarningsPanel warnings={roster.warnings} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

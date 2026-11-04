@@ -140,8 +140,32 @@ describe("lineTitle", () => {
 });
 
 const LINES = [
-  { lineId: "l1", title: "Produksi / Packing / Operator", shiftLabel: "Any shift", perDay: [2, 2, 2] },
-  { lineId: "l2", title: "Gudang / Forklift", shiftLabel: "Shift 1", perDay: [1, 1, 1] },
+  {
+    lineId: "l1",
+    title: "Produksi / Packing / Operator",
+    shiftLabel: "Any shift",
+    perDay: [2, 2, 2],
+    departmentId: "d1",
+    departmentName: "Produksi",
+    subDepartmentId: "sd1",
+    subDepartmentName: "Packing",
+    positionId: "p1",
+    positionName: "Operator",
+    shiftId: null,
+  },
+  {
+    lineId: "l2",
+    title: "Gudang / Forklift",
+    shiftLabel: "Shift 1",
+    perDay: [1, 1, 1],
+    departmentId: "d2",
+    departmentName: "Gudang",
+    subDepartmentId: null,
+    subDepartmentName: null,
+    positionId: "p2",
+    positionName: "Forklift",
+    shiftId: "sh1",
+  },
 ];
 
 const assignment = (
@@ -172,6 +196,58 @@ describe("buildLineViews", () => {
     expect(views.map((view) => [view.title, view.shiftLabel])).toEqual([
       ["Produksi / Packing / Operator", "Any shift"],
       ["Gudang / Forklift", "Shift 1"],
+    ]);
+  });
+
+  it("carries the department, sub-department, position, and shift the grid filters on", () => {
+    const views = buildLineViews({
+      days: DAYS,
+      lines: LINES,
+      assignments: [],
+      conflicts: [],
+      replacedIn: [],
+      ...NO_KEYS,
+    });
+
+    expect(
+      views.map(
+        ({
+          departmentId,
+          departmentName,
+          subDepartmentId,
+          subDepartmentName,
+          positionId,
+          positionName,
+          shiftId,
+        }) => ({
+          departmentId,
+          departmentName,
+          subDepartmentId,
+          subDepartmentName,
+          positionId,
+          positionName,
+          shiftId,
+        }),
+      ),
+    ).toEqual([
+      {
+        departmentId: "d1",
+        departmentName: "Produksi",
+        subDepartmentId: "sd1",
+        subDepartmentName: "Packing",
+        positionId: "p1",
+        positionName: "Operator",
+        shiftId: null,
+      },
+      {
+        departmentId: "d2",
+        departmentName: "Gudang",
+        subDepartmentId: null,
+        subDepartmentName: null,
+        positionId: "p2",
+        positionName: "Forklift",
+        shiftId: "sh1",
+      },
     ]);
   });
 

@@ -96,6 +96,8 @@ function Legend({ editable }: { editable: boolean }) {
 // One group per line: a row per worker, then the shifts nobody could fill. It scrolls sideways
 // inside its card, so a week does not widen the page. In a draft every cell is a button and each
 // group ends with Add worker. One edit saves at a time: every cell is disabled until it is done.
+// A line the page cuts has its header on both pages, but the Unfilled row and Add worker belong to
+// the page that holds its last worker.
 export function RosterGrid({
   days,
   shifts,
@@ -237,7 +239,7 @@ export function RosterGrid({
                   )}
                 </tr>
               ))}
-              {line.unfilled.length > 0 && (
+              {line.endsHere && line.unfilled.length > 0 && (
                 <tr className="border-t bg-destructive/5">
                   <th scope="row" className="px-3 py-2 text-left font-medium text-destructive">
                     Unfilled
@@ -261,7 +263,7 @@ export function RosterGrid({
                   {editable && <td />}
                 </tr>
               )}
-              {editable && (
+              {editable && line.endsHere && (
                 <tr className="border-t">
                   <td colSpan={columns} className="px-2 py-1">
                     <Button
@@ -279,6 +281,15 @@ export function RosterGrid({
               )}
             </tbody>
           ))}
+          {lines.length === 0 && (
+            <tbody className="border-t">
+              <tr>
+                <td colSpan={columns} className="px-3 py-8 text-center text-muted-foreground">
+                  No lines match these filters.
+                </td>
+              </tr>
+            </tbody>
+          )}
         </table>
       </div>
     </div>

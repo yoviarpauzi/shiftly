@@ -134,8 +134,7 @@ export type RosterLineOptions = {
 };
 
 // The part of a line that sits on one page. A line cut by a page keeps its header on the next page;
-// endsHere is true on the page that holds its last worker, which is where its Unfilled row and
-// Add worker button go.
+// endsHere is true on the page that holds its last worker, which is where its Unfilled row goes.
 export type RosterLineSlice = RosterLineView & { endsHere: boolean };
 
 export type RosterPageSlices = {

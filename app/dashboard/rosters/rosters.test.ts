@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 const {
   busyWorkersQuery,
   buildConflictViews,
+  buildGenerateLines,
   buildLineViews,
   confirmedWorkQuery,
   otherRosterWorkQuery,
@@ -137,8 +138,8 @@ describe("lineTitle", () => {
 });
 
 const LINES = [
-  { lineId: "l1", title: "Produksi / Packing / Operator", perDay: [2, 2, 2] },
-  { lineId: "l2", title: "Gudang / Forklift", perDay: [1, 1, 1] },
+  { lineId: "l1", title: "Produksi / Packing / Operator", shiftLabel: "Any shift", perDay: [2, 2, 2] },
+  { lineId: "l2", title: "Gudang / Forklift", shiftLabel: "Shift 1", perDay: [1, 1, 1] },
 ];
 
 const assignment = (
@@ -156,6 +157,22 @@ const NO_KEYS = { editedKeys: new Set<string>(), warningKeys: new Set<string>() 
 const plain = { edited: false, warning: false };
 
 describe("buildLineViews", () => {
+  it("carries each line's shift label next to its unchanged title", () => {
+    const views = buildLineViews({
+      days: DAYS,
+      lines: LINES,
+      assignments: [],
+      conflicts: [],
+      replacedIn: [],
+      ...NO_KEYS,
+    });
+
+    expect(views.map((view) => [view.title, view.shiftLabel])).toEqual([
+      ["Produksi / Packing / Operator", "Any shift"],
+      ["Gudang / Forklift", "Shift 1"],
+    ]);
+  });
+
   it("gives one cell per day, null for a day with no assignment", () => {
     const [first] = buildLineViews({
       days: DAYS,
@@ -400,5 +417,61 @@ describe("workerHistory", () => {
         ["2026-10", "2026-11"],
       ).monthWorkDays,
     ).toEqual({ "2026-10": 2, "2026-11": 1 });
+  });
+});
+
+describe("buildGenerateLines", () => {
+  const days = ["2026-11-09", "2026-11-10", "2026-11-11"];
+  const shiftIds = ["s1", "s2", "s3"];
+  const anyLine = {
+    lineId: "l1",
+    title: "Produksi / Packing / Operator",
+    shiftLabel: "Any shift",
+    shiftId: null,
+    perDay: [6, 0, 4],
+  };
+  const fixedLine = {
+    lineId: "l2",
+    title: "Gudang / Forklift",
+    shiftLabel: "Shift 2",
+    shiftId: "s2",
+    perDay: [2, 2, 0],
+  };
+
+  it("starts an Any shift line from an even split when there is no roster", () => {
+    const [line] = buildGenerateLines({ days, shiftIds, lines: [anyLine], stored: null });
+
+    expect(line.split).toEqual([
+      [2, 2, 2],
+      [0, 0, 0],
+      [2, 1, 1],
+    ]);
+    expect(line).toMatchObject({ shiftLabel: "Any shift", fixedShiftId: null, required: [6, 0, 4] });
+  });
+
+  it("starts an Any shift line from the stored split when a roster exists", () => {
+    const stored = new Map([["l1|2026-11-09|s1", 6]]);
+    const [line] = buildGenerateLines({ days, shiftIds, lines: [anyLine], stored });
+
+    expect(line.split[0]).toEqual([6, 0, 0]);
+    expect(line.split[2]).toEqual([0, 0, 0]);
+  });
+
+  it("gives a fixed line the whole headcount on its shift, also when a roster exists", () => {
+    const stored = new Map([["l2|2026-11-09|s1", 2]]);
+    const [line] = buildGenerateLines({ days, shiftIds, lines: [fixedLine], stored });
+
+    expect(line.split).toEqual([
+      [0, 2, 0],
+      [0, 2, 0],
+      [0, 0, 0],
+    ]);
+    expect(line).toMatchObject({ shiftLabel: "Shift 2", fixedShiftId: "s2" });
+  });
+
+  it("leaves the split of a line empty per day when the site has no shifts", () => {
+    const [line] = buildGenerateLines({ days, shiftIds: [], lines: [anyLine], stored: null });
+
+    expect(line.split).toEqual([[], [], []]);
   });
 });

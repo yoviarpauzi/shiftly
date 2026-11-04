@@ -96,6 +96,8 @@ export type RosterUnfilled = { date: string; shiftOrder: number; shortfall: numb
 export type RosterLineView = {
   lineId: string;
   title: string;
+  // "Any shift" or "Shift N", shown after the title in the line's header.
+  shiftLabel: string;
   // What the request asks for on each day.
   perDay: number[];
   workers: RosterWorkerRow[];
@@ -167,6 +169,10 @@ export type GenerateShift = {
 export type GenerateLine = {
   lineId: string;
   title: string;
+  // "Any shift" or "Shift N", shown after the title in the line's header.
+  shiftLabel: string;
+  // The shift the request fixed this line to, or null when the line may be split.
+  fixedShiftId: string | null;
   required: number[];
   // split[day][shiftIndex], in the order of GenerateView.shifts.
   split: number[][];

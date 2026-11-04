@@ -12,15 +12,18 @@ import {
   confirmDescription,
   dayLabel,
   evenSplit,
+  fixedSplit,
   generateAgainDescription,
   isRosterEditable,
   formatRosterTime,
   monthKey,
   monthName,
   requestDays,
+  shiftLabel,
   shortDate,
   isUniqueViolation,
   splitsToTargets,
+  targetsMoveFixedLine,
   targetsTotalError,
   targetsTotalMessage,
   toEngineRules,
@@ -333,5 +336,64 @@ describe("cell edit messages", () => {
     );
     expect(CELL_BUSY_MESSAGE).toBe("This worker already works on that day in another roster.");
     expect(CELL_WORKS_THAT_DAY_MESSAGE).toBe("This worker already works on that day.");
+  });
+});
+
+describe("shiftLabel", () => {
+  it("names Any shift for null", () => {
+    expect(shiftLabel(null)).toBe("Any shift");
+  });
+
+  it("names the order of a shift", () => {
+    expect(shiftLabel(1)).toBe("Shift 1");
+    expect(shiftLabel(3)).toBe("Shift 3");
+  });
+});
+
+describe("fixedSplit", () => {
+  it("puts the day's headcount on the fixed shift", () => {
+    expect(fixedSplit([2, 2], ["s1", "s2", "s3"], "s1")).toEqual([
+      [2, 0, 0],
+      [2, 0, 0],
+    ]);
+  });
+
+  it("keeps zero-headcount days at zero", () => {
+    expect(fixedSplit([6, 0, 4], ["s1", "s2"], "s2")).toEqual([
+      [0, 6],
+      [0, 0],
+      [0, 4],
+    ]);
+  });
+
+  it("follows the order of the shift ids", () => {
+    expect(fixedSplit([3], ["s3", "s1", "s2"], "s2")).toEqual([[0, 0, 3]]);
+  });
+});
+
+describe("targetsMoveFixedLine", () => {
+  const fixed = [{ lineId: "l1", shiftId: "s1" }];
+  const target = (shiftId: string, headcount: number, lineId = "l1") => ({
+    lineId,
+    shiftId,
+    headcount,
+  });
+
+  it("is false for an Any shift line, whatever the split", () => {
+    expect(
+      targetsMoveFixedLine([{ lineId: "l1", shiftId: null }], [target("s1", 1), target("s2", 1)]),
+    ).toBe(false);
+  });
+
+  it("is false when a fixed line keeps its shift", () => {
+    expect(targetsMoveFixedLine(fixed, [target("s1", 2), target("s2", 0)])).toBe(false);
+  });
+
+  it("is true when a fixed line has headcount on another shift", () => {
+    expect(targetsMoveFixedLine(fixed, [target("s1", 1), target("s2", 1)])).toBe(true);
+  });
+
+  it("ignores zero targets on other shifts and targets of other lines", () => {
+    expect(targetsMoveFixedLine(fixed, [target("s2", 0), target("s2", 5, "l2")])).toBe(false);
   });
 });

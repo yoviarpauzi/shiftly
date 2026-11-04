@@ -4,8 +4,11 @@ import type { AttendanceDraftRow, AttendanceFormRow, AttendanceStatus } from "@/
 
 import {
   ATTENDANCE_STATUS_LABELS,
+  attendanceLock,
   changedEntries,
   formatAttendanceDate,
+  locationViewFor,
+  rowLocationLabel,
   rowsSignature,
   isFutureDay,
   markAllPresent,
@@ -217,6 +220,54 @@ describe("markAllPresent", () => {
     markAllPresent(input);
 
     expect(input[0].status).toBeNull();
+  });
+});
+
+describe("attendanceLock", () => {
+  it("is scope while no location is chosen, even on a future day", () => {
+    expect(attendanceLock(null, false)).toBe("scope");
+    expect(attendanceLock(null, true)).toBe("scope");
+  });
+
+  it("is future for a chosen location on a day after today", () => {
+    expect(attendanceLock("l1", true)).toBe("future");
+  });
+
+  it("is open for a chosen location on a day that can be marked", () => {
+    expect(attendanceLock("l1", false)).toBeNull();
+  });
+});
+
+describe("locationViewFor", () => {
+  it("shows no location column once a location is chosen", () => {
+    expect(locationViewFor({ siteId: "s1", locationId: "l1" })).toBe("none");
+  });
+
+  it("shows the location while only the site is chosen", () => {
+    expect(locationViewFor({ siteId: "s1", locationId: null })).toBe("location");
+  });
+
+  it("shows the site and the location under All sites", () => {
+    expect(locationViewFor({ siteId: null, locationId: null })).toBe("site-location");
+  });
+});
+
+describe("rowLocationLabel", () => {
+  const row = { siteName: "Site A", locationName: "Gudang" };
+
+  it("gives nothing when the column is off", () => {
+    expect(rowLocationLabel(row, "none")).toBeNull();
+  });
+
+  it("gives the location name when the site is fixed", () => {
+    expect(rowLocationLabel(row, "location")).toBe("Gudang");
+  });
+
+  it("tells two locations with the same name apart by their site", () => {
+    expect(rowLocationLabel(row, "site-location")).toBe("Site A · Gudang");
+    expect(rowLocationLabel({ ...row, siteName: "Site B" }, "site-location")).toBe(
+      "Site B · Gudang",
+    );
   });
 });
 

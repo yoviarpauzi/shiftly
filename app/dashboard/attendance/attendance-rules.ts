@@ -2,6 +2,8 @@ import type {
   AttendanceDraftRow,
   AttendanceEntry,
   AttendanceFormRow,
+  AttendanceLocationView,
+  AttendanceLock,
   AttendanceStatus,
   AttendanceSummary,
 } from "@/types/attendance";
@@ -94,7 +96,36 @@ export function isFutureDay(date: string, today: string): boolean {
   return date > today;
 }
 
-const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// Why the day cannot be marked. A location not chosen yet (All) wins over a future day, because
+// saving needs one location.
+export function attendanceLock(locationId: string | null, isFuture: boolean): AttendanceLock {
+  if (locationId === null) return "scope";
+
+  return isFuture ? "future" : null;
+}
+
+// What the Location column shows for the scope on screen.
+export function locationViewFor(choices: {
+  siteId: string | null;
+  locationId: string | null;
+}): AttendanceLocationView {
+  if (choices.locationId !== null) return "none";
+
+  return choices.siteId !== null ? "location" : "site-location";
+}
+
+// The text of the Location column. Under All sites it names the site too, because two sites can
+// each have a location of the same name.
+export function rowLocationLabel(
+  row: { siteName: string; locationName: string },
+  view: AttendanceLocationView,
+): string | null {
+  if (view === "none") return null;
+
+  return view === "location" ? row.locationName : `${row.siteName} · ${row.locationName}`;
+}
+
+const WEEKDAY_NAMES =["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // "2026-11-09" as "Mon, 9 Nov 2026". Fixed English names and UTC arithmetic, so the text does not

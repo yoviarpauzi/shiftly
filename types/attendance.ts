@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AppRole } from "@/types/roles";
 import type { LocationTimezone } from "@/validation/location";
 
@@ -100,13 +101,25 @@ export type AttendanceFormRow = AttendanceRow & {
   draftReason: string;
 };
 
+// Why the page cannot be marked: "future" is a day after today, "scope" is a location not chosen
+// yet (All). Null means it can.
+export type AttendanceLock = "future" | "scope" | null;
+
+// The Location column: none, the location name, or the site and the location.
+export type AttendanceLocationView = "none" | "location" | "site-location";
+
 export type AttendanceFormProps = {
   date: string;
   // Today in the location's time zone, for the Today button.
   today: string;
   rows: AttendanceRow[];
-  // True for a day after today, which can be viewed and not marked.
-  readOnly: boolean;
+  lock: AttendanceLock;
+  locationView: AttendanceLocationView;
+  // The server-rendered parts that sit between the date row and the table.
+  filters: ReactNode;
+  summary: ReactNode;
+  // Shown in place of the table when there are no rows.
+  empty: ReactNode;
 };
 
 export type AttendanceDateRowProps = {
@@ -142,6 +155,7 @@ export type AttendanceRowActions = {
   errorIds: ReadonlySet<string>;
   changedIds: ReadonlySet<string>;
   disabled: boolean;
+  locationView: AttendanceLocationView;
 };
 
 export type AttendanceCardsProps = AttendanceRowActions & { rows: AttendanceFormRow[] };

@@ -7,10 +7,14 @@ export default function Loading() {
         <Skeleton className="h-7 w-36" />
         <Skeleton className="h-4 w-80" />
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-9 w-72" />
+      </div>
       <Skeleton className="h-9 w-full sm:max-w-sm" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="flex flex-wrap gap-3">
         {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="h-16 w-full" />
+          <Skeleton key={index} className="h-16 w-24" />
         ))}
       </div>
       <div className="flex flex-col gap-2 rounded-lg border p-2">

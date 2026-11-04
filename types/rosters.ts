@@ -150,7 +150,7 @@ export type RosterDetail = {
   // The roster's updatedAt as ISO text. Actions compare against it.
   version: string;
   days: string[];
-  // The site's active shifts by order, for the cell menu.
+  // The location's active shifts by order, for the cell menu.
   shifts: GenerateShift[];
   lines: RosterLineView[];
   conflicts: RosterConflictView[];

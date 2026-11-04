@@ -72,7 +72,7 @@ export function GenerateForm({ view }: GenerateFormProps) {
             <>
               {view.shifts.length === 0 ? (
                 <p role="alert" className="text-sm text-destructive">
-                  This site has no shifts yet. Add shifts before you generate a roster.
+                  This location has no shifts yet. Add shifts before you generate a roster.
                 </p>
               ) : (
                 view.lines.map((line, lineIndex) => (

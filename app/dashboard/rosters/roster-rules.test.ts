@@ -330,7 +330,7 @@ describe("toEngineRules", () => {
 describe("cell edit messages", () => {
   it("states each refusal", () => {
     expect(CELL_DATE_MESSAGE).toBe("That day is not in this roster.");
-    expect(CELL_SHIFT_MESSAGE).toBe("That shift is not available at this site.");
+    expect(CELL_SHIFT_MESSAGE).toBe("That shift is not available at this location.");
     expect(CELL_OTHER_LINE_MESSAGE).toBe(
       "This worker already has a row on that day in another line.",
     );

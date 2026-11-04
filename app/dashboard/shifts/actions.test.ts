@@ -157,7 +157,7 @@ describe("deleteShift", () => {
     );
   });
 
-  it("scopes the shift to the sites locations for an HO manager", async () => {
+  it("scopes the shift to the site's locations for an HO manager", async () => {
     fake.access = { siteId: SITE_A, locationId: null };
     fake.targets = [[{ id: SHIFT_A }]];
 

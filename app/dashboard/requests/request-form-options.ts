@@ -177,7 +177,7 @@ export function toRequestLineInputs(
   }));
 }
 
-// Departments and positions depend on the location, so a new location starts the lines over.
+// Departments, positions and shifts depend on the location, so a new location starts the lines over.
 export function linesAfterLocationChange(): RequestFormLine[] {
   return [blankLine()];
 }

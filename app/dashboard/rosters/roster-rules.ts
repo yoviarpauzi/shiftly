@@ -1,5 +1,13 @@
 import { dateInZone } from "@/lib/indonesia-date";
-import type { EngineRules, TargetsTotalError } from "@/types/rosters";
+import type {
+  EngineRules,
+  RosterLineFilters,
+  RosterLineOption,
+  RosterLineOptions,
+  RosterLineView,
+  RosterPageSlices,
+  TargetsTotalError,
+} from "@/types/rosters";
 import type { WorkRulesResolved } from "@/types/settings";
 
 export const REQUEST_NOT_APPROVED_MESSAGE = "This request is no longer approved.";
@@ -214,6 +222,115 @@ export function formatRosterTime(iso: string): string {
 
 export function targetsTotalMessage(date: string, sum: number, required: number): string {
   return `${shortDate(date)} adds up to ${sum}, but the request needs ${required}. Make each day add up to the request.`;
+}
+
+// Worker rows on a page of the grid until the viewer picks another size.
+export const GRID_PAGE_SIZE = 20;
+
+// The lines the grid shows under its filters. A line has to match every filter that is set. A line
+// set to Any shift passes the shift filter, since its cells can hold any shift. Search keeps the
+// workers whose name or employee ID contains the text, and drops a line left with none.
+export function filterLines(lines: RosterLineView[], filters: RosterLineFilters): RosterLineView[] {
+  const search = filters.search.trim().toLowerCase();
+
+  return lines
+    .filter(
+      (line) =>
+        (filters.departmentId === null || line.departmentId === filters.departmentId) &&
+        (filters.subDepartmentId === null || line.subDepartmentId === filters.subDepartmentId) &&
+        (filters.positionId === null || line.positionId === filters.positionId) &&
+        (filters.shiftId === null || line.shiftId === null || line.shiftId === filters.shiftId),
+    )
+    .flatMap((line) => {
+      if (search === "") {
+        return [line];
+      }
+
+      const workers = line.workers.filter(
+        (worker) =>
+          worker.name.toLowerCase().includes(search) ||
+          worker.employeeId.toLowerCase().includes(search),
+      );
+
+      return workers.length > 0 ? [{ ...line, workers }] : [];
+    });
+}
+
+function byName(a: RosterLineOption, b: RosterLineOption): number {
+  const left = a.name.toLowerCase();
+  const right = b.name.toLowerCase();
+
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function distinctOptions(entries: { id: string; name: string }[]): RosterLineOption[] {
+  return [...new Map(entries.map((entry) => [entry.id, entry])).values()]
+    .map(({ id, name }) => ({ id, name }))
+    .sort(byName);
+}
+
+// What the department, sub-department, and position filters offer: the ones this roster's lines
+// use, by name. The sub-departments are those of the chosen department when one is chosen.
+export function lineFilterOptions(
+  lines: RosterLineView[],
+  departmentId: string | null,
+): RosterLineOptions {
+  return {
+    departments: distinctOptions(
+      lines.map((line) => ({ id: line.departmentId, name: line.departmentName })),
+    ),
+    subDepartments: distinctOptions(
+      lines
+        .filter((line) => departmentId === null || line.departmentId === departmentId)
+        .flatMap((line) =>
+          line.subDepartmentId === null || line.subDepartmentName === null
+            ? []
+            : [{ id: line.subDepartmentId, name: line.subDepartmentName }],
+        ),
+    ),
+    positions: distinctOptions(lines.map((line) => ({ id: line.positionId, name: line.positionName }))),
+  };
+}
+
+// One page of the grid, cut by worker rows across the lines. A line the page cuts appears on both
+// pages, each with its own workers. A line with no workers takes one row, so it and its Add worker
+// button are on some page. A page past the end gives the last one.
+export function pageLines(lines: RosterLineView[], page: number, pageSize: number): RosterPageSlices {
+  const size = Math.max(1, pageSize);
+  const rowsOf = (line: RosterLineView) => Math.max(line.workers.length, 1);
+  const total = lines.reduce((sum, line) => sum + rowsOf(line), 0);
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const current = Math.min(Math.max(1, page), pageCount);
+  const start = (current - 1) * size;
+  const end = start + size;
+  const slices: RosterPageSlices["slices"] = [];
+  let offset = 0;
+
+  for (const line of lines) {
+    const rows = rowsOf(line);
+    const from = Math.max(start, offset) - offset;
+    const to = Math.min(end, offset + rows) - offset;
+
+    if (from < to) {
+      slices.push({ ...line, workers: line.workers.slice(from, to), endsHere: to === rows });
+    }
+
+    offset += rows;
+  }
+
+  return { slices, page: current, pageCount };
+}
+
+// "12 workers in 3 of 5 lines" while filters hide some lines, "12 workers in 5 lines" when none.
+// A worker with rows in two lines counts once, as in the roster's own summary.
+export function lineSummary(shown: RosterLineView[], totalLines: number): string {
+  const workers = new Set(shown.flatMap((line) => line.workers.map((worker) => worker.workerId))).size;
+  const lines =
+    shown.length === totalLines
+      ? plural(totalLines, "line", "lines")
+      : `${shown.length} of ${totalLines} lines`;
+
+  return `${plural(workers, "worker", "workers")} in ${lines}`;
 }
 
 // Postgres reports a unique violation with code 23505. Drizzle wraps the driver's error, so the

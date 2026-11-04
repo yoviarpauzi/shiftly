@@ -93,7 +93,19 @@ export type RosterWorkerRow = {
 
 export type RosterUnfilled = { date: string; shiftOrder: number; shortfall: number };
 
-export type RosterLineView = {
+// What the grid's filters match a line on. The names are for the filter options.
+export type RosterLineKeys = {
+  departmentId: string;
+  departmentName: string;
+  subDepartmentId: string | null;
+  subDepartmentName: string | null;
+  positionId: string;
+  positionName: string;
+  // The shift the request fixed the line to, or null for Any shift.
+  shiftId: string | null;
+};
+
+export type RosterLineView = RosterLineKeys & {
   lineId: string;
   title: string;
   // "Any shift" or "Shift N", shown after the title in the line's header.
@@ -102,6 +114,35 @@ export type RosterLineView = {
   perDay: number[];
   workers: RosterWorkerRow[];
   unfilled: RosterUnfilled[];
+};
+
+// null means no filter. search matches a worker's name or employee ID.
+export type RosterLineFilters = {
+  departmentId: string | null;
+  subDepartmentId: string | null;
+  positionId: string | null;
+  shiftId: string | null;
+  search: string;
+};
+
+export type RosterLineOption = { id: string; name: string };
+
+export type RosterLineOptions = {
+  departments: RosterLineOption[];
+  subDepartments: RosterLineOption[];
+  positions: RosterLineOption[];
+};
+
+// The part of a line that sits on one page. A line cut by a page keeps its header on the next page;
+// endsHere is true on the page that holds its last worker, which is where its Unfilled row and
+// Add worker button go.
+export type RosterLineSlice = RosterLineView & { endsHere: boolean };
+
+export type RosterPageSlices = {
+  slices: RosterLineSlice[];
+  // The page shown, after clamping to the pages that exist.
+  page: number;
+  pageCount: number;
 };
 
 export type RosterConflictView = {
@@ -259,10 +300,21 @@ export type ConflictsPanelProps = { conflicts: RosterConflictView[] };
 
 export type WarningsPanelProps = { warnings: RosterWarningView[] };
 
+export type RosterGridFiltersProps = {
+  filters: RosterLineFilters;
+  options: RosterLineOptions;
+  shifts: GenerateShift[];
+  // "12 workers in 3 of 5 lines".
+  summary: string;
+  onChange: (patch: Partial<RosterLineFilters>) => void;
+  onClear: () => void;
+};
+
 export type RosterGridProps = {
   days: string[];
   shifts: GenerateShift[];
-  lines: RosterLineView[];
+  // The lines of the page shown, each with the workers on that page.
+  lines: RosterLineSlice[];
   // True for a draft: only a draft has cell buttons, the row menu, and Add worker.
   editable: boolean;
   onReplace: (target: ReplaceTarget) => void;

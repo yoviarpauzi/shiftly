@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { RosterLineFilters, RosterLineView, RosterWorkerRow } from "@/types/rosters";
+
 import { WORK_RULE_DEFAULTS } from "@/app/dashboard/settings/settings-rules";
 
 import {
@@ -14,10 +16,14 @@ import {
   evenSplit,
   fixedSplit,
   generateAgainDescription,
+  filterLines,
   isRosterEditable,
   formatRosterTime,
+  lineFilterOptions,
+  lineSummary,
   monthKey,
   monthName,
+  pageLines,
   requestDays,
   shiftLabel,
   shortDate,
@@ -395,5 +401,271 @@ describe("targetsMoveFixedLine", () => {
 
   it("ignores zero targets on other shifts and targets of other lines", () => {
     expect(targetsMoveFixedLine(fixed, [target("s2", 0), target("s2", 5, "l2")])).toBe(false);
+  });
+});
+
+function workerRow(workerId: string, employeeId: string, name: string): RosterWorkerRow {
+  return { workerId, employeeId, name, replaced: false, cells: [] };
+}
+
+function lineView(lineId: string, overrides: Partial<RosterLineView> = {}): RosterLineView {
+  return {
+    lineId,
+    title: lineId,
+    shiftLabel: "Any shift",
+    perDay: [1],
+    departmentId: "d1",
+    departmentName: "Produksi",
+    subDepartmentId: null,
+    subDepartmentName: null,
+    positionId: "p1",
+    positionName: "Operator",
+    shiftId: null,
+    workers: [],
+    unfilled: [],
+    ...overrides,
+  };
+}
+
+const NO_FILTERS: RosterLineFilters = {
+  departmentId: null,
+  subDepartmentId: null,
+  positionId: null,
+  shiftId: null,
+  search: "",
+};
+
+describe("filterLines", () => {
+  const lines = [
+    lineView("l1", { departmentId: "d1", subDepartmentId: "s1", positionId: "p1", shiftId: null }),
+    lineView("l2", { departmentId: "d1", subDepartmentId: null, positionId: "p2", shiftId: "sh1" }),
+    lineView("l3", { departmentId: "d2", subDepartmentId: "s2", positionId: "p1", shiftId: "sh2" }),
+  ];
+  const ids = (result: RosterLineView[]) => result.map((line) => line.lineId);
+
+  it("keeps every line when nothing is filtered", () => {
+    expect(filterLines(lines, NO_FILTERS)).toEqual(lines);
+  });
+
+  it("keeps the lines of the chosen department", () => {
+    expect(ids(filterLines(lines, { ...NO_FILTERS, departmentId: "d1" }))).toEqual(["l1", "l2"]);
+  });
+
+  it("keeps the lines of the chosen sub-department, and drops a line with none", () => {
+    expect(ids(filterLines(lines, { ...NO_FILTERS, subDepartmentId: "s1" }))).toEqual(["l1"]);
+  });
+
+  it("keeps the lines of the chosen position", () => {
+    expect(ids(filterLines(lines, { ...NO_FILTERS, positionId: "p1" }))).toEqual(["l1", "l3"]);
+  });
+
+  it("keeps the lines fixed to the chosen shift and the Any shift lines", () => {
+    expect(ids(filterLines(lines, { ...NO_FILTERS, shiftId: "sh1" }))).toEqual(["l1", "l2"]);
+  });
+
+  it("needs a line to match every filter that is set", () => {
+    expect(
+      ids(filterLines(lines, { ...NO_FILTERS, departmentId: "d1", positionId: "p1", shiftId: "sh2" })),
+    ).toEqual(["l1"]);
+  });
+
+  describe("search", () => {
+    const searchable = [
+      lineView("l1", {
+        workers: [workerRow("w1", "E-001", "Budi Santoso"), workerRow("w2", "E-002", "Sari Dewi")],
+      }),
+      lineView("l2", { workers: [workerRow("w3", "E-003", "Budiman")] }),
+      lineView("l3", { workers: [] }),
+    ];
+
+    it("keeps only the workers whose name matches, in any letter case", () => {
+      const result = filterLines(searchable, { ...NO_FILTERS, search: "budi" });
+
+      expect(result.map((line) => [line.lineId, line.workers.map((w) => w.workerId)])).toEqual([
+        ["l1", ["w1"]],
+        ["l2", ["w3"]],
+      ]);
+    });
+
+    it("matches an employee ID and ignores spaces around the text", () => {
+      const result = filterLines(searchable, { ...NO_FILTERS, search: "  e-002 " });
+
+      expect(result.map((line) => [line.lineId, line.workers.map((w) => w.workerId)])).toEqual([
+        ["l1", ["w2"]],
+      ]);
+    });
+
+    it("drops a line with no workers while searching, and keeps it when not", () => {
+      expect(filterLines(searchable, { ...NO_FILTERS, search: "e-" }).map((l) => l.lineId)).toEqual([
+        "l1",
+        "l2",
+      ]);
+      expect(filterLines(searchable, NO_FILTERS).map((l) => l.lineId)).toEqual(["l1", "l2", "l3"]);
+    });
+
+    it("treats a blank search as no search", () => {
+      expect(filterLines(searchable, { ...NO_FILTERS, search: "   " })).toEqual(searchable);
+    });
+
+    it("combines with the other filters", () => {
+      const mixed = [
+        lineView("l1", { positionId: "p1", workers: [workerRow("w1", "E-001", "Budi")] }),
+        lineView("l2", { positionId: "p2", workers: [workerRow("w2", "E-002", "Budi")] }),
+      ];
+
+      expect(
+        filterLines(mixed, { ...NO_FILTERS, positionId: "p2", search: "budi" }).map((l) => l.lineId),
+      ).toEqual(["l2"]);
+    });
+  });
+});
+
+describe("lineFilterOptions", () => {
+  const lines = [
+    lineView("l1", {
+      departmentId: "d2",
+      departmentName: "Produksi",
+      subDepartmentId: "s1",
+      subDepartmentName: "Packing",
+      positionId: "p2",
+      positionName: "Operator",
+    }),
+    lineView("l2", {
+      departmentId: "d1",
+      departmentName: "Gudang",
+      subDepartmentId: null,
+      subDepartmentName: null,
+      positionId: "p1",
+      positionName: "Forklift",
+    }),
+    lineView("l3", {
+      departmentId: "d2",
+      departmentName: "Produksi",
+      subDepartmentId: "s2",
+      subDepartmentName: "Assembly",
+      positionId: "p2",
+      positionName: "Operator",
+    }),
+  ];
+
+  it("lists each department, sub-department, and position once, by name", () => {
+    expect(lineFilterOptions(lines, null)).toEqual({
+      departments: [
+        { id: "d1", name: "Gudang" },
+        { id: "d2", name: "Produksi" },
+      ],
+      subDepartments: [
+        { id: "s2", name: "Assembly" },
+        { id: "s1", name: "Packing" },
+      ],
+      positions: [
+        { id: "p1", name: "Forklift" },
+        { id: "p2", name: "Operator" },
+      ],
+    });
+  });
+
+  it("offers only the sub-departments of the chosen department", () => {
+    expect(lineFilterOptions(lines, "d1").subDepartments).toEqual([]);
+    expect(lineFilterOptions(lines, "d2").subDepartments).toEqual([
+      { id: "s2", name: "Assembly" },
+      { id: "s1", name: "Packing" },
+    ]);
+  });
+
+  it("gives empty lists for no lines", () => {
+    expect(lineFilterOptions([], null)).toEqual({ departments: [], subDepartments: [], positions: [] });
+  });
+});
+
+describe("pageLines", () => {
+  const rows = (lineId: string, count: number) =>
+    Array.from({ length: count }, (_, index) => workerRow(`${lineId}w${index + 1}`, `E${index}`, `W${index}`));
+  const lines = [
+    lineView("l1", { workers: rows("l1", 3) }),
+    lineView("l2", { workers: rows("l2", 4) }),
+    lineView("l3", { workers: rows("l3", 1) }),
+  ];
+  const shape = (result: ReturnType<typeof pageLines>) =>
+    result.slices.map((slice) => [slice.lineId, slice.workers.length, slice.endsHere]);
+
+  it("cuts by worker rows across lines, and repeats the header of a line the page cuts", () => {
+    expect(shape(pageLines(lines, 1, 5))).toEqual([
+      ["l1", 3, true],
+      ["l2", 2, false],
+    ]);
+    expect(shape(pageLines(lines, 2, 5))).toEqual([
+      ["l2", 2, true],
+      ["l3", 1, true],
+    ]);
+  });
+
+  it("keeps the workers of a cut line in order across pages", () => {
+    const first = pageLines(lines, 1, 5).slices[1].workers.map((w) => w.workerId);
+    const second = pageLines(lines, 2, 5).slices[0].workers.map((w) => w.workerId);
+
+    expect([...first, ...second]).toEqual(["l2w1", "l2w2", "l2w3", "l2w4"]);
+  });
+
+  it("ends a line on the page that holds its last worker when the page ends exactly there", () => {
+    expect(shape(pageLines(lines, 1, 3))).toEqual([["l1", 3, true]]);
+    expect(shape(pageLines(lines, 2, 3))).toEqual([["l2", 3, false]]);
+  });
+
+  it("counts the pages from the worker rows", () => {
+    expect(pageLines(lines, 1, 5).pageCount).toBe(2);
+    expect(pageLines(lines, 1, 8).pageCount).toBe(1);
+    expect(pageLines(lines, 1, 3).pageCount).toBe(3);
+  });
+
+  it("counts a line with no workers as one row, so its Add worker button is reachable", () => {
+    const withEmpty = [lineView("e1", { workers: [] }), lineView("l1", { workers: rows("l1", 2) })];
+
+    expect(shape(pageLines(withEmpty, 1, 1))).toEqual([["e1", 0, true]]);
+    expect(shape(pageLines(withEmpty, 2, 1))).toEqual([["l1", 1, false]]);
+    expect(pageLines(withEmpty, 1, 1).pageCount).toBe(3);
+  });
+
+  it("shows the last page when the page asked for is past the end", () => {
+    const result = pageLines(lines, 9, 5);
+
+    expect(result.page).toBe(2);
+    expect(shape(result)).toEqual(shape(pageLines(lines, 2, 5)));
+  });
+
+  it("shows page 1 of 1 and no slices for no lines", () => {
+    expect(pageLines([], 3, 10)).toEqual({ slices: [], page: 1, pageCount: 1 });
+  });
+});
+
+describe("lineSummary", () => {
+  const lines = [
+    lineView("l1", { workers: [workerRow("w1", "E1", "A"), workerRow("w2", "E2", "B")] }),
+    lineView("l2", { workers: [workerRow("w3", "E3", "C")] }),
+  ];
+
+  it("counts the workers and lines shown", () => {
+    expect(lineSummary(lines, 2)).toBe("3 workers in 2 lines");
+  });
+
+  it("says how many of the roster's lines are shown when some are filtered out", () => {
+    expect(lineSummary([lines[1]], 2)).toBe("1 worker in 1 of 2 lines");
+  });
+
+  it("counts a worker once when the worker has rows in two lines", () => {
+    const shared = [
+      lineView("l1", { workers: [workerRow("w1", "E1", "A"), workerRow("w2", "E2", "B")] }),
+      lineView("l2", { workers: [workerRow("w1", "E1", "A")] }),
+    ];
+
+    expect(lineSummary(shared, 2)).toBe("2 workers in 2 lines");
+  });
+
+  it("uses the singular for one line", () => {
+    expect(lineSummary([lines[0]], 1)).toBe("2 workers in 1 line");
+  });
+
+  it("handles no lines shown", () => {
+    expect(lineSummary([], 3)).toBe("0 workers in 0 of 3 lines");
   });
 });

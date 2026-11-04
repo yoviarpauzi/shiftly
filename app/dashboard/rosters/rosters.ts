@@ -52,6 +52,7 @@ import type {
   RosterConflictView,
   RosterCounts,
   RosterDetail,
+  RosterLineKeys,
   RosterLineView,
   RosterListParams,
   RosterPage,
@@ -163,7 +164,7 @@ function byText(a: string, b: string): number {
 // editedKeys and warningKeys hold "lineId|workerId|date" for the cells to flag.
 export function buildLineViews(input: {
   days: string[];
-  lines: LineHead[];
+  lines: (LineHead & RosterLineKeys)[];
   assignments: AssignmentRow[];
   conflicts: ConflictRow[];
   replacedIn: { lineId: string; workerId: string }[];
@@ -218,6 +219,13 @@ export function buildLineViews(input: {
       title: line.title,
       shiftLabel: line.shiftLabel,
       perDay: line.perDay,
+      departmentId: line.departmentId,
+      departmentName: line.departmentName,
+      subDepartmentId: line.subDepartmentId,
+      subDepartmentName: line.subDepartmentName,
+      positionId: line.positionId,
+      positionName: line.positionName,
+      shiftId: line.shiftId,
       workers: [...workers.values()].sort(
         (a, b) =>
           byText(a.employeeId.toLowerCase(), b.employeeId.toLowerCase()) ||
@@ -413,12 +421,7 @@ export async function listRosters(
   return { rows: rows.map(shapeRosterRow), total, page: currentPage, pageSize };
 }
 
-type RequestLineRow = LineHead & {
-  positionId: string;
-  positionName: string;
-  // The shift the request fixed the line to, or null for Any shift.
-  shiftId: string | null;
-};
+type RequestLineRow = LineHead & RosterLineKeys;
 
 // The lines of a request in id order, each with its headcount for every day.
 export async function loadRequestLines(reader: Reader, requestId: string): Promise<RequestLineRow[]> {
@@ -427,7 +430,9 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
       lineId: rosterRequestLine.id,
       positionId: rosterRequestLine.positionId,
       positionName: position.name,
+      departmentId: department.id,
       departmentName: department.name,
+      subDepartmentId: subDepartment.id,
       subDepartmentName: subDepartment.name,
       shiftId: rosterRequestLine.shiftId,
       shiftOrder: shift.order,
@@ -458,6 +463,10 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
     lineId: row.lineId,
     positionId: row.positionId,
     positionName: row.positionName,
+    departmentId: row.departmentId,
+    departmentName: row.departmentName,
+    subDepartmentId: row.subDepartmentId,
+    subDepartmentName: row.subDepartmentName,
     title: lineTitle(row.departmentName, row.subDepartmentName, row.positionName),
     shiftId: row.shiftId,
     shiftLabel: shiftLabel(row.shiftId === null ? null : (row.shiftOrder ?? null)),

@@ -884,6 +884,7 @@ const cellWorker = (id: string, employeeId: string, positionIds = [POSITION_A]) 
   name: `Worker ${employeeId}`,
   endContract: "2027-01-01",
   positionIds,
+  workDaysPerWeek: null,
   positionNames: positionIds.length > 0 ? ["Operator"] : [],
   active: true,
 });
@@ -1153,6 +1154,20 @@ describe("editRosterCell", () => {
     expect(res).toEqual({ ok: true, warnings: ["Would exceed 5 working days this week."] });
     expect(writesTo("insert", rosterAssignment)).toHaveLength(1);
     expect(writesTo("insert", rosterCellEdit)).toHaveLength(1);
+  });
+
+  it("does not warn about the weekly rule for a worker whose own limit is 7 days", async () => {
+    seedCellContext({
+      workers: [{ ...cellWorker(W1, "E-1"), workDaysPerWeek: 7 }],
+      cells: WEEK.slice(0, 5).map((date) => cell(W1, date)),
+    });
+
+    const res = await editRosterCell(
+      editInput({ date: WEEK[5], to: { kind: "work", shiftId: SHIFT_1 } }),
+    );
+
+    expect(res).toEqual({ ok: true, warnings: [] });
+    expect(writesTo("insert", rosterAssignment)).toHaveLength(1);
   });
 
   it("writes nothing for an edit that changes nothing", async () => {

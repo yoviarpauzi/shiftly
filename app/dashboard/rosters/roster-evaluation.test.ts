@@ -38,7 +38,7 @@ const run = (count: number, shiftOrder = 1, overrides: Partial<EvalCell> = {}) =
 const input = (overrides: Partial<EvaluateInput> = {}): EvaluateInput => ({
   days: DAYS,
   lines: [{ id: "l1", positionId: "p1", positionName: "Operator Produksi" }],
-  workers: [{ id: "w1", endContract: "2027-01-01", positionIds: ["p1"] }],
+  workers: [{ id: "w1", endContract: "2027-01-01", positionIds: ["p1"], workDaysPerWeek: null }],
   cells: run(5),
   targets: [],
   rules: {
@@ -184,7 +184,7 @@ describe("evaluateRoster", () => {
 
   describe("position", () => {
     const lacking = {
-      workers: [{ id: "w1", endContract: "2027-01-01", positionIds: ["p2"] }],
+      workers: [{ id: "w1", endContract: "2027-01-01", positionIds: ["p2"], workDaysPerWeek: null }],
     };
 
     it("warns once per worker per line", () => {
@@ -214,7 +214,7 @@ describe("evaluateRoster", () => {
 
   describe("contract", () => {
     const ending = {
-      workers: [{ id: "w1", endContract: "2026-11-11", positionIds: ["p1"] }],
+      workers: [{ id: "w1", endContract: "2026-11-11", positionIds: ["p1"], workDaysPerWeek: null }],
     };
 
     it("warns once per worker on the first work day after the contract ends", () => {
@@ -241,6 +241,7 @@ describe("evaluateRoster", () => {
       id,
       endContract: "2027-01-01",
       positionIds: ["p1"],
+      workDaysPerWeek: null,
     }));
     const target = (headcount: number) => [
       { lineId: "l1", date: DAYS[1], shiftOrder: 1, headcount },
@@ -270,9 +271,38 @@ describe("evaluateRoster", () => {
     });
   });
 
+  describe("a worker's own working days per week", () => {
+    const withOverride = (workDaysPerWeek: number | null) => [
+      { id: "w1", endContract: "2027-01-01", positionIds: ["p1"], workDaysPerWeek },
+    ];
+
+    it("lets a worker with 7 days work 6 days under a rule of 5", () => {
+      expect(evaluateRoster(input({ cells: run(6), workers: withOverride(7) }))).toEqual([]);
+    });
+
+    it("follows the rule for a worker with no override", () => {
+      expect(
+        evaluateRoster(input({ cells: run(6), workers: withOverride(null) })).map((w) => w.code),
+      ).toEqual(["weekly"]);
+    });
+
+    it("warns a worker with 3 days on the 4th work day, with their own limit in the message", () => {
+      expect(evaluateRoster(input({ cells: run(4), workers: withOverride(3) }))).toEqual([
+        {
+          code: "weekly",
+          lineId: "l1",
+          workerId: "w1",
+          date: DAYS[3],
+          shiftOrder: 1,
+          message: "Would exceed 3 working days this week.",
+        },
+      ]);
+    });
+  });
+
   it("never warns on off and break cells", () => {
     const cells = [...DAYS.map((date) => off(date)), { ...off(DAYS[0]), kind: "break" as const }];
-    const workers = [{ id: "w1", endContract: "2020-01-01", positionIds: [] }];
+    const workers = [{ id: "w1", endContract: "2020-01-01", positionIds: [], workDaysPerWeek: null }];
 
     expect(evaluateRoster(input({ cells, workers }))).toEqual([]);
   });
@@ -284,8 +314,8 @@ describe("evaluateRoster", () => {
         { id: "l2", positionId: "p1", positionName: "Operator Produksi" },
       ],
       workers: [
-        { id: "w1", endContract: "2027-01-01", positionIds: ["p2"] },
-        { id: "w2", endContract: "2027-01-01", positionIds: ["p2"] },
+        { id: "w1", endContract: "2027-01-01", positionIds: ["p2"], workDaysPerWeek: null },
+        { id: "w2", endContract: "2027-01-01", positionIds: ["p2"], workDaysPerWeek: null },
       ],
       cells: [
         work(DAYS[0], 1, { lineId: "l2", workerId: "w2" }),

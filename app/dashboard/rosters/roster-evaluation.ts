@@ -1,5 +1,7 @@
 import type { EvalCell, EvaluateInput, RosterWarning, WarningCode } from "@/types/rosters";
 
+import { effectiveWorkDays } from "@/app/dashboard/settings/settings-rules";
+
 import {
   contractEnded,
   monthlyMessage,
@@ -48,6 +50,9 @@ export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
     const history = histories.get(workerId);
     const positioned = new Set<string>();
     let contractWarned = false;
+    // The worker's own limit wins over the rule, as in the engine. A worker the input does not list
+    // follows the rule.
+    const weeklyLimit = effectiveWorkDays(worker?.workDaysPerWeek ?? null, rules.workDaysPerWeek);
 
     cells.forEach((cell, index) => {
       const line = lines.get(cell.lineId);
@@ -68,8 +73,8 @@ export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
         warn("contract", cell, `Contract ends ${worker.endContract}.`);
       }
 
-      if (index === rules.workDaysPerWeek) {
-        warn("weekly", cell, `Would exceed ${rules.workDaysPerWeek} working days this week.`);
+      if (index === weeklyLimit) {
+        warn("weekly", cell, `Would exceed ${weeklyLimit} working days this week.`);
       }
     });
 

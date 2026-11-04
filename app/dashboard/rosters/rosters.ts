@@ -471,6 +471,7 @@ export async function getRoster(
         employeeId: worker.employeeId,
         name: worker.name,
         endContract: worker.endContract,
+        workDaysPerWeek: worker.workDaysPerWeek,
         date: rosterAssignment.workDate,
         kind: rosterAssignment.kind,
         shiftId: rosterAssignment.shiftId,
@@ -536,6 +537,7 @@ export async function getRoster(
       id,
       endContract: workers.get(id)?.endContract ?? "",
       positionIds: positions.get(id)?.ids ?? [],
+      workDaysPerWeek: workers.get(id)?.workDaysPerWeek ?? null,
     })),
     cells: assignmentRows.map((row) => ({
       lineId: row.lineId,
@@ -1124,6 +1126,7 @@ export async function loadCellContext(
             employeeId: worker.employeeId,
             name: worker.name,
             endContract: worker.endContract,
+            workDaysPerWeek: worker.workDaysPerWeek,
           })
           .from(worker)
           .where(

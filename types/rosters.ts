@@ -423,7 +423,8 @@ export type EvalCell = {
 export type EvaluateInput = {
   days: string[];
   lines: { id: string; positionId: string; positionName: string }[];
-  workers: { id: string; endContract: string; positionIds: string[] }[];
+  // workDaysPerWeek is the worker's own limit, or null to follow the rule.
+  workers: { id: string; endContract: string; positionIds: string[]; workDaysPerWeek: number | null }[];
   cells: EvalCell[];
   targets: { lineId: string; date: string; shiftOrder: number; headcount: number }[];
   rules: EngineRules;
@@ -454,6 +455,7 @@ export type CellContext = {
     name: string;
     endContract: string;
     positionIds: string[];
+    workDaysPerWeek: number | null;
     positionNames: string[];
     active: boolean;
   }[];

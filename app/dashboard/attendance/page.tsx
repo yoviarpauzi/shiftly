@@ -56,7 +56,8 @@ export default async function Page({
         lock={attendanceLock(choices.locationId, list.isFuture)}
         locationView={locationViewFor(choices)}
         filters={<AttendanceFilters filters={filters} choices={choices} />}
-        summary={<AttendanceSummary summary={list.summary} />}
+        // The Figma frame for a day with no roster has no counts, since they would all be zero.
+        summary={list.summary.scheduled > 0 ? <AttendanceSummary summary={list.summary} /> : null}
         empty={
           filtered && list.summary.scheduled > 0 ? (
             <p className="rounded-lg border px-4 py-12 text-center text-sm text-muted-foreground">

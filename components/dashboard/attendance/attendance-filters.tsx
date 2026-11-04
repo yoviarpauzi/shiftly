@@ -36,7 +36,7 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
             ...choices.sites.map((site) => ({ value: site.id, label: site.name })),
           ]}
           label="Site"
-          className="h-9 w-48"
+          className="h-9 w-32"
           resets={["location", "department", "shift"]}
         />
       )}
@@ -49,7 +49,7 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
             ...locations.map((location) => ({ value: location.id, label: location.name })),
           ]}
           label="Location"
-          className="h-9 w-48"
+          className="h-9 w-40"
           resets={["department", "shift"]}
           disabled={choices.siteId === null}
         />
@@ -62,7 +62,7 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
           ...choices.departments.map((entry) => ({ value: entry.id, label: entry.name })),
         ]}
         label="Filter by department"
-        className="h-9 w-48"
+        className="h-9 w-40"
         disabled={noLocation}
       />
       <FilterSelect
@@ -73,7 +73,7 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
           ...choices.shifts.map((entry) => ({ value: entry.id, label: entry.name })),
         ]}
         label="Filter by shift"
-        className="h-9 w-40"
+        className="h-9 w-32"
         disabled={noLocation}
       />
       <FilterSelect
@@ -81,7 +81,7 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
         value={filters.status}
         options={STATUS_OPTIONS}
         label="Filter by status"
-        className="h-9 w-40"
+        className="h-9 w-36"
       />
     </div>
   );

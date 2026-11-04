@@ -10,6 +10,7 @@ import {
   rosterRequestLine,
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
+import { roster } from "@/database/schema/roster-schema";
 import type { RequestAccess, RequestActor } from "@/types/requests";
 import { START_DATE_PAST_MESSAGE } from "@/validation/request";
 import { formatPoNumber, poPeriod } from "./po-number";
@@ -22,6 +23,7 @@ import {
   NOT_EDITABLE_MESSAGE,
   NOT_PENDING_MESSAGE,
   REASON_REQUIRED_MESSAGE,
+  REQUEST_HAS_ROSTER_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
   siteCodeMissingMessage,
   WEEKLY_HEADCOUNT_MESSAGE,
@@ -50,6 +52,7 @@ const fake = vi.hoisted(() => ({
     subDepartments: [] as unknown[],
     positions: [] as unknown[],
     request: [] as { id: string; status: string }[],
+    roster: [] as unknown[],
   },
   actor: null as unknown,
   access: null as unknown,
@@ -71,6 +74,7 @@ function result(call: Call): unknown {
     if (call.table === subDepartment) return fake.rows.subDepartments;
     if (call.table === position) return fake.rows.positions;
     if (call.table === rosterRequest) return fake.rows.request;
+    if (call.table === roster) return fake.rows.roster;
     return [];
   }
 
@@ -261,7 +265,14 @@ const dayInserts = () =>
 
 beforeEach(() => {
   fake.calls = [];
-  fake.rows = { location: [], departments: [], subDepartments: [], positions: [], request: [] };
+  fake.rows = {
+    location: [],
+    departments: [],
+    subDepartments: [],
+    positions: [],
+    request: [],
+    roster: [],
+  };
   fake.sequence = 1;
   actAs(superadmin);
   vi.mocked(revalidatePath).mockClear();
@@ -572,6 +583,39 @@ describe("createRequest in the location's time zone", () => {
 });
 
 describe("updateRequest", () => {
+  it("refuses a request that has a roster and writes nothing", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest({ status: "approved" })];
+    fake.rows.roster = [{ id: "roster-1" }];
+
+    const res = await updateRequest(REQUEST_ID, updateInput);
+
+    expect(res).toEqual({
+      ok: false,
+      formError: "This request already has a roster and can no longer be edited.",
+    });
+    expect(REQUEST_HAS_ROSTER_MESSAGE).toBe(
+      "This request already has a roster and can no longer be edited.",
+    );
+    expect(writes()).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("looks for the roster inside the transaction, after it has locked the request", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest({ status: "approved" })];
+
+    await updateRequest(REQUEST_ID, updateInput);
+
+    const selects = fake.calls.filter((call) => call.op === "select");
+    const lockIndex = selects.findIndex((call) => call.table === rosterRequest);
+    const rosterIndex = selects.findIndex((call) => call.table === roster);
+
+    expect(lockIndex).toBeGreaterThanOrEqual(0);
+    expect(rosterIndex).toBeGreaterThan(lockIndex);
+    expect(whereParams(selects[rosterIndex].where)).toEqual([REQUEST_ID]);
+  });
+
   it("sends an approved weekly back to pending and clears the decision", async () => {
     actAs(hoA);
     seedLocationChoices();

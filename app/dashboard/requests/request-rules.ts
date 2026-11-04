@@ -23,6 +23,8 @@ export function siteCodeMissingMessage(siteName: string): string {
 export const NOT_PENDING_MESSAGE = "Only a pending request can be approved or rejected";
 
 export const NOT_EDITABLE_MESSAGE = "A rejected or cancelled request cannot be edited";
+export const REQUEST_HAS_ROSTER_MESSAGE =
+  "This request already has a roster and can no longer be edited.";
 
 export const NOT_CANCELLABLE_MESSAGE = "Only a pending or approved request can be cancelled";
 

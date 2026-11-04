@@ -12,6 +12,7 @@ import {
   rosterRequestLine,
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
+import { roster } from "@/database/schema/roster-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { dateInZone } from "@/lib/indonesia-date";
@@ -47,6 +48,7 @@ import {
   NOT_EDITABLE_MESSAGE,
   NOT_PENDING_MESSAGE,
   REASON_REQUIRED_MESSAGE,
+  REQUEST_HAS_ROSTER_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
   requestFieldErrors,
   siteCodeMissingMessage,
@@ -271,6 +273,17 @@ export async function updateRequest(
 
     if (!current) {
       return { ok: false, formError: REQUEST_NOT_FOUND_MESSAGE };
+    }
+
+    // The roster was built from these lines, and replacing them would delete lines the roster's
+    // rows point at. Generate locks this same request row, so no roster can appear after this read.
+    const [existingRoster] = await tx
+      .select({ id: roster.id })
+      .from(roster)
+      .where(eq(roster.requestId, current.id));
+
+    if (existingRoster) {
+      return { ok: false, formError: REQUEST_HAS_ROSTER_MESSAGE };
     }
 
     const currentStatus = current.status as RequestStatus;

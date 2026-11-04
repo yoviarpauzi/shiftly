@@ -8,8 +8,16 @@ import { Input } from "@/components/ui/input";
 
 const SEARCH_DELAY_MS = 300;
 
-// Copy of components/dashboard/shifts/shifts-search.tsx, with request wording.
-export function RequestsSearch() {
+// Copy of components/dashboard/shifts/shifts-search.tsx, with request wording. Other lists that
+// search a request's PO number, or something else with the same URL parameter, pass their own
+// wording.
+export function RequestsSearch({
+  placeholder = "Search by PO number",
+  label = "Search requests",
+}: {
+  placeholder?: string;
+  label?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -66,8 +74,8 @@ export function RequestsSearch() {
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Search by PO number"
-          aria-label="Search requests"
+          placeholder={placeholder}
+          aria-label={label}
           className="h-9 pr-10 pl-8 [&::-webkit-search-cancel-button]:appearance-none"
         />
         {value !== "" && (

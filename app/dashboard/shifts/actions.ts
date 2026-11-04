@@ -3,8 +3,8 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { location } from "@/database/schema/location-schema";
 import { shift } from "@/database/schema/shift-schema";
-import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import type {
   ShiftAccess,
@@ -18,18 +18,18 @@ import {
   type ShiftInput,
   type ShiftUpdateInput,
 } from "@/validation/shift";
-import { canWriteToSite } from "./shift-access";
+import { canWriteToLocation } from "./shift-access";
 import { requireShiftManager } from "./shift-guard";
 import {
   canDeleteShift,
   canRestoreShift,
   DUPLICATE_SHIFT_NAME_MESSAGE,
   DUPLICATE_SHIFT_ORDER_MESSAGE,
+  LOCATION_NOT_FOUND_MESSAGE,
   SHIFT_NOT_FOUND_MESSAGE,
   SHIFT_RESTORE_CONFLICT_MESSAGE,
   shiftConflictField,
   shiftFieldErrors,
-  SITE_NOT_FOUND_MESSAGE,
 } from "./shift-rules";
 import { shiftRequestStatuses, shiftScopeFilter } from "./shifts";
 
@@ -56,22 +56,22 @@ export async function createShift(input: ShiftInput): Promise<ShiftActionResult>
   }
 
   try {
-    // The share lock conflicts with the update lock a site delete takes, so the site cannot be
-    // deleted between this check and the insert. The site id comes from the client, so it is
+    // The share lock conflicts with the update lock a location delete takes, so the location cannot
+    // be deleted between this check and the insert. The location id comes from the client, so it is
     // loaded and checked against the caller's scope.
     const result = await db.transaction(async (tx) => {
       const [target] = await tx
-        .select({ id: site.id })
-        .from(site)
-        .where(and(eq(site.id, parsed.data.siteId), isNull(site.deletedAt)))
+        .select({ id: location.id, siteId: location.siteId })
+        .from(location)
+        .where(and(eq(location.id, parsed.data.locationId), isNull(location.deletedAt)))
         .for("share");
 
-      if (!target || !canWriteToSite(access, target.id)) {
-        return { ok: false as const, formError: SITE_NOT_FOUND_MESSAGE };
+      if (!target || !canWriteToLocation(access, target)) {
+        return { ok: false as const, formError: LOCATION_NOT_FOUND_MESSAGE };
       }
 
       await tx.insert(shift).values({
-        siteId: target.id,
+        locationId: target.id,
         order: parsed.data.order,
         name: parsed.data.name,
         startTime: parsed.data.startTime,
@@ -99,7 +99,7 @@ export async function createShift(input: ShiftInput): Promise<ShiftActionResult>
   return { ok: true };
 }
 
-// Order, name, and times change. A shift keeps its site after it is created.
+// Order, name, and times change. A shift keeps its location after it is created.
 export async function updateShift(
   id: string,
   input: ShiftUpdateInput,
@@ -184,12 +184,12 @@ export async function deleteShift(id: string): Promise<ShiftActionResult> {
 // Restores one shift. The caller has already passed requireShiftManager().
 async function restoreOne(id: string, access: ShiftAccess): Promise<ShiftActionResult> {
   try {
-    // The share lock on the site conflicts with the update lock a site delete takes, so the site
-    // cannot be deleted between the check and the restore. Without it a site delete could count
-    // this shift as deleted, commit, and leave it active under a deleted site.
+    // The share lock on the location conflicts with the update lock a location delete takes, so the
+    // location cannot be deleted between the check and the restore. Without it a location delete
+    // could count this shift as deleted, commit, and leave it active under a deleted location.
     return await db.transaction(async (tx) => {
       const [target] = await tx
-        .select({ id: shift.id, siteId: shift.siteId })
+        .select({ id: shift.id, locationId: shift.locationId })
         .from(shift)
         .where(and(eq(shift.id, id), isNotNull(shift.deletedAt), shiftScopeFilter(access)));
 
@@ -198,12 +198,12 @@ async function restoreOne(id: string, access: ShiftAccess): Promise<ShiftActionR
       }
 
       const [owner] = await tx
-        .select({ deletedAt: site.deletedAt })
-        .from(site)
-        .where(eq(site.id, target.siteId))
+        .select({ deletedAt: location.deletedAt })
+        .from(location)
+        .where(eq(location.id, target.locationId))
         .for("share");
 
-      const verdict = canRestoreShift({ siteDeleted: owner.deletedAt !== null });
+      const verdict = canRestoreShift({ locationDeleted: owner.deletedAt !== null });
 
       if (!verdict.ok) {
         return { ok: false as const, formError: verdict.formError };

@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins/admin";
 import { adminAc, userAc } from "better-auth/plugins/admin/access";
 import { eq } from "drizzle-orm";
@@ -75,5 +76,8 @@ export const auth = betterAuth({
         admin_site: userAc,
       },
     }),
+    // Applies the cookies an endpoint sets, such as the new session after a password change,
+    // when it is called from a server action. It must stay the last plugin.
+    nextCookies(),
   ],
 });

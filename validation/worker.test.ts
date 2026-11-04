@@ -12,6 +12,7 @@ const valid = {
   locationId: LOCATION,
   positionIds: [POSITION],
   endContract: "2026-12-31",
+  workDays: "default",
 };
 
 const REQUIRED = "End of contract is required";
@@ -89,6 +90,34 @@ describe("workerSchema", () => {
       expect(issues).toHaveLength(1);
       expect(issues[0].message).toBe(NOT_A_DATE);
       expect(issues[0].path).toEqual(["endContract"]);
+    }
+  });
+
+  it("requires the working-days choice, so an update cannot clear the override by omission", () => {
+    const { workDays: omitted, ...withoutWorkDays } = valid;
+    const parsed = workerSchema.safeParse(withoutWorkDays);
+
+    expect(omitted).toBe("default");
+    expect(parsed.success).toBe(false);
+    expect(parsed.error!.issues).toHaveLength(1);
+    expect(parsed.error!.issues[0].message).toBe("Choose working days");
+    expect(parsed.error!.issues[0].path).toEqual(["workDays"]);
+  });
+
+  it("maps the working-days choice to null, 5 or 7", () => {
+    expect(workerSchema.parse({ ...valid, workDays: "default" }).workDays).toBeNull();
+    expect(workerSchema.parse({ ...valid, workDays: "5" }).workDays).toBe(5);
+    expect(workerSchema.parse({ ...valid, workDays: "7" }).workDays).toBe(7);
+  });
+
+  it("rejects any other working-days value", () => {
+    for (const workDays of ["6", "", 5]) {
+      const parsed = workerSchema.safeParse({ ...valid, workDays });
+
+      expect(parsed.success).toBe(false);
+      expect(parsed.error!.issues).toHaveLength(1);
+      expect(parsed.error!.issues[0].message).toBe("Choose working days");
+      expect(parsed.error!.issues[0].path).toEqual(["workDays"]);
     }
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { WORK_RULE_DEFAULTS } from "@/app/dashboard/settings/settings-rules";
+
 import {
   addDays,
   CELL_BUSY_MESSAGE,
@@ -16,12 +18,12 @@ import {
   monthKey,
   monthName,
   requestDays,
-  rulesForLocation,
   shortDate,
   isUniqueViolation,
   splitsToTargets,
   targetsTotalError,
   targetsTotalMessage,
+  toEngineRules,
 } from "./roster-rules";
 
 describe("addDays", () => {
@@ -257,13 +259,41 @@ describe("generateAgainDescription", () => {
   });
 });
 
-describe("rulesForLocation", () => {
-  it("gives the built-in defaults", () => {
-    expect(rulesForLocation("any")).toEqual({
+describe("toEngineRules", () => {
+  const sources = {
+    workDaysPerWeek: "default",
+    breakDays: "default",
+    breakCycleMonths: "default",
+    annualOffDays: "default",
+    shiftExceptionDays: "default",
+    requirePositionMatch: "default",
+    maxWorkingDaysPerMonth: "default",
+  } as const;
+
+  it("maps the four rules the engine reads", () => {
+    expect(toEngineRules({ values: WORK_RULE_DEFAULTS, sources })).toEqual({
       workDaysPerWeek: 5,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
       maxWorkingDaysPerMonth: 26,
+    });
+  });
+
+  it("passes non-default values through unchanged and drops the rest", () => {
+    const values = {
+      ...WORK_RULE_DEFAULTS,
+      workDaysPerWeek: 7 as const,
+      shiftExceptionDays: 3,
+      requirePositionMatch: false,
+      maxWorkingDaysPerMonth: 20,
+      breakDays: 9,
+    };
+
+    expect(toEngineRules({ values, sources })).toEqual({
+      workDaysPerWeek: 7,
+      shiftExceptionDays: 3,
+      requirePositionMatch: false,
+      maxWorkingDaysPerMonth: 20,
     });
   });
 });

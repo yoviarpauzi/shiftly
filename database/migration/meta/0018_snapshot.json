@@ -1,5 +1,5 @@
 {
-  "id": "6b0396e2-38f0-435f-a68a-29fa80937178",
+  "id": "77697f67-038f-4812-8c77-6867facfcc28",
   "prevId": "cb8b354a-d239-437b-8d44-45d97e5a449d",
   "version": "7",
   "dialect": "postgresql",
@@ -1690,197 +1690,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.roster_cell_edit": {
-      "name": "roster_cell_edit",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "roster_id": {
-          "name": "roster_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "request_line_id": {
-          "name": "request_line_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "worker_id": {
-          "name": "worker_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "work_date": {
-          "name": "work_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "before_kind": {
-          "name": "before_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "before_shift_id": {
-          "name": "before_shift_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "after_kind": {
-          "name": "after_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "after_shift_id": {
-          "name": "after_shift_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "edited_by": {
-          "name": "edited_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "edited_at": {
-          "name": "edited_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "roster_cell_edit_roster_workDate_idx": {
-          "name": "roster_cell_edit_roster_workDate_idx",
-          "columns": [
-            {
-              "expression": "roster_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "work_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "roster_cell_edit_roster_id_roster_id_fk": {
-          "name": "roster_cell_edit_roster_id_roster_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "roster",
-          "columnsFrom": [
-            "roster_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "roster_cell_edit_request_line_id_roster_request_line_id_fk": {
-          "name": "roster_cell_edit_request_line_id_roster_request_line_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "roster_request_line",
-          "columnsFrom": [
-            "request_line_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "roster_cell_edit_worker_id_worker_id_fk": {
-          "name": "roster_cell_edit_worker_id_worker_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "worker",
-          "columnsFrom": [
-            "worker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "roster_cell_edit_before_shift_id_shift_id_fk": {
-          "name": "roster_cell_edit_before_shift_id_shift_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "shift",
-          "columnsFrom": [
-            "before_shift_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "roster_cell_edit_after_shift_id_shift_id_fk": {
-          "name": "roster_cell_edit_after_shift_id_shift_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "shift",
-          "columnsFrom": [
-            "after_shift_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "roster_cell_edit_edited_by_user_id_fk": {
-          "name": "roster_cell_edit_edited_by_user_id_fk",
-          "tableFrom": "roster_cell_edit",
-          "tableTo": "user",
-          "columnsFrom": [
-            "edited_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "roster_cell_edit_before_check": {
-          "name": "roster_cell_edit_before_check",
-          "value": "(\"roster_cell_edit\".\"before_kind\" is null or \"roster_cell_edit\".\"before_kind\" in ('work', 'off', 'break')) and (coalesce(\"roster_cell_edit\".\"before_kind\" = 'work', false) = (\"roster_cell_edit\".\"before_shift_id\" is not null))"
-        },
-        "roster_cell_edit_after_check": {
-          "name": "roster_cell_edit_after_check",
-          "value": "(\"roster_cell_edit\".\"after_kind\" is null or \"roster_cell_edit\".\"after_kind\" in ('work', 'off', 'break')) and (coalesce(\"roster_cell_edit\".\"after_kind\" = 'work', false) = (\"roster_cell_edit\".\"after_shift_id\" is not null))"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.roster_conflict": {
       "name": "roster_conflict",
       "schema": "",
@@ -2418,6 +2227,221 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.work_rule": {
+      "name": "work_rule",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "work_days_per_week": {
+          "name": "work_days_per_week",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "break_days": {
+          "name": "break_days",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "break_cycle_months": {
+          "name": "break_cycle_months",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "annual_off_days": {
+          "name": "annual_off_days",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shift_exception_days": {
+          "name": "shift_exception_days",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "require_position_match": {
+          "name": "require_position_match",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_working_days_per_month": {
+          "name": "max_working_days_per_month",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "work_rule_global_unique": {
+          "name": "work_rule_global_unique",
+          "columns": [
+            {
+              "expression": "scope",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"work_rule\".\"scope\" = 'global'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "work_rule_site_unique": {
+          "name": "work_rule_site_unique",
+          "columns": [
+            {
+              "expression": "site_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"work_rule\".\"scope\" = 'site'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "work_rule_location_unique": {
+          "name": "work_rule_location_unique",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"work_rule\".\"scope\" = 'location'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "work_rule_site_id_site_id_fk": {
+          "name": "work_rule_site_id_site_id_fk",
+          "tableFrom": "work_rule",
+          "tableTo": "site",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "work_rule_location_id_location_id_fk": {
+          "name": "work_rule_location_id_location_id_fk",
+          "tableFrom": "work_rule",
+          "tableTo": "location",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "work_rule_updated_by_user_id_fk": {
+          "name": "work_rule_updated_by_user_id_fk",
+          "tableFrom": "work_rule",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "work_rule_scope_check": {
+          "name": "work_rule_scope_check",
+          "value": "\"work_rule\".\"scope\" in ('global', 'site', 'location')"
+        },
+        "work_rule_target_check": {
+          "name": "work_rule_target_check",
+          "value": "(\"work_rule\".\"scope\" = 'global' and \"work_rule\".\"site_id\" is null and \"work_rule\".\"location_id\" is null)\n        or (\"work_rule\".\"scope\" = 'site' and \"work_rule\".\"site_id\" is not null and \"work_rule\".\"location_id\" is null)\n        or (\"work_rule\".\"scope\" = 'location' and \"work_rule\".\"location_id\" is not null and \"work_rule\".\"site_id\" is null)"
+        },
+        "work_rule_work_days_check": {
+          "name": "work_rule_work_days_check",
+          "value": "\"work_rule\".\"work_days_per_week\" is null or \"work_rule\".\"work_days_per_week\" in (5, 7)"
+        },
+        "work_rule_break_days_check": {
+          "name": "work_rule_break_days_check",
+          "value": "\"work_rule\".\"break_days\" is null or \"work_rule\".\"break_days\" between 1 and 31"
+        },
+        "work_rule_break_cycle_months_check": {
+          "name": "work_rule_break_cycle_months_check",
+          "value": "\"work_rule\".\"break_cycle_months\" is null or \"work_rule\".\"break_cycle_months\" between 1 and 12"
+        },
+        "work_rule_annual_off_days_check": {
+          "name": "work_rule_annual_off_days_check",
+          "value": "\"work_rule\".\"annual_off_days\" is null or \"work_rule\".\"annual_off_days\" between 0 and 366"
+        },
+        "work_rule_shift_exception_days_check": {
+          "name": "work_rule_shift_exception_days_check",
+          "value": "\"work_rule\".\"shift_exception_days\" is null or \"work_rule\".\"shift_exception_days\" between 1 and 30"
+        },
+        "work_rule_max_working_days_per_month_check": {
+          "name": "work_rule_max_working_days_per_month_check",
+          "value": "\"work_rule\".\"max_working_days_per_month\" is null or \"work_rule\".\"max_working_days_per_month\" between 1 and 31"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.worker": {
       "name": "worker",
       "schema": "",
@@ -2458,6 +2482,12 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "work_days_per_week": {
+          "name": "work_days_per_week",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -2559,7 +2589,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "worker_work_days_check": {
+          "name": "worker_work_days_check",
+          "value": "\"worker\".\"work_days_per_week\" in (5, 7)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.worker_position": {

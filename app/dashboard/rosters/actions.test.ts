@@ -190,6 +190,7 @@ const worker = (id: string, employeeId: string) => ({
   employeeId,
   endContract: "2027-01-01",
   positionIds: [POSITION_A],
+  workDaysPerWeek: null,
 });
 
 function engineInput(workers = [worker(W1, "E-1"), worker(W2, "E-2"), worker(W3, "E-3")]) {

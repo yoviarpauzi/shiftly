@@ -6,6 +6,7 @@ import type {
   ImportRowResult,
   ImportSummary,
 } from "@/types/worker-import";
+import type { WorkDays } from "@/types/settings";
 import type { WorkerAccess } from "@/types/workers";
 import { isCalendarDate } from "@/validation/calendar-date";
 import { workerSchema } from "@/validation/worker";
@@ -64,6 +65,29 @@ function readEndContract(cell: ImportCell): { text: string; error: string | null
   }
 
   return { text, error: null };
+}
+
+const WORK_DAYS_MESSAGE = "work_days must be 5 or 7";
+
+// Empty means "do not touch", not "clear", so the import never wipes an override. Only the number 5 or 7,
+// or text that trims to exactly "5" or "7", is accepted. This does not go through workerSchema,
+// which has no way to say "leave the override alone".
+function readWorkDays(cell: ImportCell): { value: WorkDays | null; error: string | null } {
+  if (cell === null || (typeof cell === "string" && cell.trim() === "")) {
+    return { value: null, error: null };
+  }
+
+  const value = typeof cell === "string" ? cell.trim() : cell;
+
+  if (value === 5 || value === "5") {
+    return { value: 5, error: null };
+  }
+
+  if (value === 7 || value === "7") {
+    return { value: 7, error: null };
+  }
+
+  return { value: null, error: WORK_DAYS_MESSAGE };
 }
 
 // Split on commas, trim, and drop blanks and repeats. The first spelling of a name is kept.
@@ -142,6 +166,12 @@ export function resolveImportRows(
       errors.push(endContract.error);
     }
 
+    const workDays = readWorkDays(cells.work_days);
+
+    if (workDays.error) {
+      errors.push(workDays.error);
+    }
+
     const positionNames = splitPositionNames(positionsCell.text);
 
     const base = {
@@ -152,6 +182,7 @@ export function resolveImportRows(
       locationName: locationCell.text,
       positionNames,
       endContract: endContract.text,
+      workDays: workDays.value,
     };
 
     if (!siteCell.typeError && siteCell.text === "") {
@@ -244,4 +275,19 @@ export function summarizeImport(rows: ImportRowResult[]): ImportSummary {
   }
 
   return summary;
+}
+
+// The preview text for the Working days column. A blank cell clears nothing: a created worker
+// inherits the work rules and an updated one keeps its own override. An error row may be blank or
+// invalid, so it claims neither.
+export function importWorkDaysText(row: Pick<ImportRowResult, "action" | "workDays">): string {
+  if (row.workDays !== null) {
+    return `${row.workDays}`;
+  }
+
+  if (row.action === "create") {
+    return "Inherited";
+  }
+
+  return row.action === "update" ? "Unchanged" : "-";
 }

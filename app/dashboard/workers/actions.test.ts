@@ -103,6 +103,7 @@ const input = {
   locationId: LOCATION_A,
   positionIds: [POSITION_A],
   endContract: " 2026-12-31 ",
+  workDays: "default" as const,
 };
 
 const writes = () => fake.calls.filter((call) => call.op !== "select");
@@ -132,6 +133,7 @@ describe("createWorker", () => {
           siteId: SITE_A,
           locationId: LOCATION_A,
           endContract: "2026-12-31",
+          workDaysPerWeek: null,
         },
       },
       { op: "delete", table: workerPosition },
@@ -141,6 +143,29 @@ describe("createWorker", () => {
         values: [{ workerId: WORKER_NEW, positionId: POSITION_A }],
       },
     ]);
+  });
+
+  it("stores the working-days override", async () => {
+    await createWorker({ ...input, workDays: "7" });
+
+    expect(writes()[0]).toMatchObject({
+      op: "insert",
+      table: worker,
+      values: { workDaysPerWeek: 7 },
+    });
+  });
+
+  it("refuses a working-days value that is not 5 or 7, and writes nothing", async () => {
+    const result = await createWorker({
+      ...input,
+      workDays: "6" as unknown as "5",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      fieldErrors: { workDays: "Choose working days" },
+    });
+    expect(writes()).toEqual([]);
   });
 });
 
@@ -159,6 +184,7 @@ describe("updateWorker", () => {
           siteId: SITE_A,
           locationId: LOCATION_A,
           endContract: "2027-06-30",
+          workDaysPerWeek: null,
         },
       },
       { op: "delete", table: workerPosition },
@@ -168,6 +194,30 @@ describe("updateWorker", () => {
         values: [{ workerId: WORKER_ID, positionId: POSITION_A }],
       },
     ]);
+  });
+
+  it("sets the working-days override", async () => {
+    await updateWorker(WORKER_ID, { ...input, workDays: "5" });
+
+    expect(writes()[0]).toMatchObject({ op: "update", set: { workDaysPerWeek: 5 } });
+  });
+
+  // This is how an override is cleared.
+  it("clears the override when the form sends default", async () => {
+    await updateWorker(WORKER_ID, { ...input, workDays: "default" });
+
+    expect(writes()[0]).toMatchObject({ op: "update", set: { workDaysPerWeek: null } });
+  });
+
+  it("refuses an update that omits working days, so the override is left alone", async () => {
+    const { workDays: omitted, ...withoutWorkDays } = input;
+
+    expect(omitted).toBe("default");
+    expect(await updateWorker(WORKER_ID, withoutWorkDays as unknown as typeof input)).toEqual({
+      ok: false,
+      fieldErrors: { workDays: "Choose working days" },
+    });
+    expect(writes()).toEqual([]);
   });
 });
 

@@ -1,3 +1,5 @@
+import type { WorkDays } from "@/types/settings";
+
 export const IMPORT_COLUMNS = [
   "employee_id",
   "name",
@@ -9,12 +11,17 @@ export const IMPORT_COLUMNS = [
 
 export type ImportColumn = (typeof IMPORT_COLUMNS)[number];
 
+// Read when present, never required, so a file from the old template still imports.
+export const OPTIONAL_IMPORT_COLUMNS = ["work_days"] as const;
+
+export type ImportCellColumn = ImportColumn | (typeof OPTIONAL_IMPORT_COLUMNS)[number];
+
 export type ImportCell = string | number | boolean | Date | null;
 
 // rowNumber is the Excel row number, so the header is row 1 and the first worker is row 2.
 export type ImportRawRow = {
   rowNumber: number;
-  cells: Record<ImportColumn, ImportCell>;
+  cells: Record<ImportCellColumn, ImportCell>;
 };
 
 export type ImportRowBase = {
@@ -26,6 +33,8 @@ export type ImportRowBase = {
   positionNames: string[];
   // YYYY-MM-DD when valid, otherwise the cell as read, so the preview shows what is wrong.
   endContract: string;
+  // null means "do not touch": a created worker gets no override and an updated one keeps its own.
+  workDays: WorkDays | null;
 };
 
 export type ImportRowResult =

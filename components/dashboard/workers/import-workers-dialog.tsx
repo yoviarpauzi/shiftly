@@ -134,7 +134,7 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
     >
       <DialogContent className="sm:max-w-4xl">
         <form
-          className="flex flex-col gap-6"
+          className="flex min-w-0 flex-col gap-6"
           noValidate
           onSubmit={(event) => {
             event.preventDefault();

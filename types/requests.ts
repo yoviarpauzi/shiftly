@@ -203,6 +203,7 @@ export type RequestLineFieldsProps = {
   departments: RequestOption[];
   subDepartments: RequestOption[];
   positions: RequestOption[];
+  shifts: RequestShiftChoice[];
   disabled: boolean;
   canRemove: boolean;
   // Hidden when the form is read-only.

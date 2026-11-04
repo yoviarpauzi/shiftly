@@ -23,6 +23,8 @@ import {
   positionsFor,
   requestFormDefaults,
   returnsToPending,
+  shiftOptionLabel,
+  shiftsFor,
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
@@ -142,6 +144,10 @@ describe("afterSiteChange", () => {
     expect(next.lines[0].departmentId).toBe("");
   });
 
+  it("starts the lines over on Any shift", () => {
+    expect(afterSiteChange(choices, SITE_A).lines.map((row) => row.shiftId)).toEqual([null]);
+  });
+
   it("presets the location when the new site has only one", () => {
     const next = afterSiteChange(choices, SITE_B);
 
@@ -183,6 +189,26 @@ describe("positionsFor", () => {
   it("returns nothing for an unknown or empty location", () => {
     expect(positionsFor(choices, "")).toEqual([]);
     expect(positionsFor(choices, "unknown")).toEqual([]);
+  });
+});
+
+describe("shiftsFor", () => {
+  it("lists the shifts of the location's site only, in order", () => {
+    expect(shiftsFor(choices, LOC_A1).map((row) => row.id)).toEqual([SHIFT_1, SHIFT_2]);
+    expect(shiftsFor(choices, LOC_B1).map((row) => row.id)).toEqual([SHIFT_B1]);
+  });
+
+  it("is empty for an unknown location or none chosen", () => {
+    expect(shiftsFor(choices, "unknown")).toEqual([]);
+    expect(shiftsFor(choices, "")).toEqual([]);
+  });
+});
+
+describe("shiftOptionLabel", () => {
+  it("formats the order and the times", () => {
+    expect(shiftOptionLabel({ order: 1, startTime: "06:00", endTime: "14:00" })).toBe(
+      "Shift 1 · 06:00 - 14:00",
+    );
   });
 });
 
@@ -229,6 +255,24 @@ describe("line rules", () => {
   it("keeps at least one line", () => {
     expect(canRemoveLine(1)).toBe(false);
     expect(canRemoveLine(2)).toBe(true);
+  });
+});
+
+describe("requestFormDefaults shifts", () => {
+  it("keeps a stored shift that is still one of the site's shifts", () => {
+    expect(requestFormDefaults(detail, choices).lines.map((row) => row.shiftId)).toEqual([
+      SHIFT_1,
+      null,
+    ]);
+  });
+
+  it("opens a line whose shift is no longer in the choices as Any shift", () => {
+    const gone = {
+      ...detail,
+      lines: [{ ...detail.lines[0], shiftId: "5d000000-0000-4000-8000-000000000000" }],
+    };
+
+    expect(requestFormDefaults(gone, choices).lines[0].shiftId).toBeNull();
   });
 });
 

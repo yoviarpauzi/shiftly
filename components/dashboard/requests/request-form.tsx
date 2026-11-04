@@ -20,6 +20,7 @@ import {
   positionsFor,
   requestFormDefaults,
   returnsToPending,
+  shiftsFor,
   subDepartmentsFor,
   toRequestLineInputs,
   withSiteError,
@@ -167,6 +168,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
   const siteLocations = locationsFor(choices, siteId);
   const departments = departmentsFor(choices, locationId);
   const positions = positionsFor(choices, locationId);
+  const shifts = shiftsFor(choices, locationId);
   const isEdit = request !== null;
 
   return (
@@ -426,8 +428,8 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                       <FieldLegend>Lines</FieldLegend>
                       <FieldDescription>
                         {locationId
-                          ? `Headcount per department and position, up to ${MAX_REQUEST_LINES} lines.`
-                          : "Choose a location to see its departments and positions."}
+                          ? `Headcount per department, position, and shift, up to ${MAX_REQUEST_LINES} lines. Any shift lets the roster split it.`
+                          : "Choose a location to see its departments, positions, and shifts."}
                       </FieldDescription>
                       {isInvalid && (
                         <FieldError errors={field.state.meta.errors} />
@@ -446,6 +448,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                               line.departmentId,
                             )}
                             positions={positions}
+                            shifts={shifts}
                             disabled={disabled}
                             canRemove={canRemoveLine(lines.length)}
                             showRemove={!readOnly}

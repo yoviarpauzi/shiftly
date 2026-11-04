@@ -7,6 +7,7 @@ import type {
   RequestFormValues,
   RequestLineInput,
   RequestOption,
+  RequestShiftChoice,
   RequestStatus,
   RequestType,
 } from "@/types/requests";
@@ -73,6 +74,24 @@ export function positionsFor(choices: RequestChoices, locationId: string): Reque
   }
 
   return choices.positions.filter((row) => row.siteId === siteId).map(toOption);
+}
+
+// Shifts belong to a site, so the location's site decides which ones apply. They keep the order
+// the choices came in, which is by shift order.
+export function shiftsFor(choices: RequestChoices, locationId: string): RequestShiftChoice[] {
+  const siteId = choices.locations.find((row) => row.id === locationId)?.siteId;
+
+  if (!siteId) {
+    return [];
+  }
+
+  return choices.shifts.filter((row) => row.siteId === siteId);
+}
+
+export function shiftOptionLabel(
+  shift: Pick<RequestShiftChoice, "order" | "startTime" | "endTime">,
+): string {
+  return `Shift ${shift.order} · ${shift.startTime} - ${shift.endTime}`;
 }
 
 export function blankLine(): RequestFormLine {
@@ -191,7 +210,13 @@ export function requestFormDefaults(
       startDate: request.startDate,
       siteId: request.siteId,
       locationId: request.locationId,
-      lines: request.lines.map(formLineFromInput),
+      lines: request.lines.map((line) => {
+        const formLine = formLineFromInput(line);
+        const shiftKnown = choices.shifts.some((row) => row.id === formLine.shiftId);
+
+        // A shift that is no longer offered opens as Any shift rather than as an empty select.
+        return shiftKnown ? formLine : { ...formLine, shiftId: null };
+      }),
     };
   }
 

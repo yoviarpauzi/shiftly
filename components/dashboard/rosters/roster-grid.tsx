@@ -93,11 +93,11 @@ function Legend({ editable }: { editable: boolean }) {
   );
 }
 
-// One group per line: a row per worker, then the shifts nobody could fill. It scrolls sideways
-// inside its card, so a week does not widen the page. In a draft every cell is a button and each
-// group ends with Add worker. One edit saves at a time: every cell is disabled until it is done.
-// A line the page cuts has its header on both pages, but the Unfilled row and Add worker belong to
-// the page that holds its last worker.
+// One group per line: Add worker, a row per worker, then the shifts nobody could fill. It scrolls
+// sideways inside its card, so a week does not widen the page. In a draft every cell is a button
+// and each group starts with Add worker. One edit saves at a time: every cell is disabled until it
+// is done. A line the page cuts has its header and Add worker on both pages, but the Unfilled row
+// belongs to the page that holds its last worker.
 export function RosterGrid({
   days,
   shifts,
@@ -155,6 +155,22 @@ export function RosterGrid({
                   </span>
                 </th>
               </tr>
+              {editable && (
+                <tr className="border-t">
+                  <td colSpan={columns} className="px-2 py-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={saving}
+                      aria-label={`Add worker to ${line.title}`}
+                      onClick={() => onAddWorker({ lineId: line.lineId, lineTitle: line.title })}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      Add worker
+                    </Button>
+                  </td>
+                </tr>
+              )}
               {line.workers.map((worker) => (
                 <tr key={worker.workerId} className="border-t">
                   <th scope="row" className="px-3 py-2 text-left font-normal">
@@ -261,22 +277,6 @@ export function RosterGrid({
                     </td>
                   ))}
                   {editable && <td />}
-                </tr>
-              )}
-              {editable && line.endsHere && (
-                <tr className="border-t">
-                  <td colSpan={columns} className="px-2 py-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={saving}
-                      aria-label={`Add worker to ${line.title}`}
-                      onClick={() => onAddWorker({ lineId: line.lineId, lineTitle: line.title })}
-                    >
-                      <PlusIcon data-icon="inline-start" />
-                      Add worker
-                    </Button>
-                  </td>
                 </tr>
               )}
             </tbody>

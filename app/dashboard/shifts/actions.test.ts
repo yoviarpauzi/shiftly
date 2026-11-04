@@ -299,6 +299,16 @@ describe("createShift", () => {
     expect(locationSelect()?.lock).toBe("share");
   });
 
+  it("selects the requested location only while it is not deleted", async () => {
+    fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
+
+    await createShift(shiftInput);
+
+    const where = locationSelect()?.where;
+    expect(whereParams(where)).toContain(LOCATION_A);
+    expect(where && dialect.sqlToQuery(where).sql).toContain('"location"."deleted_at" is null');
+  });
+
   it("inserts the location id, not a site id", async () => {
     fake.access = { siteId: SITE_A, locationId: null };
     fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
@@ -346,5 +356,29 @@ describe("restoreShift", () => {
 
     expect(locationSelect()?.lock).toBe("share");
     expect(whereParams(locationSelect()?.where)).toEqual([LOCATION_A]);
+  });
+
+  it("scopes the shift select and the restore to the site's locations for an HO manager", async () => {
+    fake.access = { siteId: SITE_A, locationId: null };
+    fake.targets = [[{ id: SHIFT_A, locationId: LOCATION_A }]];
+    fake.locations = [[{ deletedAt: null }]];
+
+    await restoreShift(SHIFT_A);
+
+    expect(whereParams(targetSelect()?.where)).toContain(SITE_A);
+    expect(updates()).toHaveLength(1);
+    expect(whereParams(updates()[0].where)).toContain(SITE_A);
+  });
+
+  it("scopes the shift select and the restore to the one location for an admin site manager", async () => {
+    fake.access = { siteId: null, locationId: LOCATION_A };
+    fake.targets = [[{ id: SHIFT_A, locationId: LOCATION_A }]];
+    fake.locations = [[{ deletedAt: null }]];
+
+    await restoreShift(SHIFT_A);
+
+    expect(whereParams(targetSelect()?.where)).toContain(LOCATION_A);
+    expect(updates()).toHaveLength(1);
+    expect(whereParams(updates()[0].where)).toContain(LOCATION_A);
   });
 });

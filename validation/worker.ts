@@ -23,11 +23,8 @@ export const workerSchema = z.object({
     .min(1, { error: "End of contract is required", abort: true })
     .refine(isCalendarDate, "End of contract must be a real date like 2026-12-31"),
   // "default" means no override, so the worker follows the location's work rule.
-  // Omitting it on update also clears the override, so a caller must pass the current value;
-  // the dialog always does.
   workDays: z
     .enum(["default", "5", "7"], { error: "Choose working days" })
-    .default("default")
     .transform((value): WorkDays | null => (value === "default" ? null : value === "5" ? 5 : 7)),
 });
 

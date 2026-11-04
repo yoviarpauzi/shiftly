@@ -70,8 +70,8 @@ function readEndContract(cell: ImportCell): { text: string; error: string | null
 const WORK_DAYS_MESSAGE = "work_days must be 5 or 7";
 
 // Empty means "do not touch", not "clear", so the import never wipes an override. Only the number 5 or 7,
-// or text that trims to exactly "5" or "7", is accepted. This does not go through workerSchema, whose
-// workDays default would turn an omitted value into null.
+// or text that trims to exactly "5" or "7", is accepted. This does not go through workerSchema,
+// which has no way to say "leave the override alone".
 function readWorkDays(cell: ImportCell): { value: WorkDays | null; error: string | null } {
   if (cell === null || (typeof cell === "string" && cell.trim() === "")) {
     return { value: null, error: null };

@@ -12,6 +12,7 @@ const valid = {
   locationId: LOCATION,
   positionIds: [POSITION],
   endContract: "2026-12-31",
+  workDays: "default",
 };
 
 const REQUIRED = "End of contract is required";
@@ -92,8 +93,15 @@ describe("workerSchema", () => {
     }
   });
 
-  it("reads an omitted working-days override as null", () => {
-    expect(workerSchema.parse(valid).workDays).toBeNull();
+  it("requires the working-days choice, so an update cannot clear the override by omission", () => {
+    const { workDays: omitted, ...withoutWorkDays } = valid;
+    const parsed = workerSchema.safeParse(withoutWorkDays);
+
+    expect(omitted).toBe("default");
+    expect(parsed.success).toBe(false);
+    expect(parsed.error!.issues).toHaveLength(1);
+    expect(parsed.error!.issues[0].message).toBe("Choose working days");
+    expect(parsed.error!.issues[0].path).toEqual(["workDays"]);
   });
 
   it("maps the working-days choice to null, 5 or 7", () => {

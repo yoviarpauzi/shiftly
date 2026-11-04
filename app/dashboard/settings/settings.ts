@@ -18,7 +18,7 @@ import { resolveWorkRules, WORK_RULE_DEFAULTS } from "./settings-rules";
 
 const RULE_KEYS = Object.keys(WORK_RULE_DEFAULTS) as WorkRuleKey[];
 
-const ruleColumns = {
+export const ruleColumns = {
   workDaysPerWeek: workRule.workDaysPerWeek,
   breakDays: workRule.breakDays,
   breakCycleMonths: workRule.breakCycleMonths,

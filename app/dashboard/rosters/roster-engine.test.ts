@@ -31,6 +31,7 @@ const worker = (n: number, overrides: Partial<EngineWorker> = {}): EngineWorker 
   employeeId: `EMP-010${n}`,
   endContract: "2027-01-01",
   positionIds: ["p1"],
+  workDaysPerWeek: null,
   ...overrides,
 });
 
@@ -207,6 +208,58 @@ describe("generateRoster: working days per week", () => {
     expect(output.conflicts).toEqual(
       DAYS.slice(5).map((d) => conflictOf(d, "s1", 1, "Short by 1. 1 at the weekly limit.")),
     );
+  });
+
+  it("lets a worker's own 7 days exceed a rule of 5, while a worker with 5 or null stops at 5", () => {
+    const targets = DAYS.map((d) => target(d, "s1", 1));
+    const seven = generateRoster(
+      input({ workers: [worker(1, { workDaysPerWeek: 7 })], targets }),
+    );
+    const five = generateRoster(
+      input({ workers: [worker(1, { workDaysPerWeek: 5 })], targets }),
+    );
+    const inherits = generateRoster(input({ workers: [worker(1)], targets }));
+
+    expect(works(seven)).toEqual(DAYS.map((d) => `${d}:w1:s1`));
+    expect(seven.conflicts).toEqual([]);
+    expect(works(five)).toEqual(DAYS.slice(0, 5).map((d) => `${d}:w1:s1`));
+    expect(works(inherits)).toEqual(works(five));
+  });
+
+  it("stops a worker with their own 3 days at 3, and the shortage names the weekly limit", () => {
+    const output = generateRoster(
+      input({
+        workers: [worker(1, { workDaysPerWeek: 3 })],
+        targets: DAYS.map((d) => target(d, "s1", 1)),
+      }),
+    );
+
+    expect(works(output)).toEqual(DAYS.slice(0, 3).map((d) => `${d}:w1:s1`));
+    expect(output.conflicts).toEqual(
+      DAYS.slice(3).map((d) => conflictOf(d, "s1", 1, "Short by 1. 1 at the weekly limit.")),
+    );
+  });
+
+  it("falls back to the rule for a worker with no own value, so a rule of 7 gives 7 days", () => {
+    const output = generateRoster(
+      input({
+        workers: [worker(1)],
+        rules: { ...RULES, workDaysPerWeek: 7 },
+        targets: DAYS.map((d) => target(d, "s1", 1)),
+      }),
+    );
+
+    expect(works(output)).toEqual(DAYS.map((d) => `${d}:w1:s1`));
+  });
+
+  it("stays deterministic with per-worker overrides", () => {
+    const build = () =>
+      input({
+        workers: [worker(1, { workDaysPerWeek: 7 }), worker(2, { workDaysPerWeek: 3 }), worker(3)],
+        targets: DAYS.map((d) => target(d, "s1", 2)),
+      });
+
+    expect(generateRoster(build())).toEqual(generateRoster(build()));
   });
 
   it("gives off rows for the other days of a worker who works, on the line of the first work", () => {

@@ -4,7 +4,6 @@ import type {
   LocationWorkRules,
   RuleSourceInput,
   SettingsTarget,
-  WorkDays,
   WorkRulesEmpty,
   WorkRuleKey,
   WorkRuleRow,
@@ -72,10 +71,7 @@ export function resolveWorkRules(rows: {
 }
 
 // A worker's own working days win over the resolved rule.
-export function effectiveWorkDays(
-  workerValue: WorkDays | null,
-  resolvedWorkDays: WorkDays,
-): WorkDays {
+export function effectiveWorkDays(workerValue: number | null, resolvedWorkDays: number): number {
   return workerValue ?? resolvedWorkDays;
 }
 

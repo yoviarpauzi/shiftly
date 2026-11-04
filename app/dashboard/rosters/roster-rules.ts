@@ -1,5 +1,6 @@
 import { dateInZone } from "@/lib/indonesia-date";
 import type { EngineRules, TargetsTotalError } from "@/types/rosters";
+import type { WorkRulesResolved } from "@/types/settings";
 
 export const REQUEST_NOT_APPROVED_MESSAGE = "This request is no longer approved.";
 export const ROSTER_CONFIRMED_MESSAGE = "This roster is confirmed and cannot be changed.";
@@ -172,15 +173,12 @@ export function isUniqueViolation(error: unknown): boolean {
   return code(error) === "23505" || code((error as { cause?: unknown } | null)?.cause) === "23505";
 }
 
-// Until the Settings menu exists, every location gets the built-in defaults. When it does, the body
-// becomes a call to resolveWorkRules for this location.
-export function rulesForLocation(locationId: string): EngineRules {
-  void locationId;
-
+// The four resolved work rules the engine and the replacement check read.
+export function toEngineRules({ values }: WorkRulesResolved): EngineRules {
   return {
-    workDaysPerWeek: 5,
-    shiftExceptionDays: 7,
-    requirePositionMatch: true,
-    maxWorkingDaysPerMonth: 26,
+    workDaysPerWeek: values.workDaysPerWeek,
+    shiftExceptionDays: values.shiftExceptionDays,
+    requirePositionMatch: values.requirePositionMatch,
+    maxWorkingDaysPerMonth: values.maxWorkingDaysPerMonth,
   };
 }

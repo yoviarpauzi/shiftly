@@ -5,6 +5,7 @@ import type { AttendanceDraftRow, AttendanceFormRow, AttendanceStatus } from "@/
 import {
   ATTENDANCE_STATUS_LABELS,
   changedEntries,
+  formatAttendanceDate,
   rowsSignature,
   isFutureDay,
   markAllPresent,
@@ -216,5 +217,20 @@ describe("markAllPresent", () => {
     markAllPresent(input);
 
     expect(input[0].status).toBeNull();
+  });
+});
+
+describe("formatAttendanceDate", () => {
+  it("writes the weekday, the day without padding, the month, and the year", () => {
+    expect(formatAttendanceDate("2026-11-09")).toBe("Mon, 9 Nov 2026");
+  });
+
+  it("handles the end of a year and the start of the next", () => {
+    expect(formatAttendanceDate("2026-12-31")).toBe("Thu, 31 Dec 2026");
+    expect(formatAttendanceDate("2027-01-01")).toBe("Fri, 1 Jan 2027");
+  });
+
+  it("handles a leap day", () => {
+    expect(formatAttendanceDate("2028-02-29")).toBe("Tue, 29 Feb 2028");
   });
 });

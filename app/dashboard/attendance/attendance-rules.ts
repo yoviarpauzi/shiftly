@@ -94,6 +94,18 @@ export function isFutureDay(date: string, today: string): boolean {
   return date > today;
 }
 
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "2026-11-09" as "Mon, 9 Nov 2026". Fixed English names and UTC arithmetic, so the text does not
+// change with the browser's locale or the ICU version. The date is already a real calendar date.
+export function formatAttendanceDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+
+  return `${WEEKDAY_NAMES[weekday]}, ${day} ${MONTH_NAMES[month - 1]} ${year}`;
+}
+
 // Fills Present only where nothing is chosen yet. Every reason and every chosen status stays.
 export function markAllPresent(rows: AttendanceDraftRow[]): AttendanceDraftRow[] {
   return rows.map((row) => (row.status === null ? { ...row, status: "present" } : row));

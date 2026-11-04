@@ -119,6 +119,12 @@ export type AttendanceDateRowProps = {
   isSaving: boolean;
 };
 
+export type AttendanceDateButtonProps = {
+  // YYYY-MM-DD.
+  date: string;
+  onPick: (date: string) => void;
+};
+
 export type AttendanceFiltersProps = {
   filters: AttendanceFilters;
   choices: AttendanceChoices;

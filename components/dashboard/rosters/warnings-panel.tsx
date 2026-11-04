@@ -3,7 +3,12 @@ import type { WarningsPanelProps } from "@/types/rosters";
 import { Badge } from "@/components/ui/badge";
 
 // Every rule the roster breaks as it stands. A warning never blocks an edit or the confirmation.
+// Like the Conflicts panel, it shows nothing when nothing is broken.
 export function WarningsPanel({ warnings }: WarningsPanelProps) {
+  if (warnings.length === 0) {
+    return null;
+  }
+
   return (
     <section
       aria-labelledby="roster-warnings-title"
@@ -21,22 +26,18 @@ export function WarningsPanel({ warnings }: WarningsPanelProps) {
           {warnings.length}
         </Badge>
       </div>
-      {warnings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No rule is broken.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {warnings.map((warning, index) => (
-            <li key={index} className="flex flex-col gap-0.5 text-sm">
-              <span className="font-medium">
-                {warning.workerName ? `${warning.workerName} · ` : ""}
-                {shortDate(warning.date)}
-              </span>
-              <span className="text-muted-foreground">{warning.lineTitle}</span>
-              <span>{warning.message}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="flex flex-col gap-3">
+        {warnings.map((warning, index) => (
+          <li key={index} className="flex flex-col gap-0.5 text-sm">
+            <span className="font-medium">
+              {warning.workerName ? `${warning.workerName} · ` : ""}
+              {shortDate(warning.date)}
+            </span>
+            <span className="text-muted-foreground">{warning.lineTitle}</span>
+            <span>{warning.message}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

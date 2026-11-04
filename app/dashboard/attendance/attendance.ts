@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { toHourMinute } from "@/app/dashboard/shifts/shift-rules";
 import { attendance } from "@/database/schema/attendance-schema";
 import { department } from "@/database/schema/department-schema";
@@ -22,7 +22,7 @@ import type {
   AttendanceStatus,
 } from "@/types/attendance";
 import { DEFAULT_LOCATION_TIMEZONE, locationTimezoneSchema } from "@/validation/location";
-import { canAccessAttendanceLocation } from "./attendance-access";
+import { attendanceScope } from "./attendance-access";
 import { isFutureDay, summarize } from "./attendance-rules";
 
 function byText(a: string, b: string): number {
@@ -157,34 +157,29 @@ export async function attendanceChoicesFor(
   return { ...selected, sites, locations, departments, shifts };
 }
 
-// The work assignments of the filter's date in confirmed rosters of its location, whose request is
-// still approved, each with its attendance row if there is one. A worker or department deleted
+// The work assignments of the filter's date in confirmed rosters of the locations in scope, whose
+// request is still approved, each with its attendance row if there is one. The scope is the chosen
+// location, else the chosen site, else everything the access allows. A worker or department deleted
 // after the roster was confirmed stays in the list: the day happened.
 export async function listAttendance(
   access: AttendanceAccess,
   filters: AttendanceFilters,
+  choices: AttendanceChoices,
 ): Promise<AttendanceListResult> {
-  const empty = (today: string): AttendanceListResult => ({
-    rows: [],
-    summary: summarize([]),
-    today,
-    isFuture: isFutureDay(filters.date, today),
-  });
-
-  if (!filters.locationId) {
-    return empty(dateInZone(DEFAULT_LOCATION_TIMEZONE));
-  }
-
-  const [target] = await db
-    .select({ id: location.id, siteId: location.siteId, timezone: location.timezone })
-    .from(location)
-    .where(eq(location.id, filters.locationId));
-
-  const zone = locationTimezoneSchema.safeParse(target?.timezone);
+  // Today follows the chosen location. While the location is All the list is only viewed, so the
+  // default zone is enough.
+  const chosen = choices.locations.find((entry) => entry.id === choices.locationId);
+  const zone = locationTimezoneSchema.safeParse(chosen?.timezone);
   const today = dateInZone(zone.success ? zone.data : DEFAULT_LOCATION_TIMEZONE);
+  const scope = attendanceScope(access, choices);
 
-  if (!target || !canAccessAttendanceLocation(access, target)) {
-    return empty(today);
+  if (scope.length === 0) {
+    return {
+      rows: [],
+      summary: summarize([]),
+      today,
+      isFuture: isFutureDay(filters.date, today),
+    };
   }
 
   const joined = await db
@@ -195,6 +190,8 @@ export async function listAttendance(
       departmentId: department.id,
       departmentName: department.name,
       positionName: position.name,
+      locationName: location.name,
+      siteName: site.name,
       shiftId: shift.id,
       shiftOrder: shift.order,
       shiftName: shift.name,
@@ -206,6 +203,8 @@ export async function listAttendance(
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
     .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .innerJoin(location, eq(location.id, rosterRequest.locationId))
+    .innerJoin(site, eq(site.id, location.siteId))
     .innerJoin(worker, eq(worker.id, rosterAssignment.workerId))
     .innerJoin(rosterRequestLine, eq(rosterRequestLine.id, rosterAssignment.requestLineId))
     .innerJoin(department, eq(department.id, rosterRequestLine.departmentId))
@@ -218,7 +217,7 @@ export async function listAttendance(
         eq(rosterAssignment.kind, "work"),
         eq(roster.status, "confirmed"),
         eq(rosterRequest.status, "approved"),
-        eq(rosterRequest.locationId, target.id),
+        inArray(rosterRequest.locationId, scope),
       ),
     );
 

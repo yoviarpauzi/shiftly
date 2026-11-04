@@ -25,6 +25,8 @@ const joined = (overrides: Record<string, unknown> = {}) => ({
   departmentId: "d1",
   departmentName: "Produksi",
   positionName: "Operator",
+  locationName: "Gudang Utara",
+  siteName: "Site Utama",
   shiftId: "s1",
   shiftOrder: 1,
   shiftName: "Pagi",

@@ -36,7 +36,7 @@ export default async function Page({
     shiftId: choices.shifts.some((entry) => entry.id === parsed.shiftId) ? parsed.shiftId : null,
   };
 
-  const list = await listAttendance(access, filters);
+  const list = await listAttendance(access, filters, choices);
   const filtered =
     filters.status !== "all" || filters.query !== "" || filters.departmentId || filters.shiftId;
 

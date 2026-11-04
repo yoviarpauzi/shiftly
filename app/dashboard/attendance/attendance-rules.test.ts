@@ -22,6 +22,8 @@ const formRow = (overrides: Partial<AttendanceFormRow> = {}): AttendanceFormRow 
   workerName: "Budi",
   departmentName: "Produksi",
   positionName: "Operator",
+  locationName: "Gudang Utara",
+  siteName: "Site Utama",
   shiftOrder: 1,
   shiftName: "Pagi",
   startTime: "07:00",

@@ -54,6 +54,9 @@ export type AttendanceRow = {
   workerName: string;
   departmentName: string;
   positionName: string;
+  // The place of the request, so a list that spans locations can tell the rows apart.
+  locationName: string;
+  siteName: string;
   shiftOrder: number;
   shiftName: string;
   startTime: string;
@@ -72,16 +75,16 @@ export type AttendanceJoinedRow = Omit<AttendanceRow, "status"> & {
 
 export type AttendanceListResult = {
   rows: AttendanceRow[];
-  // Counts every worker of the date and location, before the department, shift, status, and query
+  // Counts every worker of the date and scope, before the department, shift, status, and query
   // filters.
   summary: AttendanceSummary;
-  // Today in the location's time zone.
+  // Today in the chosen location's time zone, or in the default zone while the location is All.
   today: string;
   isFuture: boolean;
 };
 
-// What the page offers in its filters, and the site and location it resolved to. Both are null
-// when the access allows no site or no location.
+// What the page offers in its filters, and the site and location it resolved to. Null means All, or
+// that the access allows none.
 export type AttendanceChoices = {
   siteId: string | null;
   locationId: string | null;

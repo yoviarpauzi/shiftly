@@ -13,12 +13,14 @@ import {
 } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { location } from "@/database/schema/location-schema";
+import { rosterRequest, rosterRequestLine } from "@/database/schema/request-schema";
 import { shift } from "@/database/schema/shift-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
 import type { SiteChoice } from "@/types/locations";
+import type { Reader } from "@/types/rosters";
 import type {
   ShiftAccess,
   ShiftListParams,
@@ -45,6 +47,18 @@ const SHIFT_SORT_EXPRESSIONS: Record<ShiftSortColumn, SQLWrapper> = {
 // Superadmin sees every shift. HO and admin site see the shifts of their own site.
 export function shiftScopeFilter(access: ShiftAccess): SQL | undefined {
   return access.siteId ? eq(shift.siteId, access.siteId) : undefined;
+}
+
+// The statuses of the requests whose lines use the shift, one entry per status.
+export async function shiftRequestStatuses(reader: Reader, shiftId: string): Promise<string[]> {
+  const rows = await reader
+    .select({ status: rosterRequest.status })
+    .from(rosterRequestLine)
+    .innerJoin(rosterRequest, eq(rosterRequest.id, rosterRequestLine.requestId))
+    .where(eq(rosterRequestLine.shiftId, shiftId))
+    .groupBy(rosterRequest.status);
+
+  return rows.map((row) => row.status);
 }
 
 // Matches name case-insensitively. An empty query matches every shift in the status.

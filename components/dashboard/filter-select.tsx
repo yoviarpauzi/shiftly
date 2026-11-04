@@ -21,6 +21,7 @@ type FilterSelectProps = {
   className: string;
   // Parameters to drop when this one changes.
   resets?: string[];
+  disabled?: boolean;
 };
 
 // One filter in the URL. The "all" option removes the parameter, and any change goes back to page 1.
@@ -31,6 +32,7 @@ export function FilterSelect({
   label,
   className,
   resets = [],
+  disabled = false,
 }: FilterSelectProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -60,6 +62,7 @@ export function FilterSelect({
         }
       }}
       items={options}
+      disabled={disabled}
     >
       <SelectTrigger aria-label={label} className={className}>
         <SelectValue />

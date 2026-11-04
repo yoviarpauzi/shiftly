@@ -239,6 +239,8 @@ export type GenerateView = {
 // generateInput is the split the draft was generated with and its current version, so Generate
 // again can repeat it. It is null when the request is no longer approved.
 export type RosterDetailProps = {
+  // The title, status, and dates. The action buttons sit beside it, so the view lays it out.
+  header: ReactNode;
   roster: RosterDetail;
   generateInput: GenerateRosterInput | null;
 };
@@ -306,8 +308,6 @@ export type RosterGridFiltersProps = {
   filters: RosterLineFilters;
   options: RosterLineOptions;
   shifts: GenerateShift[];
-  // "12 workers in 3 of 5 lines".
-  summary: string;
   // Conflicts and warnings together, shown on the Needs attention button.
   attentionCount: number;
   // The lines Add worker can add to, or null when the roster cannot be changed.
@@ -322,6 +322,8 @@ export type RosterGridProps = {
   shifts: GenerateShift[];
   // The lines of the page shown, each with the workers on that page.
   lines: RosterLineSlice[];
+  // "12 workers in 3 of 5 lines", shown above the grid.
+  summary: string;
   // The shift filter's shift. The work cells of other shifts are dimmed so this one stands out.
   focusShift: number | null;
   // True for a draft: only a draft has cell buttons, the row menu, and Add worker.

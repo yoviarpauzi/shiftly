@@ -50,19 +50,24 @@ async function RosterDetailPage({ params }: { params: Promise<{ id: string }> })
       : "";
 
   return (
-    <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
-      <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold break-all">{roster.poNumber}</h1>
-          <RosterStatusBadge status={roster.status} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {typeLabel}, {formatRequestDates(roster.type, roster.startDate)}, at {roster.locationName}.{" "}
-          {generated}
-          {confirmed}
-        </p>
-      </div>
-      <RosterDetailView roster={roster} generateInput={generateInput} />
+    <div className="px-4 py-4 md:py-6 lg:px-6">
+      <RosterDetailView
+        roster={roster}
+        generateInput={generateInput}
+        header={
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold break-all">{roster.poNumber}</h1>
+              <RosterStatusBadge status={roster.status} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {typeLabel}, {formatRequestDates(roster.type, roster.startDate)}, at{" "}
+              {roster.locationName}. {generated}
+              {confirmed}
+            </p>
+          </div>
+        }
+      />
     </div>
   );
 }

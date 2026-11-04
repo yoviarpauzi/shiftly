@@ -1,7 +1,7 @@
 import type { RosterSummaryProps } from "@/types/rosters";
 import { cn } from "@/lib/utils";
 
-// Five counts over the roster. Conflicts turn red and Warnings amber when there are any.
+// Five counts over the roster, in one line. Conflicts turn red and Warnings amber when there are any.
 export function RosterSummary({ counts }: RosterSummaryProps) {
   const stats = [
     { label: "Workers", value: counts.workers, tone: null },
@@ -12,19 +12,19 @@ export function RosterSummary({ counts }: RosterSummaryProps) {
   ];
 
   return (
-    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <dl className="flex flex-wrap gap-x-5 gap-y-2 border-y py-3 sm:gap-x-8">
       {stats.map((stat) => (
-        <div key={stat.label} className="flex flex-col gap-1 rounded-lg border p-4">
-          <dt className="text-sm text-muted-foreground">{stat.label}</dt>
+        <div key={stat.label} className="flex flex-row-reverse items-baseline justify-end gap-2">
           <dd
             className={cn(
-              "text-2xl font-semibold tabular-nums",
+              "text-xl font-semibold tabular-nums",
               stat.tone === "danger" && "text-destructive",
               stat.tone === "warning" && "text-amber-700 dark:text-amber-400",
             )}
           >
             {stat.value}
           </dd>
+          <dt className="text-sm text-muted-foreground">{stat.label}</dt>
         </div>
       ))}
     </dl>

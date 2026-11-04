@@ -32,8 +32,8 @@ async function GenerateView({
         <h1 className="text-2xl font-semibold">Generate roster</h1>
         <p className="text-sm text-muted-foreground">
           {view.poNumber} · {view.type === "weekly" ? "Weekly" : "Daily"},{" "}
-          {formatRequestDates(view.type, view.startDate)}, at {view.locationName}. Set how many
-          workers each shift needs.
+          {formatRequestDates(view.type, view.startDate)}, at {view.locationName}. Split the lines
+          set to Any shift. A line with a shift keeps it from the request.
         </p>
       </div>
       <GenerateForm view={view} />

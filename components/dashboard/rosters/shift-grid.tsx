@@ -4,15 +4,30 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 // One line's split: a row per shift, a column per day, and a total row that shows whether each day
-// adds up to what the request needs.
+// adds up to what the request needs. A line the request fixed to a shift shows only that shift's
+// row, locked to the request's numbers.
 export function ShiftGrid({ line, days, shifts, invalidDay, disabled, onChange }: ShiftGridProps) {
   const sums = days.map((_, day) =>
     (line.split[day] ?? []).reduce((total, count) => total + count, 0),
   );
+  const fixed = line.fixedShiftId !== null;
+  // Each row keeps its index in the full list, because the split is indexed by it.
+  const rows = shifts
+    .map((shift, shiftIndex) => ({ shift, shiftIndex }))
+    .filter(({ shift }) => !fixed || shift.id === line.fixedShiftId);
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-base font-medium">{line.title}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-base font-medium">
+          {line.title} · {line.shiftLabel}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {fixed
+            ? "Shift and headcount are set in the request"
+            : "Headcount per day comes from the request"}
+        </p>
+      </div>
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-max text-sm">
           <thead className="bg-muted">
@@ -28,7 +43,7 @@ export function ShiftGrid({ line, days, shifts, invalidDay, disabled, onChange }
             </tr>
           </thead>
           <tbody>
-            {shifts.map((shift, shiftIndex) => (
+            {rows.map(({ shift, shiftIndex }) => (
               <tr key={shift.id} className="border-t">
                 <th scope="row" className="px-3 py-2 text-left font-normal">
                   <span className="font-medium">{shift.name}</span>
@@ -49,7 +64,7 @@ export function ShiftGrid({ line, days, shifts, invalidDay, disabled, onChange }
 
                         onChange(day, shiftIndex, Number.isFinite(parsed) ? Math.max(0, parsed) : 0);
                       }}
-                      disabled={disabled}
+                      disabled={disabled || fixed}
                       aria-invalid={invalidDay === day}
                       aria-label={`${shift.name}, ${shortDate(date)}`}
                       className="h-9 w-16 text-center tabular-nums"

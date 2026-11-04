@@ -590,7 +590,7 @@ export async function getRoster(
     confirmedAt: head.confirmedAt ? head.confirmedAt.toISOString() : null,
     version: head.updatedAt.toISOString(),
     days,
-    shifts: await loadSiteShifts(db, head.siteId),
+    shifts: await loadLocationShifts(db, head.locationId),
     lines: buildLineViews({
       days,
       lines,
@@ -633,9 +633,9 @@ async function loadTargets(reader: Reader, rosterId: string) {
     .where(eq(rosterShiftTarget.rosterId, rosterId));
 }
 
-// The active shifts of a site by order, with their times as HH:mm. The Generate screen and the
+// The active shifts of a location by order, with their times as HH:mm. The Generate screen and the
 // cell menu of the roster both list them.
-async function loadSiteShifts(reader: Reader, siteId: string): Promise<GenerateShift[]> {
+async function loadLocationShifts(reader: Reader, locationId: string): Promise<GenerateShift[]> {
   const rows = await reader
     .select({
       id: shift.id,
@@ -645,7 +645,7 @@ async function loadSiteShifts(reader: Reader, siteId: string): Promise<GenerateS
       endTime: shift.endTime,
     })
     .from(shift)
-    .where(and(eq(shift.siteId, siteId), isNull(shift.deletedAt)))
+    .where(and(eq(shift.locationId, locationId), isNull(shift.deletedAt)))
     .orderBy(asc(shift.order));
 
   return rows.map((row) => ({
@@ -706,6 +706,7 @@ export async function getGenerateView(
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
       siteId: rosterRequest.siteId,
+      locationId: rosterRequest.locationId,
       locationName: location.name,
     })
     .from(rosterRequest)
@@ -725,7 +726,7 @@ export async function getGenerateView(
   const type = request.type === "weekly" ? "weekly" : "daily";
   const days = requestDays(request.startDate, type);
 
-  const shifts = await loadSiteShifts(db, request.siteId);
+  const shifts = await loadLocationShifts(db, request.locationId);
 
   const lines = await loadRequestLines(db, request.id);
 
@@ -933,7 +934,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
   const shifts = await tx
     .select({ id: shift.id, order: shift.order })
     .from(shift)
-    .where(and(eq(shift.siteId, request.siteId), isNull(shift.deletedAt)))
+    .where(and(eq(shift.locationId, request.locationId), isNull(shift.deletedAt)))
     .orderBy(asc(shift.order));
 
   const busy = busyWorkersQuery(tx, requestId, days[0], days[days.length - 1]);
@@ -1197,7 +1198,7 @@ export async function loadCellContext(
   const shifts = await reader
     .select({ id: shift.id, order: shift.order })
     .from(shift)
-    .where(and(eq(shift.siteId, head.siteId), isNull(shift.deletedAt)))
+    .where(and(eq(shift.locationId, head.locationId), isNull(shift.deletedAt)))
     .orderBy(asc(shift.order));
 
   const cells = (

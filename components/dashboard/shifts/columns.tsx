@@ -90,11 +90,16 @@ export function createShiftColumns(
         </span>
       ),
     }),
-    columnHelper.accessor("siteName", {
+    columnHelper.accessor("locationName", {
       header: () => (
-        <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />
+        <SortHeader
+          label="Location"
+          column="location"
+          sort={sort}
+          onSort={onSort}
+        />
       ),
-      cell: ({ row }) => row.original.siteName,
+      cell: ({ row }) => `${row.original.siteName} / ${row.original.locationName}`,
     }),
     columnHelper.accessor("deletedAt", {
       header: () => (

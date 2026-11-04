@@ -13,6 +13,7 @@ import {
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
 import { roster } from "@/database/schema/roster-schema";
+import { shift } from "@/database/schema/shift-schema";
 import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { dateInZone } from "@/lib/indonesia-date";
@@ -66,7 +67,9 @@ function revalidateRequest(id: string) {
 }
 
 // The active departments of the location with their active sub-departments, and the active
-// positions of the site, in the shape lineScopeError checks against.
+// positions and shifts of the site, in the shape lineScopeError checks against. The shifts are read
+// under a share lock, which conflicts with the update lock a shift delete takes, so a shift cannot
+// be deleted between this check and the insert.
 async function lineChoices(tx: Transaction, locationId: string, siteId: string) {
   const departments = await tx
     .select({ id: department.id })
@@ -90,6 +93,12 @@ async function lineChoices(tx: Transaction, locationId: string, siteId: string) 
     .from(position)
     .where(and(eq(position.siteId, siteId), isNull(position.deletedAt)));
 
+  const shifts = await tx
+    .select({ id: shift.id })
+    .from(shift)
+    .where(and(eq(shift.siteId, siteId), isNull(shift.deletedAt)))
+    .for("share");
+
   const departmentMap = new Map<string, Set<string>>(
     departments.map((row) => [row.id, new Set<string>()]),
   );
@@ -101,6 +110,7 @@ async function lineChoices(tx: Transaction, locationId: string, siteId: string) 
   return {
     departments: departmentMap,
     positionIds: new Set(positions.map((row) => row.id)),
+    shiftIds: new Set(shifts.map((row) => row.id)),
   };
 }
 

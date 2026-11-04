@@ -37,6 +37,8 @@ const UNKNOWN_SUB_DEPARTMENT_MESSAGE = "Choose a sub-department of the selected 
 
 const UNKNOWN_POSITION_MESSAGE = "Choose a position from this site";
 
+export const UNKNOWN_SHIFT_MESSAGE = "Choose a shift of this site";
+
 const WEEK_LAST_DAY_OFFSET = 6;
 
 const DAYS_IN_WEEK = 7;
@@ -175,7 +177,11 @@ export function dayLabels(startDate: string): string[] {
 // sub-departments) and positions of the site. Returns the first problem, or null when all is valid.
 export function lineScopeError(
   lines: RequestLineInput[],
-  valid: { departments: Map<string, Set<string>>; positionIds: Set<string> },
+  valid: {
+    departments: Map<string, Set<string>>;
+    positionIds: Set<string>;
+    shiftIds: Set<string>;
+  },
 ): string | null {
   for (const line of lines) {
     const subDepartmentIds = valid.departments.get(line.departmentId);
@@ -190,6 +196,10 @@ export function lineScopeError(
 
     if (!valid.positionIds.has(line.positionId)) {
       return UNKNOWN_POSITION_MESSAGE;
+    }
+
+    if (line.shiftId !== null && !valid.shiftIds.has(line.shiftId)) {
+      return UNKNOWN_SHIFT_MESSAGE;
     }
   }
 

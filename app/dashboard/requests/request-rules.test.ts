@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  UNKNOWN_SHIFT_MESSAGE,
   DAILY_HEADCOUNT_MESSAGE,
   HEADCOUNT_LENGTH_MESSAGE,
   WEEKLY_HEADCOUNT_MESSAGE,
@@ -23,6 +24,7 @@ const DEPT_B = "dept-b";
 const SUB_A = "sub-a";
 const SUB_B = "sub-b";
 const POSITION = "position-1";
+const SHIFT = "shift-1";
 
 const valid = {
   departments: new Map([
@@ -30,6 +32,7 @@ const valid = {
     [DEPT_B, new Set([SUB_B])],
   ]),
   positionIds: new Set([POSITION]),
+  shiftIds: new Set([SHIFT]),
 };
 
 const line = (fields: {
@@ -44,6 +47,23 @@ const line = (fields: {
   shiftId: null,
   headcounts: [2],
   ...fields,
+});
+
+describe("lineScopeError shifts", () => {
+  it("returns the unknown shift message for a shift outside the site", () => {
+    expect(lineScopeError([line({ shiftId: "other-site-shift" })], valid)).toBe(
+      UNKNOWN_SHIFT_MESSAGE,
+    );
+    expect(UNKNOWN_SHIFT_MESSAGE).toBe("Choose a shift of this site");
+  });
+
+  it("accepts a null shift", () => {
+    expect(lineScopeError([line({ shiftId: null })], valid)).toBeNull();
+  });
+
+  it("accepts a shift of the site", () => {
+    expect(lineScopeError([line({ shiftId: SHIFT })], valid)).toBeNull();
+  });
 });
 
 describe("initialStatus", () => {

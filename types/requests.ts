@@ -68,12 +68,23 @@ export type RequestListParams = PageParams & {
   sort: SortCriterion<RequestSortColumn>[];
 };
 
+// An active shift of a site, offered by the Shift select. Times are HH:mm.
+export type RequestShiftChoice = {
+  id: string;
+  name: string;
+  order: number;
+  startTime: string;
+  endTime: string;
+  siteId: string;
+};
+
 export type RequestChoices = {
   sites: { id: string; name: string }[];
   locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
   departments: { id: string; name: string; locationId: string }[];
   subDepartments: { id: string; name: string; departmentId: string }[];
   positions: { id: string; name: string; siteId: string }[];
+  shifts: RequestShiftChoice[];
 };
 
 export type RequestField = "type" | "startDate" | "locationId" | "lines";

@@ -42,6 +42,8 @@ const SUB_B1 = "5b100000-0000-4000-8000-000000000000";
 const POS_A = "9a000000-0000-4000-8000-000000000000";
 const POS_B = "9b000000-0000-4000-8000-000000000000";
 const SHIFT_1 = "51000000-0000-4000-8000-000000000000";
+const SHIFT_2 = "52000000-0000-4000-8000-000000000000";
+const SHIFT_B1 = "5b000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
   sites: [
@@ -65,6 +67,11 @@ const choices: RequestChoices = {
   positions: [
     { id: POS_A, name: "Cook", siteId: SITE_A },
     { id: POS_B, name: "Porter", siteId: SITE_B },
+  ],
+  shifts: [
+    { id: SHIFT_1, name: "Pagi", order: 1, startTime: "06:00", endTime: "14:00", siteId: SITE_A },
+    { id: SHIFT_2, name: "Siang", order: 2, startTime: "14:00", endTime: "22:00", siteId: SITE_A },
+    { id: SHIFT_B1, name: "Reguler", order: 1, startTime: "08:00", endTime: "16:00", siteId: SITE_B },
   ],
 };
 

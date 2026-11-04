@@ -11,6 +11,7 @@ import {
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
 import { roster } from "@/database/schema/roster-schema";
+import { shift } from "@/database/schema/shift-schema";
 import type { RequestAccess, RequestActor } from "@/types/requests";
 import { START_DATE_PAST_MESSAGE } from "@/validation/request";
 import { formatPoNumber, poPeriod } from "./po-number";
@@ -51,6 +52,7 @@ const fake = vi.hoisted(() => ({
     departments: [] as unknown[],
     subDepartments: [] as unknown[],
     positions: [] as unknown[],
+    shifts: [] as unknown[],
     request: [] as { id: string; status: string }[],
     roster: [] as unknown[],
   },
@@ -73,6 +75,7 @@ function result(call: Call): unknown {
     if (call.table === department) return fake.rows.departments;
     if (call.table === subDepartment) return fake.rows.subDepartments;
     if (call.table === position) return fake.rows.positions;
+    if (call.table === shift) return fake.rows.shifts;
     if (call.table === rosterRequest) return fake.rows.request;
     if (call.table === roster) return fake.rows.roster;
     return [];
@@ -171,6 +174,8 @@ const DEPT_B = "66666666-6666-4666-8666-666666666666";
 const SUB_A = "77777777-7777-4777-8777-777777777777";
 const POSITION_A = "88888888-8888-4888-8888-888888888888";
 const POSITION_B = "99999999-9999-4999-8999-999999999999";
+const SHIFT_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const SHIFT_B = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const REQUEST_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 type Role = { actor: RequestActor; access: RequestAccess };
@@ -235,6 +240,7 @@ function seedLocationChoices(timezone = "Asia/Jakarta") {
   fake.rows.departments = [{ id: DEPT_A }];
   fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
   fake.rows.positions = [{ id: POSITION_A }];
+  fake.rows.shifts = [{ id: SHIFT_A }];
 }
 
 function storedRequest(overrides: Record<string, unknown> = {}) {
@@ -271,6 +277,7 @@ beforeEach(() => {
     departments: [],
     subDepartments: [],
     positions: [],
+    shifts: [],
     request: [],
     roster: [],
   };
@@ -294,6 +301,70 @@ describe("request actions module", () => {
     const source = readFileSync(new URL("./actions.ts", import.meta.url), "utf8");
 
     expect(source.split("\n")[0].trim()).toBe('"use server";');
+  });
+});
+
+describe("createRequest shifts", () => {
+  it("refuses a line whose shift is not an active shift of the site, and writes nothing", async () => {
+    seedLocationChoices();
+
+    const res = await createRequest({ ...createInput, lines: [{ ...line, shiftId: SHIFT_B }] });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: { lines: "Choose a shift of this site" },
+    });
+    expect(writes()).toEqual([]);
+  });
+
+  it("stores the shift on the line", async () => {
+    seedLocationChoices();
+
+    const res = await createRequest({ ...createInput, lines: [{ ...line, shiftId: SHIFT_A }] });
+
+    expect(res.ok).toBe(true);
+    expect(lineInserts()[0].values).toEqual([expect.objectContaining({ shiftId: SHIFT_A })]);
+  });
+
+  it("reads the site's shifts under a share lock", async () => {
+    seedLocationChoices();
+
+    await createRequest({ ...createInput, lines: [{ ...line, shiftId: SHIFT_A }] });
+
+    const read = fake.calls.find((call) => call.op === "select" && call.table === shift);
+
+    expect(read?.lock).toBe("share");
+  });
+});
+
+describe("updateRequest shifts", () => {
+  it("refuses a shift of another site and writes nothing", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest()];
+
+    const res = await updateRequest(REQUEST_ID, {
+      ...updateInput,
+      lines: [{ ...weeklyLine, shiftId: SHIFT_B }],
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      fieldErrors: { lines: "Choose a shift of this site" },
+    });
+    expect(writes()).toEqual([]);
+  });
+
+  it("stores the new shift on the replaced lines", async () => {
+    seedLocationChoices();
+    fake.rows.request = [storedRequest()];
+
+    const res = await updateRequest(REQUEST_ID, {
+      ...updateInput,
+      lines: [{ ...weeklyLine, shiftId: SHIFT_A }],
+    });
+
+    expect(res).toEqual({ ok: true });
+    expect(lineInserts()[0].values).toEqual([expect.objectContaining({ shiftId: SHIFT_A })]);
   });
 });
 

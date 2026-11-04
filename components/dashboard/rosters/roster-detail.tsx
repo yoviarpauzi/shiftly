@@ -32,7 +32,6 @@ import { RosterSummary } from "@/components/dashboard/rosters/roster-summary";
 import { WarningsPanel } from "@/components/dashboard/rosters/warnings-panel";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { buttonVariants, Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const NO_FILTERS: RosterLineFilters = {
   departmentId: null,
@@ -62,10 +61,6 @@ export function RosterDetailView({ header, roster, generateInput }: RosterDetail
     lineId: line.lineId,
     lineTitle: line.title,
   }));
-  // The conflicts and warnings sit in a column beside the grid on a wide screen, and under it on a
-  // narrow one. With neither, the grid has the whole width.
-  const hasPanels = roster.conflicts.length > 0 || roster.warnings.length > 0;
-
   function changeFilters(patch: Partial<RosterLineFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
     setPage(1);
@@ -134,7 +129,7 @@ export function RosterDetailView({ header, roster, generateInput }: RosterDetail
   }
 
   return (
-    <div className="flex max-w-[1280px] flex-col gap-4 md:gap-5">
+    <div className="flex max-w-7xl flex-col gap-4 md:gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         {header}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:shrink-0">
@@ -160,46 +155,35 @@ export function RosterDetailView({ header, roster, generateInput }: RosterDetail
         onChange={changeFilters}
         onClear={clearFilters}
       />
-      <div
-        className={cn(
-          "grid gap-4 md:gap-6",
-          hasPanels && "xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start",
-        )}
-      >
-        <div className="flex min-w-0 flex-col gap-3">
-          <RosterGrid
-            days={roster.days}
-            shifts={roster.shifts}
-            lines={paged.slices}
-            summary={lineSummary(shown, roster.lines.length)}
-            focusShift={filters.shiftOrder}
-            editable={draft}
-            onReplace={setReplacing}
-            onEditCell={editCell}
-            onSwapCell={swapCell}
-          />
-          {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
-            <div className="flex justify-end">
-              <TablePagination
-                page={paged.page}
-                pageCount={paged.pageCount}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
-              />
-            </div>
-          )}
-        </div>
-        {hasPanels && (
-          <div className="flex flex-col gap-4 xl:sticky xl:top-4">
-            <ConflictsPanel conflicts={roster.conflicts} />
-            <WarningsPanel warnings={roster.warnings} />
+      <div className="flex min-w-0 flex-col gap-3">
+        <RosterGrid
+          days={roster.days}
+          shifts={roster.shifts}
+          lines={paged.slices}
+          summary={lineSummary(shown, roster.lines.length)}
+          focusShift={filters.shiftOrder}
+          editable={draft}
+          onReplace={setReplacing}
+          onEditCell={editCell}
+          onSwapCell={swapCell}
+        />
+        {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
+          <div className="flex justify-end">
+            <TablePagination
+              page={paged.page}
+              pageCount={paged.pageCount}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
           </div>
         )}
       </div>
+      <ConflictsPanel conflicts={roster.conflicts} />
+      <WarningsPanel warnings={roster.warnings} />
       {draft && (
         <>
           <ReplaceWorkerDialog

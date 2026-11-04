@@ -4,6 +4,7 @@ import type { AttendanceDraftRow, AttendanceFormRow, AttendanceStatus } from "@/
 
 import {
   ATTENDANCE_STATUS_LABELS,
+  attendanceFormKey,
   attendanceLock,
   changedEntries,
   formatAttendanceDate,
@@ -220,6 +221,39 @@ describe("markAllPresent", () => {
     markAllPresent(input);
 
     expect(input[0].status).toBeNull();
+  });
+});
+
+describe("attendanceFormKey", () => {
+  const saved = [
+    { assignmentId: "a", status: null, reason: null },
+    { assignmentId: "b", status: "present" as const, reason: null },
+  ];
+
+  it("is the same for the same day, location and saved rows", () => {
+    expect(attendanceFormKey("2026-11-09", "l1", saved)).toBe(
+      attendanceFormKey("2026-11-09", "l1", [...saved]),
+    );
+  });
+
+  it("changes with the day", () => {
+    expect(attendanceFormKey("2026-11-10", "l1", saved)).not.toBe(
+      attendanceFormKey("2026-11-09", "l1", saved),
+    );
+  });
+
+  it("changes when the location goes from one to All, so a draft is not carried into the view", () => {
+    expect(attendanceFormKey("2026-11-09", null, saved)).not.toBe(
+      attendanceFormKey("2026-11-09", "l1", saved),
+    );
+  });
+
+  it("changes when a saved status or reason changes", () => {
+    const after = [saved[0], { ...saved[1], status: "sick" as const, reason: "Fever" }];
+
+    expect(attendanceFormKey("2026-11-09", "l1", after)).not.toBe(
+      attendanceFormKey("2026-11-09", "l1", saved),
+    );
   });
 });
 

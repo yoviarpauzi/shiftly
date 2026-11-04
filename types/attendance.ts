@@ -113,6 +113,9 @@ export type AttendanceFormProps = {
   // Today in the location's time zone, for the Today button.
   today: string;
   rows: AttendanceRow[];
+  // The form starts again from `rows` when this changes. It is not a React key, which would also
+  // remount the filters below and cost the search box its focus.
+  resetKey: string;
   lock: AttendanceLock;
   locationView: AttendanceLocationView;
   // The server-rendered parts that sit between the date row and the table.

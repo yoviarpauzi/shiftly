@@ -53,6 +53,17 @@ export function rowsSignature(
   return `${rows.length}-${hash.toString(36)}`;
 }
 
+// What makes the form start again from the saved rows: the day, whether one location is chosen, and
+// the saved statuses and reasons. Unsaved drafts must not follow the user to another day or into the
+// All view, where they would look saved.
+export function attendanceFormKey(
+  date: string,
+  locationId: string | null,
+  rows: { assignmentId: string; status: AttendanceStatus | null; reason: string | null }[],
+): string {
+  return `${date}-${locationId ?? "all"}-${rowsSignature(rows)}`;
+}
+
 // Whether an assignment can be marked on a date: a work assignment of a confirmed roster, on
 // that date, whose request is still approved. Returns the message when it cannot.
 export function scheduledWorkError(

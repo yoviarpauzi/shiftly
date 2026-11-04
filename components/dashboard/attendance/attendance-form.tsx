@@ -37,13 +37,19 @@ const LOCK_HINTS = {
   scope: "Choose a location to mark attendance.",
 };
 
+function toFormRows(rows: AttendanceFormProps["rows"]): AttendanceFormRow[] {
+  return rows.map((row) => ({ ...row, draftStatus: row.status, draftReason: row.reason ?? "" }));
+}
+
 // The date row, the filters and summary the page passes in, and the table with its unsaved bar. The
-// date row is always here, so a day with no roster still shows it. The form is keyed by the saved
-// rows, so it starts again from them after a save.
+// date row is always here, so a day with no roster still shows it. The form starts again from the
+// saved rows when `resetKey` changes, after a save or when the day or scope changes. It does that
+// in place, not with a React key, so the filters keep their focus while the rows change.
 export function AttendanceForm({
   date,
   today,
   rows,
+  resetKey,
   lock,
   locationView,
   filters,
@@ -56,11 +62,7 @@ export function AttendanceForm({
   const [errorIds, setErrorIds] = React.useState<ReadonlySet<string>>(NO_ERRORS);
 
   const form = useForm({
-    defaultValues: {
-      rows: rows.map(
-        (row): AttendanceFormRow => ({ ...row, draftStatus: row.status, draftReason: row.reason ?? "" }),
-      ),
-    },
+    defaultValues: { rows: toFormRows(rows) },
     onSubmit: async ({ value }) => {
       setFormError(null);
       setErrorIds(NO_ERRORS);
@@ -87,6 +89,17 @@ export function AttendanceForm({
       router.refresh();
     },
   });
+
+  const lastResetKey = React.useRef(resetKey);
+
+  React.useEffect(() => {
+    if (lastResetKey.current === resetKey) return;
+
+    lastResetKey.current = resetKey;
+    form.reset({ rows: toFormRows(rows) });
+    setFormError(null);
+    setErrorIds(NO_ERRORS);
+  }, [form, resetKey, rows]);
 
   const update = React.useCallback(
     (assignmentId: string, patch: (row: AttendanceFormRow) => AttendanceFormRow) => {

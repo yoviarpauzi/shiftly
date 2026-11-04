@@ -6,7 +6,7 @@ import { dateInZone } from "@/lib/indonesia-date";
 import { parseAttendanceFilters } from "@/validation/attendance";
 import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import { requireAttendanceAccess } from "./attendance-guard";
-import { attendanceLock, locationViewFor, rowsSignature } from "./attendance-rules";
+import { attendanceFormKey, attendanceLock, locationViewFor } from "./attendance-rules";
 import { attendanceChoicesFor, listAttendance } from "./attendance";
 
 export default async function Page({
@@ -49,10 +49,10 @@ export default async function Page({
         </p>
       </div>
       <AttendanceForm
-        key={`${filters.date}-${rowsSignature(list.rows)}`}
         date={filters.date}
         today={list.today}
         rows={list.rows}
+        resetKey={attendanceFormKey(filters.date, choices.locationId, list.rows)}
         lock={attendanceLock(choices.locationId, list.isFuture)}
         locationView={locationViewFor(choices)}
         filters={<AttendanceFilters filters={filters} choices={choices} />}

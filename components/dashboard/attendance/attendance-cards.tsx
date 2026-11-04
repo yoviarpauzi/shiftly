@@ -70,6 +70,7 @@ export function AttendanceCards({
             maxLength={REASON_MAX_LENGTH}
             disabled={disabled || row.draftStatus === null}
             aria-label={`Reason for ${row.workerName}`}
+            className="disabled:bg-transparent"
           />
         </li>
       ))}

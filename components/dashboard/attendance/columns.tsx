@@ -84,7 +84,7 @@ export function createAttendanceColumns({
           maxLength={REASON_MAX_LENGTH}
           disabled={disabled || row.original.draftStatus === null}
           aria-label={`Reason for ${row.original.workerName}`}
-          className="h-9 min-w-56"
+          className="h-9 min-w-56 disabled:bg-transparent"
         />
       ),
       enableHiding: false,

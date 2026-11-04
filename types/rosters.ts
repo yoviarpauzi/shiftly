@@ -116,12 +116,15 @@ export type RosterLineView = RosterLineKeys & {
   unfilled: RosterUnfilled[];
 };
 
-// null means no filter. search matches a worker's name or employee ID.
+// null means no filter. search matches a worker's name or employee ID. shiftOrder keeps the
+// workers who work that shift on some day. attention keeps the lines that are short of workers and
+// the workers with a cell that breaks a rule.
 export type RosterLineFilters = {
   departmentId: string | null;
   subDepartmentId: string | null;
   positionId: string | null;
-  shiftId: string | null;
+  shiftOrder: number | null;
+  attention: boolean;
   search: string;
 };
 
@@ -305,6 +308,11 @@ export type RosterGridFiltersProps = {
   shifts: GenerateShift[];
   // "12 workers in 3 of 5 lines".
   summary: string;
+  // Conflicts and warnings together, shown on the Needs attention button.
+  attentionCount: number;
+  // The lines Add worker can add to, or null when the roster cannot be changed.
+  addTargets: AddWorkerTarget[] | null;
+  onAddWorker: (target: AddWorkerTarget) => void;
   onChange: (patch: Partial<RosterLineFilters>) => void;
   onClear: () => void;
 };
@@ -314,13 +322,14 @@ export type RosterGridProps = {
   shifts: GenerateShift[];
   // The lines of the page shown, each with the workers on that page.
   lines: RosterLineSlice[];
+  // The shift filter's shift. The work cells of other shifts are dimmed so this one stands out.
+  focusShift: number | null;
   // True for a draft: only a draft has cell buttons, the row menu, and Add worker.
   editable: boolean;
   onReplace: (target: ReplaceTarget) => void;
   // Resolves when the edit is saved or refused, so the grid keeps its buttons disabled until then.
   onEditCell: (change: CellChange) => Promise<void>;
   onSwapCell: (target: SwapCellTarget) => void;
-  onAddWorker: (target: AddWorkerTarget) => void;
 };
 
 export type CellMenuProps = {

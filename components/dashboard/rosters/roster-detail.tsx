@@ -37,7 +37,8 @@ const NO_FILTERS: RosterLineFilters = {
   departmentId: null,
   subDepartmentId: null,
   positionId: null,
-  shiftId: null,
+  shiftOrder: null,
+  attention: false,
   search: "",
 };
 
@@ -54,6 +55,12 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
 
   const shown = filterLines(roster.lines, filters);
   const paged = pageLines(shown, page, pageSize);
+  // A worker can be added to any line the filters leave. Search only narrows workers, so it does
+  // not take a line out of this list.
+  const addTargets = filterLines(roster.lines, { ...filters, search: "" }).map((line) => ({
+    lineId: line.lineId,
+    lineTitle: line.title,
+  }));
 
   function changeFilters(patch: Partial<RosterLineFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
@@ -131,6 +138,9 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
           options={lineFilterOptions(roster.lines, filters.departmentId)}
           shifts={roster.shifts}
           summary={lineSummary(shown, roster.lines.length)}
+          attentionCount={roster.counts.conflicts + roster.counts.warnings}
+          addTargets={draft ? addTargets : null}
+          onAddWorker={setAdding}
           onChange={changeFilters}
           onClear={clearFilters}
         />
@@ -138,11 +148,11 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
           days={roster.days}
           shifts={roster.shifts}
           lines={paged.slices}
+          focusShift={filters.shiftOrder}
           editable={draft}
           onReplace={setReplacing}
           onEditCell={editCell}
           onSwapCell={swapCell}
-          onAddWorker={setAdding}
         />
         {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
           <div className="flex justify-end">

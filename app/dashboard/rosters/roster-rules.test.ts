@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { RosterLineFilters, RosterLineView, RosterWorkerRow } from "@/types/rosters";
+import type {
+  RosterCell,
+  RosterLineFilters,
+  RosterLineView,
+  RosterWorkerRow,
+} from "@/types/rosters";
 
 import { WORK_RULE_DEFAULTS } from "@/app/dashboard/settings/settings-rules";
 
@@ -404,9 +409,28 @@ describe("targetsMoveFixedLine", () => {
   });
 });
 
-function workerRow(workerId: string, employeeId: string, name: string): RosterWorkerRow {
-  return { workerId, employeeId, name, replaced: false, cells: [] };
+function workerRow(
+  workerId: string,
+  employeeId: string,
+  name: string,
+  cells: RosterCell[] = [],
+): RosterWorkerRow {
+  return { workerId, employeeId, name, replaced: false, cells };
 }
+
+const workCell = (shiftOrder: number): RosterCell => ({
+  kind: "work",
+  shiftOrder,
+  edited: false,
+  warning: false,
+});
+const offCell: RosterCell = { kind: "off", edited: false, warning: false };
+const warnCell = (shiftOrder: number): RosterCell => ({
+  kind: "work",
+  shiftOrder,
+  edited: false,
+  warning: true,
+});
 
 function lineView(lineId: string, overrides: Partial<RosterLineView> = {}): RosterLineView {
   return {
@@ -431,7 +455,8 @@ const NO_FILTERS: RosterLineFilters = {
   departmentId: null,
   subDepartmentId: null,
   positionId: null,
-  shiftId: null,
+  shiftOrder: null,
+  attention: false,
   search: "",
 };
 
@@ -459,14 +484,120 @@ describe("filterLines", () => {
     expect(ids(filterLines(lines, { ...NO_FILTERS, positionId: "p1" }))).toEqual(["l1", "l3"]);
   });
 
-  it("keeps the lines fixed to the chosen shift and the Any shift lines", () => {
-    expect(ids(filterLines(lines, { ...NO_FILTERS, shiftId: "sh1" }))).toEqual(["l1", "l2"]);
-  });
-
   it("needs a line to match every filter that is set", () => {
     expect(
-      ids(filterLines(lines, { ...NO_FILTERS, departmentId: "d1", positionId: "p1", shiftId: "sh2" })),
+      ids(
+        filterLines(lines, {
+          ...NO_FILTERS,
+          departmentId: "d1",
+          subDepartmentId: "s1",
+          positionId: "p1",
+        }),
+      ),
     ).toEqual(["l1"]);
+  });
+
+  describe("shift", () => {
+    // An Any shift line mixes shifts. A line fixed to a shift only has that shift's cells.
+    const shifted = [
+      lineView("any", {
+        shiftId: null,
+        workers: [
+          workerRow("w1", "E1", "Ani", [workCell(1), offCell, workCell(2)]),
+          workerRow("w2", "E2", "Bob", [workCell(2), workCell(3)]),
+          workerRow("w3", "E3", "Cut", [offCell, offCell]),
+        ],
+      }),
+      lineView("fixed2", {
+        shiftId: "sh2",
+        workers: [workerRow("w4", "E4", "Dedi", [workCell(2), workCell(2)])],
+      }),
+    ];
+    const workersOf = (result: RosterLineView[]) =>
+      result.map((line) => [line.lineId, line.workers.map((worker) => worker.workerId)]);
+
+    it("keeps the workers who work the chosen shift on any day, and all their cells", () => {
+      const result = filterLines(shifted, { ...NO_FILTERS, shiftOrder: 1 });
+
+      expect(workersOf(result)).toEqual([["any", ["w1"]]]);
+      expect(result[0].workers[0].cells).toHaveLength(3);
+    });
+
+    it("drops a line fixed to another shift, since none of its workers work the chosen one", () => {
+      expect(workersOf(filterLines(shifted, { ...NO_FILTERS, shiftOrder: 3 }))).toEqual([
+        ["any", ["w2"]],
+      ]);
+    });
+
+    it("keeps the line fixed to the chosen shift, with its workers", () => {
+      expect(workersOf(filterLines(shifted, { ...NO_FILTERS, shiftOrder: 2 }))).toEqual([
+        ["any", ["w1", "w2"]],
+        ["fixed2", ["w4"]],
+      ]);
+    });
+
+    it("leaves out a worker with only off days, and a line left with no workers", () => {
+      expect(filterLines(shifted, { ...NO_FILTERS, shiftOrder: 4 })).toEqual([]);
+    });
+
+    it("combines with search and the line filters", () => {
+      expect(
+        workersOf(filterLines(shifted, { ...NO_FILTERS, shiftOrder: 2, search: "bob" })),
+      ).toEqual([["any", ["w2"]]]);
+      expect(
+        workersOf(filterLines(shifted, { ...NO_FILTERS, shiftOrder: 2, positionId: "p1" })).length,
+      ).toBe(2);
+    });
+  });
+
+  describe("needs attention", () => {
+    const flagged = [
+      // Short of workers, no worker with a warning.
+      lineView("short", {
+        unfilled: [{ date: "2026-11-09", shiftOrder: 1, shortfall: 1 }],
+        workers: [workerRow("w1", "E1", "Ani", [workCell(1)])],
+      }),
+      // Full, with one worker whose cell breaks a rule.
+      lineView("warned", {
+        workers: [
+          workerRow("w2", "E2", "Bob", [workCell(1), warnCell(2)]),
+          workerRow("w3", "E3", "Cut", [workCell(1)]),
+        ],
+      }),
+      // Nothing to look at.
+      lineView("fine", { workers: [workerRow("w4", "E4", "Dedi", [workCell(1)])] }),
+    ];
+    const attention = { ...NO_FILTERS, attention: true };
+
+    it("keeps a line that is short, and shows none of its workers", () => {
+      const [first] = filterLines(flagged, attention);
+
+      expect([first.lineId, first.workers, first.unfilled.length]).toEqual(["short", [], 1]);
+    });
+
+    it("keeps only the workers with a warning, and drops a line with no problem", () => {
+      const result = filterLines(flagged, attention);
+
+      expect(result.map((line) => [line.lineId, line.workers.map((w) => w.workerId)])).toEqual([
+        ["short", []],
+        ["warned", ["w2"]],
+      ]);
+    });
+
+    it("keeps everything when it is off", () => {
+      expect(filterLines(flagged, NO_FILTERS)).toEqual(flagged);
+    });
+
+    it("combines with search: a worker has to match the search and have a warning", () => {
+      const bob = filterLines(flagged, { ...attention, search: "bob" });
+      const cut = filterLines(flagged, { ...attention, search: "cut" });
+
+      expect(bob.map((line) => [line.lineId, line.workers.map((w) => w.workerId)])).toEqual([
+        ["warned", ["w2"]],
+      ]);
+      // Cut matches but has no warning, and Ani's line has nobody matching.
+      expect(cut).toEqual([]);
+    });
   });
 
   describe("search", () => {

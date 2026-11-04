@@ -1,10 +1,17 @@
 "use client";
 
-import { SearchIcon, XIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { shiftLabel } from "@/app/dashboard/rosters/roster-rules";
-import type { RosterGridFiltersProps } from "@/types/rosters";
+import type { AddWorkerTarget, RosterGridFiltersProps } from "@/types/rosters";
 import { ALL_OPTION as ALL } from "@/components/dashboard/filter-select";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -53,14 +60,60 @@ function GridSelect({ value, options, label, className, disabled, onChange }: Gr
   );
 }
 
-// Search a worker, then department, sub-department, position, and shift. They narrow the grid and
-// nothing else: the summary above it and the panels below it still describe the whole roster. The
-// sub-department choices follow the department, and a new department drops the sub-department.
+// Add worker at the end of the row. One line to add to opens its dialog at once, more than one asks
+// which line first, and none leaves the button off.
+function AddWorkerButton({
+  targets,
+  onAddWorker,
+}: Pick<RosterGridFiltersProps, "onAddWorker"> & { targets: AddWorkerTarget[] }) {
+  if (targets.length <= 1) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="ml-auto"
+        disabled={targets.length === 0}
+        onClick={() => onAddWorker(targets[0])}
+      >
+        <PlusIcon data-icon="inline-start" />
+        Add worker
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="sm" className="ml-auto" />}
+      >
+        <PlusIcon data-icon="inline-start" />
+        Add worker
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-auto min-w-64">
+        <DropdownMenuGroup>
+          {targets.map((target) => (
+            <DropdownMenuItem key={target.lineId} onClick={() => onAddWorker(target)}>
+              {target.lineTitle}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Search a worker, then department, sub-department, position, and shift, with Add worker at the
+// end. The filters narrow the grid and nothing else: the summary above it and the panels below it
+// still describe the whole roster. The sub-department choices follow the department, and a new
+// department drops the sub-department.
 export function RosterGridFilters({
   filters,
   options,
   shifts,
   summary,
+  attentionCount,
+  addTargets,
+  onAddWorker,
   onChange,
   onClear,
 }: RosterGridFiltersProps) {
@@ -69,7 +122,8 @@ export function RosterGridFilters({
     filters.departmentId !== null ||
     filters.subDepartmentId !== null ||
     filters.positionId !== null ||
-    filters.shiftId !== null;
+    filters.shiftOrder !== null ||
+    filters.attention;
 
   return (
     <div className="flex flex-col gap-2">
@@ -135,20 +189,33 @@ export function RosterGridFilters({
           onChange={(positionId) => onChange({ positionId })}
         />
         <GridSelect
-          value={filters.shiftId}
+          value={filters.shiftOrder === null ? null : String(filters.shiftOrder)}
           options={[
             { value: ALL, label: "All shifts" },
-            ...shifts.map((shift) => ({ value: shift.id, label: shiftLabel(shift.order) })),
+            ...shifts.map((shift) => ({ value: String(shift.order), label: shiftLabel(shift.order) })),
           ]}
           label="Filter by shift"
           className="h-9 w-36"
-          onChange={(shiftId) => onChange({ shiftId })}
+          onChange={(shiftOrder) =>
+            onChange({ shiftOrder: shiftOrder === null ? null : Number(shiftOrder) })
+          }
         />
+        <Button
+          variant={filters.attention ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={filters.attention}
+          disabled={attentionCount === 0 && !filters.attention}
+          onClick={() => onChange({ attention: !filters.attention })}
+        >
+          Needs attention
+          <span className="ml-1 tabular-nums text-muted-foreground">{attentionCount}</span>
+        </Button>
         {filtered && (
           <Button variant="ghost" size="sm" onClick={onClear}>
             Clear filters
           </Button>
         )}
+        {addTargets && <AddWorkerButton targets={addTargets} onAddWorker={onAddWorker} />}
       </div>
       <p className="text-sm text-muted-foreground" aria-live="polite">
         {summary}

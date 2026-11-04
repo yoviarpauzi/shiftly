@@ -71,15 +71,14 @@ function cellLabel(name: string, date: string, cell: RosterCell): string {
   return [`Edit ${name}, ${shortDate(date)}`, ...marks].join(", ");
 }
 
-function Legend({ editable }: { editable: boolean }) {
+// What the grid shows, then what its marks mean, in one line.
+function Legend({ summary, editable }: { summary: string; editable: boolean }) {
   return (
     <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      {editable && (
-        <p>
-          Select a cell to change its shift, make it a day off or a break, clear it, or replace the
-          worker.
-        </p>
-      )}
+      <p aria-live="polite">
+        {summary}
+        {editable && ". Select a cell to edit it."}
+      </p>
       <ul className="flex flex-wrap items-center gap-4">
         <li className="flex items-center gap-2">
           <span aria-hidden className="size-4 rounded-sm ring-2 ring-primary ring-offset-2 ring-offset-background" />
@@ -103,6 +102,7 @@ export function RosterGrid({
   days,
   shifts,
   lines,
+  summary,
   focusShift,
   editable,
   onReplace,
@@ -124,7 +124,7 @@ export function RosterGrid({
 
   return (
     <div className="flex flex-col gap-3">
-      <Legend editable={editable} />
+      <Legend summary={summary} editable={editable} />
       <div className="max-h-[70vh] overflow-auto rounded-lg border">
         <table className="w-full min-w-max text-sm">
           <thead className="sticky top-0 z-20 bg-muted">
@@ -157,10 +157,10 @@ export function RosterGrid({
                 </th>
               </tr>
               {line.workers.map((worker) => (
-                <tr key={worker.workerId} className="border-t">
+                <tr key={worker.workerId} className="group border-t">
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 bg-background px-3 py-2 text-left font-normal"
+                    className="sticky left-0 z-10 bg-background px-3 py-2 text-left font-normal group-hover:bg-[color-mix(in_oklab,var(--background),var(--muted)_60%)]"
                   >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{worker.name}</span>
@@ -174,7 +174,7 @@ export function RosterGrid({
                       focusShift !== null && cell?.kind === "work" && cell.shiftOrder !== focusShift;
 
                     return (
-                      <td key={date} className="px-2 py-1.5 text-center">
+                      <td key={date} className="px-2 py-1.5 text-center group-hover:bg-muted/60">
                         {editable ? (
                           <CellMenu
                             label={cellLabel(worker.name, date, cell)}
@@ -211,7 +211,7 @@ export function RosterGrid({
                     );
                   })}
                   {editable && (
-                    <td className="px-2 py-1 text-right">
+                    <td className="px-2 py-1 text-right group-hover:bg-muted/60">
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={

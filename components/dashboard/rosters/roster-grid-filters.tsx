@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type GridSelectProps = {
   value: string | null;
@@ -70,7 +71,6 @@ function AddWorkerButton({
     return (
       <Button
         variant="outline"
-        size="sm"
         className="ml-auto"
         disabled={targets.length === 0}
         onClick={() => onAddWorker(targets[0])}
@@ -83,9 +83,7 @@ function AddWorkerButton({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" className="ml-auto" />}
-      >
+      <DropdownMenuTrigger render={<Button variant="outline" className="ml-auto" />}>
         <PlusIcon data-icon="inline-start" />
         Add worker
       </DropdownMenuTrigger>
@@ -102,15 +100,14 @@ function AddWorkerButton({
   );
 }
 
-// Search a worker, then department, sub-department, position, and shift, with Add worker at the
-// end. The filters narrow the grid and nothing else: the summary above it and the panels below it
-// still describe the whole roster. The sub-department choices follow the department, and a new
-// department drops the sub-department.
+// One row: search a worker, department, sub-department, position, shift, and Needs attention, with
+// Add worker at the end. The filters narrow the grid and nothing else: the stats above it and the
+// panels beside it still describe the whole roster. The sub-department choices follow the
+// department, and a new department drops the sub-department. Every control is the same height.
 export function RosterGridFilters({
   filters,
   options,
   shifts,
-  summary,
   attentionCount,
   addTargets,
   onAddWorker,
@@ -126,100 +123,101 @@ export function RosterGridFilters({
     filters.attention;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-64">
-          <SearchIcon
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            value={filters.search}
-            onChange={(event) => onChange({ search: event.target.value })}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && filters.search !== "") {
-                onChange({ search: "" });
-              }
-            }}
-            placeholder="Search by name or employee ID"
-            aria-label="Search workers"
-            className="h-9 pr-10 pl-8 [&::-webkit-search-cancel-button]:appearance-none"
-          />
-          {filters.search !== "" && (
-            <button
-              type="button"
-              onClick={() => onChange({ search: "" })}
-              aria-label="Clear search"
-              className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <XIcon className="size-4" />
-            </button>
-          )}
-        </div>
-        <GridSelect
-          value={filters.departmentId}
-          options={[
-            { value: ALL, label: "All departments" },
-            ...options.departments.map(({ id, name }) => ({ value: id, label: name })),
-          ]}
-          label="Filter by department"
-          className="h-9 w-44"
-          onChange={(departmentId) => onChange({ departmentId, subDepartmentId: null })}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative w-full sm:w-52">
+        <SearchIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
         />
-        <GridSelect
-          value={filters.subDepartmentId}
-          options={[
-            { value: ALL, label: "All sub departments" },
-            ...options.subDepartments.map(({ id, name }) => ({ value: id, label: name })),
-          ]}
-          label="Filter by sub department"
-          className="h-9 w-48"
-          disabled={options.subDepartments.length === 0}
-          onChange={(subDepartmentId) => onChange({ subDepartmentId })}
+        <Input
+          type="search"
+          value={filters.search}
+          onChange={(event) => onChange({ search: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && filters.search !== "") {
+              onChange({ search: "" });
+            }
+          }}
+          placeholder="Search name or ID"
+          aria-label="Search workers"
+          className="pr-10 pl-8 [&::-webkit-search-cancel-button]:appearance-none"
         />
-        <GridSelect
-          value={filters.positionId}
-          options={[
-            { value: ALL, label: "All positions" },
-            ...options.positions.map(({ id, name }) => ({ value: id, label: name })),
-          ]}
-          label="Filter by position"
-          className="h-9 w-44"
-          onChange={(positionId) => onChange({ positionId })}
-        />
-        <GridSelect
-          value={filters.shiftOrder === null ? null : String(filters.shiftOrder)}
-          options={[
-            { value: ALL, label: "All shifts" },
-            ...shifts.map((shift) => ({ value: String(shift.order), label: shiftLabel(shift.order) })),
-          ]}
-          label="Filter by shift"
-          className="h-9 w-36"
-          onChange={(shiftOrder) =>
-            onChange({ shiftOrder: shiftOrder === null ? null : Number(shiftOrder) })
-          }
-        />
-        <Button
-          variant={filters.attention ? "secondary" : "outline"}
-          size="sm"
-          aria-pressed={filters.attention}
-          disabled={attentionCount === 0 && !filters.attention}
-          onClick={() => onChange({ attention: !filters.attention })}
-        >
-          Needs attention
-          <span className="ml-1 tabular-nums text-muted-foreground">{attentionCount}</span>
-        </Button>
-        {filtered && (
-          <Button variant="ghost" size="sm" onClick={onClear}>
-            Clear filters
-          </Button>
+        {filters.search !== "" && (
+          <button
+            type="button"
+            onClick={() => onChange({ search: "" })}
+            aria-label="Clear search"
+            className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <XIcon className="size-4" />
+          </button>
         )}
-        {addTargets && <AddWorkerButton targets={addTargets} onAddWorker={onAddWorker} />}
       </div>
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {summary}
-      </p>
+      <GridSelect
+        value={filters.departmentId}
+        options={[
+          { value: ALL, label: "Department" },
+          ...options.departments.map(({ id, name }) => ({ value: id, label: name })),
+        ]}
+        label="Filter by department"
+        className="w-32"
+        onChange={(departmentId) => onChange({ departmentId, subDepartmentId: null })}
+      />
+      <GridSelect
+        value={filters.subDepartmentId}
+        options={[
+          { value: ALL, label: "Sub department" },
+          ...options.subDepartments.map(({ id, name }) => ({ value: id, label: name })),
+        ]}
+        label="Filter by sub department"
+        className="w-38"
+        disabled={options.subDepartments.length === 0}
+        onChange={(subDepartmentId) => onChange({ subDepartmentId })}
+      />
+      <GridSelect
+        value={filters.positionId}
+        options={[
+          { value: ALL, label: "Position" },
+          ...options.positions.map(({ id, name }) => ({ value: id, label: name })),
+        ]}
+        label="Filter by position"
+        className="w-30"
+        onChange={(positionId) => onChange({ positionId })}
+      />
+      <GridSelect
+        value={filters.shiftOrder === null ? null : String(filters.shiftOrder)}
+        options={[
+          { value: ALL, label: "Shift" },
+          ...shifts.map((shift) => ({ value: String(shift.order), label: shiftLabel(shift.order) })),
+        ]}
+        label="Filter by shift"
+        className="w-26"
+        onChange={(shiftOrder) =>
+          onChange({ shiftOrder: shiftOrder === null ? null : Number(shiftOrder) })
+        }
+      />
+      <Button
+        variant={filters.attention ? "secondary" : "outline"}
+        aria-pressed={filters.attention}
+        disabled={attentionCount === 0 && !filters.attention}
+        onClick={() => onChange({ attention: !filters.attention })}
+      >
+        Needs attention
+        <span
+          className={cn(
+            "tabular-nums",
+            attentionCount > 0 ? "font-semibold text-destructive" : "text-muted-foreground",
+          )}
+        >
+          {attentionCount}
+        </span>
+      </Button>
+      {filtered && (
+        <Button variant="ghost" aria-label="Clear filters" onClick={onClear}>
+          Clear
+        </Button>
+      )}
+      {addTargets && <AddWorkerButton targets={addTargets} onAddWorker={onAddWorker} />}
     </div>
   );
 }

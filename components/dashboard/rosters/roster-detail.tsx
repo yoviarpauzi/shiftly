@@ -43,7 +43,7 @@ const NO_FILTERS: RosterLineFilters = {
   search: "",
 };
 
-export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
+export function RosterDetailView({ header, roster, generateInput }: RosterDetailProps) {
   const [replacing, setReplacing] = useState<ReplaceTarget | null>(null);
   const [adding, setAdding] = useState<AddWorkerTarget | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -134,12 +134,10 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="lg:flex-1">
-          <RosterSummary counts={roster.counts} />
-        </div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row lg:shrink-0">
+    <div className="flex max-w-[1280px] flex-col gap-4 md:gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        {header}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:shrink-0">
           <Link href="/dashboard/rosters" className={buttonVariants({ variant: "outline" })}>
             Back to rosters
           </Link>
@@ -151,6 +149,17 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
           {draft && <Button onClick={() => setConfirming(true)}>Confirm roster</Button>}
         </div>
       </div>
+      <RosterSummary counts={roster.counts} />
+      <RosterGridFilters
+        filters={filters}
+        options={lineFilterOptions(roster.lines, filters.departmentId)}
+        shifts={roster.shifts}
+        attentionCount={roster.counts.conflicts + roster.counts.warnings}
+        addTargets={draft ? addTargets : null}
+        onAddWorker={setAdding}
+        onChange={changeFilters}
+        onClear={clearFilters}
+      />
       <div
         className={cn(
           "grid gap-4 md:gap-6",
@@ -158,44 +167,34 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
         )}
       >
         <div className="flex min-w-0 flex-col gap-3">
-          <RosterGridFilters
-          filters={filters}
-          options={lineFilterOptions(roster.lines, filters.departmentId)}
-          shifts={roster.shifts}
-          summary={lineSummary(shown, roster.lines.length)}
-          attentionCount={roster.counts.conflicts + roster.counts.warnings}
-          addTargets={draft ? addTargets : null}
-          onAddWorker={setAdding}
-          onChange={changeFilters}
-          onClear={clearFilters}
-        />
-        <RosterGrid
-          days={roster.days}
-          shifts={roster.shifts}
-          lines={paged.slices}
-          focusShift={filters.shiftOrder}
-          editable={draft}
-          onReplace={setReplacing}
-          onEditCell={editCell}
-          onSwapCell={swapCell}
-        />
-        {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
-          <div className="flex justify-end">
-            <TablePagination
-              page={paged.page}
-              pageCount={paged.pageCount}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setPage(1);
-              }}
-            />
-          </div>
-        )}
+          <RosterGrid
+            days={roster.days}
+            shifts={roster.shifts}
+            lines={paged.slices}
+            summary={lineSummary(shown, roster.lines.length)}
+            focusShift={filters.shiftOrder}
+            editable={draft}
+            onReplace={setReplacing}
+            onEditCell={editCell}
+            onSwapCell={swapCell}
+          />
+          {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
+            <div className="flex justify-end">
+              <TablePagination
+                page={paged.page}
+                pageCount={paged.pageCount}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            </div>
+          )}
         </div>
         {hasPanels && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 xl:sticky xl:top-4">
             <ConflictsPanel conflicts={roster.conflicts} />
             <WarningsPanel warnings={roster.warnings} />
           </div>

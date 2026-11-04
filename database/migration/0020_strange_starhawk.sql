@@ -1,0 +1,4 @@
+DROP INDEX "roster_request_line_unique";--> statement-breakpoint
+ALTER TABLE "roster_request_line" ADD COLUMN "shift_id" uuid;--> statement-breakpoint
+ALTER TABLE "roster_request_line" ADD CONSTRAINT "roster_request_line_shift_id_shift_id_fk" FOREIGN KEY ("shift_id") REFERENCES "public"."shift"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "roster_request_line_unique" ON "roster_request_line" USING btree ("request_id","department_id",coalesce("sub_department_id", '00000000-0000-0000-0000-000000000000'::uuid),"position_id",coalesce("shift_id", '00000000-0000-0000-0000-000000000000'::uuid));

@@ -204,6 +204,7 @@ const line = {
   departmentId: DEPT_A,
   subDepartmentId: SUB_A,
   positionId: POSITION_A,
+  shiftId: null,
   headcounts: [3],
 };
 
@@ -337,6 +338,7 @@ describe("createRequest", () => {
         departmentId: DEPT_A,
         subDepartmentId: SUB_A,
         positionId: POSITION_A,
+        shiftId: null,
       },
     ]);
     expect(writes()[2].values).toEqual([{ lineId: lineRow.id, dayOffset: 0, headcount: 3 }]);
@@ -679,6 +681,7 @@ describe("updateRequest", () => {
         departmentId: DEPT_A,
         subDepartmentId: SUB_A,
         positionId: POSITION_A,
+        shiftId: null,
       },
     ]);
     // The old day rows go with the deleted lines through the cascade, so only 7 new rows exist.

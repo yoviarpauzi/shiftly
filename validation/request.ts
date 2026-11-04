@@ -29,6 +29,8 @@ const lineSchema = z.object({
   departmentId: z.string({ error: "Choose a department" }).uuid("Choose a department"),
   subDepartmentId: z.string().uuid("Choose a sub-department").nullable(),
   positionId: z.string({ error: "Choose a position" }).uuid("Choose a position"),
+  // Null is Any shift. The key is required, so a forgotten field cannot pass as Any shift.
+  shiftId: z.string({ error: "Choose a shift" }).uuid("Choose a shift").nullable(),
   headcounts: z
     .array(headcountField, { error: "Headcount is required" })
     .refine(
@@ -45,12 +47,17 @@ const linesField = z
     const seen = new Set<string>();
 
     for (const line of lines) {
-      const key = JSON.stringify([line.departmentId, line.subDepartmentId, line.positionId]);
+      const key = JSON.stringify([
+        line.departmentId,
+        line.subDepartmentId,
+        line.positionId,
+        line.shiftId,
+      ]);
 
       if (seen.has(key)) {
         ctx.addIssue({
           code: "custom",
-          message: "Two lines have the same department, sub-department, and position",
+          message: "Two lines have the same department, sub-department, position, and shift",
         });
         return;
       }

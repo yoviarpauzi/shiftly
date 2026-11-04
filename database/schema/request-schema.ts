@@ -16,6 +16,7 @@ import { user } from "./auth-schema";
 import { department, subDepartment } from "./department-schema";
 import { location } from "./location-schema";
 import { position } from "./position-schema";
+import { shift } from "./shift-schema";
 import { site } from "./site-schema";
 
 // One row per site and month. The server bumps lastValue in a single upsert to issue a PO number.
@@ -92,14 +93,17 @@ export const rosterRequestLine = pgTable(
     positionId: uuid("position_id")
       .notNull()
       .references(() => position.id, { onDelete: "restrict" }),
+    // Null is Any shift: the roster may split the line across the site's shifts.
+    shiftId: uuid("shift_id").references(() => shift.id, { onDelete: "restrict" }),
   },
   (table) => [
-    // A null sub-department is folded to the zero uuid so two such lines still collide.
+    // A null sub-department or shift is folded to the zero uuid so two such lines still collide.
     uniqueIndex("roster_request_line_unique").on(
       table.requestId,
       table.departmentId,
       sql`coalesce(${table.subDepartmentId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
       table.positionId,
+      sql`coalesce(${table.shiftId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
     ),
     index("roster_request_line_requestId_idx").on(table.requestId),
   ],

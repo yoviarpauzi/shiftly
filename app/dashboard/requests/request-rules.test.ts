@@ -36,10 +36,12 @@ const line = (fields: {
   departmentId?: string;
   subDepartmentId?: string | null;
   positionId?: string;
+  shiftId?: string | null;
 }) => ({
   departmentId: DEPT_A,
   subDepartmentId: null,
   positionId: POSITION,
+  shiftId: null,
   headcounts: [2],
   ...fields,
 });

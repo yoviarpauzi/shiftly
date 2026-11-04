@@ -113,6 +113,7 @@ function lineAndDayRows(requestId: string, lines: RequestLineInput[]) {
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
+    shiftId: line.shiftId,
   }));
 
   const dayRows = lines.flatMap((line, lineIndex) =>

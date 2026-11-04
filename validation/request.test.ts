@@ -7,11 +7,16 @@ const DEPARTMENT_ID = "22222222-2222-4222-8222-222222222222";
 const SUB_DEPARTMENT_ID = "33333333-3333-4333-8333-333333333333";
 const POSITION_ID = "44444444-4444-4444-8444-444444444444";
 const OTHER_POSITION_ID = "55555555-5555-4555-8555-555555555555";
+const SHIFT_ID = "66666666-6666-4666-8666-666666666666";
+const OTHER_SHIFT_ID = "77777777-7777-4777-8777-777777777777";
+const DUPLICATE_MESSAGE =
+  "Two lines have the same department, sub-department, position, and shift";
 
 const line = {
   departmentId: DEPARTMENT_ID,
   subDepartmentId: null,
   positionId: POSITION_ID,
+  shiftId: null,
   headcounts: [3],
 };
 
@@ -141,6 +146,7 @@ describe("createRequestSchema", () => {
       departmentId: DEPARTMENT_ID,
       subDepartmentId: null,
       positionId: POSITION_ID,
+      shiftId: null,
     };
 
     expect(issues({ lines: [withoutHeadcounts] })).toEqual([
@@ -175,6 +181,60 @@ describe("createRequestSchema", () => {
     expect(
       issues({ lines: [line, { ...line, subDepartmentId: SUB_DEPARTMENT_ID }] }),
     ).toEqual([]);
+  });
+
+  it("accepts a line with shiftId null", () => {
+    expect(issues({ lines: [{ ...line, shiftId: null }] })).toEqual([]);
+  });
+
+  it("accepts a line with a shift uuid", () => {
+    expect(issues({ lines: [{ ...line, shiftId: SHIFT_ID }] })).toEqual([]);
+  });
+
+  it("rejects a shiftId that is not a uuid on the shiftId field", () => {
+    expect(issues({ lines: [{ ...line, shiftId: "shift-1" }] })).toEqual([
+      { path: ["lines", 0, "shiftId"], message: "Choose a shift" },
+    ]);
+  });
+
+  it("rejects a line with no shiftId key", () => {
+    const withoutShift = {
+      departmentId: DEPARTMENT_ID,
+      subDepartmentId: null,
+      positionId: POSITION_ID,
+      headcounts: [3],
+    };
+
+    expect(paths({ lines: [withoutShift] })).toEqual([["lines", 0, "shiftId"]]);
+  });
+
+  it("accepts two lines with the same department, sub-department, and position when their shifts differ", () => {
+    expect(
+      issues({
+        lines: [
+          { ...line, shiftId: null },
+          { ...line, shiftId: SHIFT_ID },
+          { ...line, shiftId: OTHER_SHIFT_ID },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("rejects two lines with the same department, sub-department, position, and shift", () => {
+    expect(
+      issues({
+        lines: [
+          { ...line, shiftId: SHIFT_ID },
+          { ...line, shiftId: SHIFT_ID, headcounts: [5] },
+        ],
+      }),
+    ).toEqual([{ path: ["lines"], message: DUPLICATE_MESSAGE }]);
+  });
+
+  it("rejects two Any shift lines for the same position with the same message", () => {
+    expect(issues({ lines: [line, { ...line }] })).toEqual([
+      { path: ["lines"], message: DUPLICATE_MESSAGE },
+    ]);
   });
 
   it("drops a note key from the output", () => {

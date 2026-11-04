@@ -24,6 +24,8 @@ export type RequestLineInput = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
+  // null is Any shift.
+  shiftId: string | null;
   // One number for a daily request, seven for a weekly one. The index is the day offset from the
   // start date.
   headcounts: number[];
@@ -158,6 +160,8 @@ export type RequestFormLine = {
   departmentId: string;
   subDepartmentId: string | null;
   positionId: string;
+  // null is Any shift.
+  shiftId: string | null;
   headcount: number;
   perDay: boolean;
   dayHeadcounts: number[];

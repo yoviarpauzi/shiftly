@@ -80,6 +80,7 @@ export function blankLine(): RequestFormLine {
     departmentId: "",
     subDepartmentId: null,
     positionId: "",
+    shiftId: null,
     headcount: Number.NaN,
     perDay: false,
     dayHeadcounts: sevenOf(Number.NaN),
@@ -97,6 +98,7 @@ export function formLineFromInput(line: RequestLineInput): RequestFormLine {
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
+    shiftId: line.shiftId,
     headcount: perDay
       ? (headcounts.find((value) => value > 0) ?? Number.NaN)
       : (headcounts[0] ?? Number.NaN),
@@ -143,6 +145,7 @@ export function toRequestLineInputs(
     departmentId: line.departmentId,
     subDepartmentId: line.subDepartmentId,
     positionId: line.positionId,
+    shiftId: line.shiftId,
     headcounts: lineHeadcounts(type, line),
   }));
 }

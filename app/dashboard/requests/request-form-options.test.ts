@@ -41,6 +41,7 @@ const SUB_A1 = "5a100000-0000-4000-8000-000000000000";
 const SUB_B1 = "5b100000-0000-4000-8000-000000000000";
 const POS_A = "9a000000-0000-4000-8000-000000000000";
 const POS_B = "9b000000-0000-4000-8000-000000000000";
+const SHIFT_1 = "51000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
   sites: [
@@ -85,12 +86,14 @@ const detail: RequestDetail = {
       departmentId: DEPT_A1,
       subDepartmentId: SUB_A1,
       positionId: POS_A,
+      shiftId: SHIFT_1,
       headcounts: [0, 3, 3, 0, 5, 5, 5],
     },
     {
       departmentId: DEPT_A1_2,
       subDepartmentId: null,
       positionId: POS_A,
+      shiftId: null,
       headcounts: [4, 4, 4, 4, 4, 4, 4],
     },
   ],
@@ -103,6 +106,7 @@ function formLine(fields: Partial<RequestFormLine> = {}): RequestFormLine {
     departmentId: DEPT_A1,
     subDepartmentId: SUB_A1,
     positionId: POS_A,
+    shiftId: null,
     headcount: 2,
     perDay: false,
     dayHeadcounts: [...NAN_WEEK],
@@ -186,6 +190,10 @@ describe("line rules", () => {
     expect(line.perDay).toBe(false);
     expect(line.dayHeadcounts).toHaveLength(7);
     expect(line.dayHeadcounts.every(Number.isNaN)).toBe(true);
+  });
+
+  it("starts a blank line on Any shift", () => {
+    expect(blankLine().shiftId).toBeNull();
   });
 
   it("replaces every line with one blank line when the location changes", () => {
@@ -273,7 +281,17 @@ describe("requestFormDefaults", () => {
 });
 
 describe("formLineFromInput", () => {
-  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, shiftId: null };
+
+  it("keeps the stored shift", () => {
+    const line = formLineFromInput({ ...ids, shiftId: SHIFT_1, headcounts: [7] });
+
+    expect(line.shiftId).toBe(SHIFT_1);
+  });
+
+  it("opens a line with no shift as Any shift", () => {
+    expect(formLineFromInput({ ...ids, headcounts: [7] }).shiftId).toBeNull();
+  });
 
   it("opens a daily line as one number", () => {
     const line = formLineFromInput({ ...ids, headcounts: [7] });
@@ -338,7 +356,7 @@ describe("lineAfterDayChange", () => {
 });
 
 describe("toRequestLineInputs", () => {
-  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A };
+  const ids = { departmentId: DEPT_A1, subDepartmentId: SUB_A1, positionId: POS_A, shiftId: null };
   const perDay = formLine({ headcount: 5, perDay: true, dayHeadcounts: [0, 1, 2, 3, 4, 5, 6] });
 
   it("sends one number for a daily line, even when per day was set", () => {
@@ -346,6 +364,15 @@ describe("toRequestLineInputs", () => {
       { ...ids, headcounts: [5] },
       { ...ids, headcounts: [5] },
     ]);
+  });
+
+  it("sends each line's shift", () => {
+    expect(
+      toRequestLineInputs("daily", [
+        formLine({ headcount: 5, shiftId: SHIFT_1 }),
+        formLine({ headcount: 5, shiftId: null }),
+      ]).map((line) => line.shiftId),
+    ).toEqual([SHIFT_1, null]);
   });
 
   it("repeats the single number seven times for a weekly line", () => {

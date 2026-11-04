@@ -176,6 +176,7 @@ export async function getRequest(
       departmentId: rosterRequestLine.departmentId,
       subDepartmentId: rosterRequestLine.subDepartmentId,
       positionId: rosterRequestLine.positionId,
+      shiftId: rosterRequestLine.shiftId,
     })
     .from(rosterRequestLine)
     .where(eq(rosterRequestLine.requestId, id))

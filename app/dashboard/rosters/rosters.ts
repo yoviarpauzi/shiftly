@@ -1173,6 +1173,16 @@ export async function loadLocationWorkers(
   return rows.map((row) => ({ ...row, positionNames: positions.get(row.id)?.names ?? [] }));
 }
 
+// The ids of the workers who have a cell in a roster, on any line and any day.
+export async function loadRosterWorkerIds(reader: Reader, rosterId: string): Promise<Set<string>> {
+  const rows = await reader
+    .select({ workerId: rosterAssignment.workerId })
+    .from(rosterAssignment)
+    .where(eq(rosterAssignment.rosterId, rosterId));
+
+  return new Set(rows.map((row) => row.workerId));
+}
+
 // Loads what a cell edit is judged and stored with: the whole roster as it stands, and the listed
 // workers, who may or may not be in it yet. A listed worker who is not an active worker of the
 // location gives reason "worker". Another roster's work days count for draft and confirmed rosters.

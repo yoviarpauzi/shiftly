@@ -252,7 +252,13 @@ function AddWorkerBody({ roster, line, onOpenChange }: BodyProps) {
                           className="w-full"
                         >
                           <SelectValue
-                            placeholder={workers === null ? "Loading workers" : "Choose a worker"}
+                            placeholder={
+                              workers === null
+                                ? "Loading workers"
+                                : workers.length === 0
+                                  ? "Every worker is already in this roster"
+                                  : "Choose a worker"
+                            }
                           />
                         </SelectTrigger>
                         <SelectContent>

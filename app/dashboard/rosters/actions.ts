@@ -71,6 +71,7 @@ import {
   loadLocationWorkers,
   loadReplacementContext,
   loadRequestLines,
+  loadRosterWorkerIds,
   replacementCandidates,
 } from "./rosters";
 
@@ -948,7 +949,8 @@ export async function listCellCandidates(input: CellCandidatesInput): Promise<Ce
   });
 }
 
-// Read-only. The active workers of the roster's location, for the Add worker dialog. Nothing visible
+// Read-only. The active workers of the roster's location who have no cell in the roster yet, for the
+// Add worker dialog. A worker already in the roster changes through their own cells. Nothing visible
 // gives an empty list.
 export async function listAddableWorkers(input: {
   rosterId: string;
@@ -966,12 +968,19 @@ export async function listAddableWorkers(input: {
     return [];
   }
 
-  return (await loadLocationWorkers(db, visible.locationId)).map((entry) => ({
-    workerId: entry.id,
-    employeeId: entry.employeeId,
-    name: entry.name,
-    positionNames: entry.positionNames,
-  }));
+  const [pool, inRoster] = await Promise.all([
+    loadLocationWorkers(db, visible.locationId),
+    loadRosterWorkerIds(db, input.rosterId),
+  ]);
+
+  return pool
+    .filter((entry) => !inRoster.has(entry.id))
+    .map((entry) => ({
+      workerId: entry.id,
+      employeeId: entry.employeeId,
+      name: entry.name,
+      positionNames: entry.positionNames,
+    }));
 }
 
 // Read-only. What editRosterCell would refuse or warn about for this change, without writing and

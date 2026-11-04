@@ -69,6 +69,8 @@ const fake = vi.hoisted(() => ({
   cellContextCalls: [] as unknown[],
   locationWorkers: [] as unknown[],
   locationWorkerCalls: [] as unknown[],
+  rosterWorkerIds: [] as string[],
+  rosterWorkerCalls: [] as unknown[],
 }));
 
 const dialect = new PgDialect();
@@ -157,6 +159,10 @@ vi.mock("./rosters", () => ({
   loadLocationWorkers: async (_reader: unknown, locationId: string) => {
     fake.locationWorkerCalls.push(locationId);
     return fake.locationWorkers;
+  },
+  loadRosterWorkerIds: async (_reader: unknown, rosterId: string) => {
+    fake.rosterWorkerCalls.push(rosterId);
+    return new Set(fake.rosterWorkerIds);
   },
   replacementCandidates: async (...args: unknown[]) => {
     fake.candidates.push(args);
@@ -296,6 +302,8 @@ beforeEach(() => {
   fake.cellContextCalls = [];
   fake.locationWorkers = [];
   fake.locationWorkerCalls = [];
+  fake.rosterWorkerIds = [];
+  fake.rosterWorkerCalls = [];
   actAs(superadmin);
   vi.mocked(revalidatePath).mockClear();
 });
@@ -1600,6 +1608,28 @@ describe("listAddableWorkers", () => {
     ]);
     expect(fake.locationWorkerCalls).toEqual([LOCATION_A]);
     expect(writes()).toEqual([]);
+  });
+
+  it("leaves out the workers who already have a cell in this roster", async () => {
+    fake.rosterWorkerIds = [W1];
+
+    expect(await listAddableWorkers({ rosterId: ROSTER_ID, lineId: LINE_A })).toEqual([
+      { workerId: W3, employeeId: "E-3", name: "Worker E-3", positionNames: [] },
+    ]);
+    expect(fake.rosterWorkerCalls).toEqual([ROSTER_ID]);
+  });
+
+  it("gives an empty list when every worker of the location is already in the roster", async () => {
+    fake.rosterWorkerIds = [W1, W3];
+
+    expect(await listAddableWorkers({ rosterId: ROSTER_ID, lineId: LINE_A })).toEqual([]);
+  });
+
+  it("reads the roster's workers only for a roster the user can see", async () => {
+    fake.rows.roster = [];
+
+    expect(await listAddableWorkers({ rosterId: ROSTER_ID, lineId: LINE_A })).toEqual([]);
+    expect(fake.rosterWorkerCalls).toEqual([]);
   });
 });
 

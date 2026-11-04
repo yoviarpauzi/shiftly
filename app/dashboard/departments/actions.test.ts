@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 // The directive is what makes its exports server actions, so the test reads the file.
 describe("department actions module", () => {
   it("opens with the use server directive so client components can call it", () => {
-    const source = readFileSync(new URL("./actions.ts", import.meta.url), "utf8");
+    const source = readFileSync(
+      new URL("./actions.ts", import.meta.url),
+      "utf8",
+    );
 
     expect(source.split("\n")[0].trim()).toBe('"use server";');
   });

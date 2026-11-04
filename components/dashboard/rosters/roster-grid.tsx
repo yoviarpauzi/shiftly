@@ -1,6 +1,6 @@
 "use client";
 
-import { EllipsisIcon, PlusIcon, UserRoundPenIcon } from "lucide-react";
+import { EllipsisIcon, UserRoundPenIcon } from "lucide-react";
 import { useState } from "react";
 import { dayLabel, shortDate } from "@/app/dashboard/rosters/roster-rules";
 import type { CellChange, RosterCell, RosterGridProps } from "@/types/rosters";
@@ -37,12 +37,13 @@ function CellValue({ cell }: { cell: RosterCell }) {
 
 // A cell with its marks: a primary ring when it was edited by hand, an amber dot when it breaks a
 // rule. The marks have text for a screen reader, and the legend names them for everyone else.
-function CellView({ cell }: { cell: RosterCell }) {
+function CellView({ cell, dimmed }: { cell: RosterCell; dimmed: boolean }) {
   return (
     <span
       className={cn(
         "relative inline-flex items-center justify-center rounded-md",
         cell?.edited && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+        dimmed && "opacity-35",
       )}
     >
       <CellValue cell={cell} />
@@ -93,20 +94,20 @@ function Legend({ editable }: { editable: boolean }) {
   );
 }
 
-// One group per line: Add worker, a row per worker, then the shifts nobody could fill. It scrolls
-// sideways inside its card, so a week does not widen the page. In a draft every cell is a button
-// and each group starts with Add worker. One edit saves at a time: every cell is disabled until it
-// is done. A line the page cuts has its header and Add worker on both pages, but the Unfilled row
-// belongs to the page that holds its last worker.
+// One group per line: a row per worker, then the shifts nobody could fill. It scrolls inside its own
+// box, so a long roster does not push the toolbar away and a week does not widen the page. The day
+// header and the worker names stay in view while it scrolls. In a draft every cell is a button. One
+// edit saves at a time: every cell is disabled until it is done. A line the page cuts has its
+// header on both pages, but the Unfilled row belongs to the page that holds its last worker.
 export function RosterGrid({
   days,
   shifts,
   lines,
+  focusShift,
   editable,
   onReplace,
   onEditCell,
   onSwapCell,
-  onAddWorker,
 }: RosterGridProps) {
   const [saving, setSaving] = useState(false);
   const columns = days.length + (editable ? 2 : 1);
@@ -124,11 +125,11 @@ export function RosterGrid({
   return (
     <div className="flex flex-col gap-3">
       <Legend editable={editable} />
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="max-h-[70vh] overflow-auto rounded-lg border">
         <table className="w-full min-w-max text-sm">
-          <thead className="bg-muted">
+          <thead className="sticky top-0 z-20 bg-muted">
             <tr>
-              <th scope="col" className="px-3 py-2 text-left font-medium">
+              <th scope="col" className="sticky left-0 bg-muted px-3 py-2 text-left font-medium">
                 Worker
               </th>
               {days.map((date) => (
@@ -155,25 +156,12 @@ export function RosterGrid({
                   </span>
                 </th>
               </tr>
-              {editable && (
-                <tr className="border-t">
-                  <td colSpan={columns} className="px-2 py-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={saving}
-                      aria-label={`Add worker to ${line.title}`}
-                      onClick={() => onAddWorker({ lineId: line.lineId, lineTitle: line.title })}
-                    >
-                      <PlusIcon data-icon="inline-start" />
-                      Add worker
-                    </Button>
-                  </td>
-                </tr>
-              )}
               {line.workers.map((worker) => (
                 <tr key={worker.workerId} className="border-t">
-                  <th scope="row" className="px-3 py-2 text-left font-normal">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 bg-background px-3 py-2 text-left font-normal"
+                  >
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{worker.name}</span>
                       <span className="text-xs text-muted-foreground">{worker.employeeId}</span>
@@ -182,6 +170,8 @@ export function RosterGrid({
                   </th>
                   {worker.cells.map((cell, index) => {
                     const date = days[index];
+                    const dimmed =
+                      focusShift !== null && cell?.kind === "work" && cell.shiftOrder !== focusShift;
 
                     return (
                       <td key={date} className="px-2 py-1.5 text-center">
@@ -212,10 +202,10 @@ export function RosterGrid({
                               }
                             }}
                           >
-                            <CellView cell={cell} />
+                            <CellView cell={cell} dimmed={dimmed} />
                           </CellMenu>
                         ) : (
-                          <CellView cell={cell} />
+                          <CellView cell={cell} dimmed={dimmed} />
                         )}
                       </td>
                     );
@@ -257,7 +247,10 @@ export function RosterGrid({
               ))}
               {line.endsHere && line.unfilled.length > 0 && (
                 <tr className="border-t bg-destructive/5">
-                  <th scope="row" className="px-3 py-2 text-left font-medium text-destructive">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 bg-[color-mix(in_oklab,var(--background),var(--destructive)_5%)] px-3 py-2 text-left font-medium text-destructive"
+                  >
                     Unfilled
                   </th>
                   {days.map((date) => (

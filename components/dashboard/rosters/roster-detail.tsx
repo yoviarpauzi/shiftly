@@ -32,12 +32,14 @@ import { RosterSummary } from "@/components/dashboard/rosters/roster-summary";
 import { WarningsPanel } from "@/components/dashboard/rosters/warnings-panel";
 import { TablePagination } from "@/components/dashboard/pagination";
 import { buttonVariants, Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const NO_FILTERS: RosterLineFilters = {
   departmentId: null,
   subDepartmentId: null,
   positionId: null,
-  shiftId: null,
+  shiftOrder: null,
+  attention: false,
   search: "",
 };
 
@@ -54,6 +56,15 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
 
   const shown = filterLines(roster.lines, filters);
   const paged = pageLines(shown, page, pageSize);
+  // A worker can be added to any line the filters leave. Search only narrows workers, so it does
+  // not take a line out of this list.
+  const addTargets = filterLines(roster.lines, { ...filters, search: "" }).map((line) => ({
+    lineId: line.lineId,
+    lineTitle: line.title,
+  }));
+  // The conflicts and warnings sit in a column beside the grid on a wide screen, and under it on a
+  // narrow one. With neither, the grid has the whole width.
+  const hasPanels = roster.conflicts.length > 0 || roster.warnings.length > 0;
 
   function changeFilters(patch: Partial<RosterLineFilters>) {
     setFilters((current) => ({ ...current, ...patch }));
@@ -124,13 +135,37 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <RosterSummary counts={roster.counts} />
-      <div className="flex flex-col gap-3">
-        <RosterGridFilters
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="lg:flex-1">
+          <RosterSummary counts={roster.counts} />
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row lg:shrink-0">
+          <Link href="/dashboard/rosters" className={buttonVariants({ variant: "outline" })}>
+            Back to rosters
+          </Link>
+          {draft && generateInput && (
+            <Button variant="outline" onClick={() => setRegenerating(true)}>
+              Generate again
+            </Button>
+          )}
+          {draft && <Button onClick={() => setConfirming(true)}>Confirm roster</Button>}
+        </div>
+      </div>
+      <div
+        className={cn(
+          "grid gap-4 md:gap-6",
+          hasPanels && "xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start",
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-3">
+          <RosterGridFilters
           filters={filters}
           options={lineFilterOptions(roster.lines, filters.departmentId)}
           shifts={roster.shifts}
           summary={lineSummary(shown, roster.lines.length)}
+          attentionCount={roster.counts.conflicts + roster.counts.warnings}
+          addTargets={draft ? addTargets : null}
+          onAddWorker={setAdding}
           onChange={changeFilters}
           onClear={clearFilters}
         />
@@ -138,11 +173,11 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
           days={roster.days}
           shifts={roster.shifts}
           lines={paged.slices}
+          focusShift={filters.shiftOrder}
           editable={draft}
           onReplace={setReplacing}
           onEditCell={editCell}
           onSwapCell={swapCell}
-          onAddWorker={setAdding}
         />
         {(paged.pageCount > 1 || pageSize !== GRID_PAGE_SIZE) && (
           <div className="flex justify-end">
@@ -158,19 +193,13 @@ export function RosterDetailView({ roster, generateInput }: RosterDetailProps) {
             />
           </div>
         )}
-      </div>
-      <ConflictsPanel conflicts={roster.conflicts} />
-      <WarningsPanel warnings={roster.warnings} />
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Link href="/dashboard/rosters" className={buttonVariants({ variant: "outline" })}>
-          Back to rosters
-        </Link>
-        {draft && generateInput && (
-          <Button variant="outline" onClick={() => setRegenerating(true)}>
-            Generate again
-          </Button>
+        </div>
+        {hasPanels && (
+          <div className="flex flex-col gap-4">
+            <ConflictsPanel conflicts={roster.conflicts} />
+            <WarningsPanel warnings={roster.warnings} />
+          </div>
         )}
-        {draft && <Button onClick={() => setConfirming(true)}>Confirm roster</Button>}
       </div>
       {draft && (
         <>

@@ -227,32 +227,53 @@ export function targetsTotalMessage(date: string, sum: number, required: number)
 // Worker rows on a page of the grid until the viewer picks another size.
 export const GRID_PAGE_SIZE = 20;
 
-// The lines the grid shows under its filters. A line has to match every filter that is set. A line
-// set to Any shift passes the shift filter, since its cells can hold any shift. Search keeps the
-// workers whose name or employee ID contains the text, and drops a line left with none.
+// The lines the grid shows under its filters. Department, sub-department, and position pick whole
+// lines. Search, shift, and needs attention pick workers, and the line follows: a line left with no
+// worker is dropped. The one exception is needs attention, which keeps a line that is short of
+// workers and shows none of its workers when none of them has a warning.
 export function filterLines(lines: RosterLineView[], filters: RosterLineFilters): RosterLineView[] {
   const search = filters.search.trim().toLowerCase();
+  const byWorker = search !== "" || filters.shiftOrder !== null;
 
   return lines
     .filter(
       (line) =>
         (filters.departmentId === null || line.departmentId === filters.departmentId) &&
         (filters.subDepartmentId === null || line.subDepartmentId === filters.subDepartmentId) &&
-        (filters.positionId === null || line.positionId === filters.positionId) &&
-        (filters.shiftId === null || line.shiftId === null || line.shiftId === filters.shiftId),
+        (filters.positionId === null || line.positionId === filters.positionId),
     )
     .flatMap((line) => {
-      if (search === "") {
-        return [line];
+      let workers = line.workers;
+
+      if (search !== "") {
+        workers = workers.filter(
+          (worker) =>
+            worker.name.toLowerCase().includes(search) ||
+            worker.employeeId.toLowerCase().includes(search),
+        );
       }
 
-      const workers = line.workers.filter(
-        (worker) =>
-          worker.name.toLowerCase().includes(search) ||
-          worker.employeeId.toLowerCase().includes(search),
-      );
+      if (filters.shiftOrder !== null) {
+        workers = workers.filter((worker) =>
+          worker.cells.some(
+            (cell) => cell?.kind === "work" && cell.shiftOrder === filters.shiftOrder,
+          ),
+        );
+      }
 
-      return workers.length > 0 ? [{ ...line, workers }] : [];
+      if (byWorker && workers.length === 0) {
+        return [];
+      }
+
+      if (filters.attention) {
+        workers = workers.filter((worker) => worker.cells.some((cell) => cell?.warning));
+
+        if (workers.length === 0 && line.unfilled.length === 0) {
+          return [];
+        }
+      }
+
+      return [workers === line.workers ? line : { ...line, workers }];
     });
 }
 

@@ -41,6 +41,7 @@ import type {
   CellContextResult,
   EngineHistory,
   GenerateLine,
+  GenerateShift,
   GenerateView,
   LoadedEngineInput,
   LocationWorker,
@@ -575,6 +576,7 @@ export async function getRoster(
     confirmedAt: head.confirmedAt ? head.confirmedAt.toISOString() : null,
     version: head.updatedAt.toISOString(),
     days,
+    shifts: await loadSiteShifts(db, head.siteId),
     lines: buildLineViews({
       days,
       lines,
@@ -617,6 +619,28 @@ async function loadTargets(reader: Reader, rosterId: string) {
     .where(eq(rosterShiftTarget.rosterId, rosterId));
 }
 
+// The active shifts of a site by order, with their times as HH:mm. The Generate screen and the
+// cell menu of the roster both list them.
+async function loadSiteShifts(reader: Reader, siteId: string): Promise<GenerateShift[]> {
+  const rows = await reader
+    .select({
+      id: shift.id,
+      name: shift.name,
+      order: shift.order,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+    })
+    .from(shift)
+    .where(and(eq(shift.siteId, siteId), isNull(shift.deletedAt)))
+    .orderBy(asc(shift.order));
+
+  return rows.map((row) => ({
+    ...row,
+    startTime: toHourMinute(row.startTime),
+    endTime: toHourMinute(row.endTime),
+  }));
+}
+
 // The Generate screen for an approved request. A draft starts from the split it was generated with,
 // and a request with no roster starts from an even split.
 export async function getGenerateView(
@@ -653,23 +677,7 @@ export async function getGenerateView(
   const type = request.type === "weekly" ? "weekly" : "daily";
   const days = requestDays(request.startDate, type);
 
-  const shifts = (
-    await db
-      .select({
-        id: shift.id,
-        name: shift.name,
-        order: shift.order,
-        startTime: shift.startTime,
-        endTime: shift.endTime,
-      })
-      .from(shift)
-      .where(and(eq(shift.siteId, request.siteId), isNull(shift.deletedAt)))
-      .orderBy(asc(shift.order))
-  ).map((row) => ({
-    ...row,
-    startTime: toHourMinute(row.startTime),
-    endTime: toHourMinute(row.endTime),
-  }));
+  const shifts = await loadSiteShifts(db, request.siteId);
 
   const lines = await loadRequestLines(db, request.id);
 

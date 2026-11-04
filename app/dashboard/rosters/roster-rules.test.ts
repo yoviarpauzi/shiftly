@@ -24,6 +24,8 @@ import {
   targetsTotalError,
   targetsTotalMessage,
   toEngineRules,
+  warningsAddedMessage,
+  warningsLabel,
 } from "./roster-rules";
 
 describe("addDays", () => {
@@ -222,16 +224,27 @@ describe("confirmDescription", () => {
   const LOCKED =
     "A confirmed roster is locked: you can no longer replace workers or generate it again.";
 
-  it("only warns about the lock when nothing is unfilled", () => {
-    expect(confirmDescription(0)).toBe(LOCKED);
+  it("only warns about the lock when nothing is unfilled and no warning remains", () => {
+    expect(confirmDescription(0, 0)).toBe(LOCKED);
   });
 
-  it("counts one unfilled shift in the singular", () => {
-    expect(confirmDescription(1)).toBe(`1 shift is still unfilled. ${LOCKED}`);
+  it("counts one unfilled shift in the singular and several in the plural", () => {
+    expect(confirmDescription(1, 0)).toBe(`1 shift is still unfilled. ${LOCKED}`);
+    expect(confirmDescription(3, 0)).toBe(`3 shifts are still unfilled. ${LOCKED}`);
   });
 
-  it("counts several unfilled shifts in the plural", () => {
-    expect(confirmDescription(3)).toBe(`3 shifts are still unfilled. ${LOCKED}`);
+  it("counts warnings alone, one and several", () => {
+    expect(confirmDescription(0, 1)).toBe(`1 warning remains. ${LOCKED}`);
+    expect(confirmDescription(0, 2)).toBe(`2 warnings remain. ${LOCKED}`);
+  });
+
+  it("states both counts when both exist", () => {
+    expect(confirmDescription(3, 2)).toBe(
+      `3 shifts are still unfilled and 2 warnings remain. ${LOCKED}`,
+    );
+    expect(confirmDescription(1, 1)).toBe(
+      `1 shift is still unfilled and 1 warning remains. ${LOCKED}`,
+    );
   });
 });
 
@@ -240,22 +253,35 @@ describe("generateAgainDescription", () => {
     expect(generateAgainDescription(0, 0)).toBe("The current draft is replaced.");
   });
 
-  it("names the manual replacements and the conflicts it discards", () => {
+  it("names the manual edits and the conflicts it discards", () => {
     expect(generateAgainDescription(1, 2)).toBe(
-      "The current draft is replaced. This discards 1 manual replacement and the 2 conflicts listed now.",
+      "The current draft is replaced. This discards 1 manual edit and the 2 conflicts listed now.",
     );
     expect(generateAgainDescription(3, 1)).toBe(
-      "The current draft is replaced. This discards 3 manual replacements and the 1 conflict listed now.",
+      "The current draft is replaced. This discards 3 manual edits and the 1 conflict listed now.",
     );
   });
 
   it("names only what exists", () => {
     expect(generateAgainDescription(2, 0)).toBe(
-      "The current draft is replaced. This discards 2 manual replacements.",
+      "The current draft is replaced. This discards 2 manual edits.",
     );
     expect(generateAgainDescription(0, 4)).toBe(
       "The current draft is replaced. This discards the 4 conflicts listed now.",
     );
+  });
+});
+
+describe("warning counts", () => {
+  it("counts warnings in the singular and the plural", () => {
+    expect(warningsLabel(1)).toBe("1 warning");
+    expect(warningsLabel(2)).toBe("2 warnings");
+  });
+
+  it("adds the warnings an edit introduced to the success message", () => {
+    expect(warningsAddedMessage("Cell updated", 0)).toBe("Cell updated");
+    expect(warningsAddedMessage("Cell updated", 1)).toBe("Cell updated. 1 warning added");
+    expect(warningsAddedMessage("Worker replaced", 3)).toBe("Worker replaced. 3 warnings added");
   });
 });
 

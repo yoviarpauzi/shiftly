@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { PageParams } from "@/types/pagination";
 import type { Transaction } from "@/types/requests";
 import type { SortCriterion } from "@/types/sort";
@@ -147,6 +148,8 @@ export type RosterDetail = {
   // The roster's updatedAt as ISO text. Actions compare against it.
   version: string;
   days: string[];
+  // The site's active shifts by order, for the cell menu.
+  shifts: GenerateShift[];
   lines: RosterLineView[];
   conflicts: RosterConflictView[];
   warnings: RosterWarningView[];
@@ -191,10 +194,13 @@ export type RosterDetailProps = {
   generateInput: GenerateRosterInput | null;
 };
 
+// With a date and a shift order the dialog replaces one cell. Without them it replaces the whole row.
 export type ReplaceWorkerDialogProps = {
   roster: { id: string; version: string };
   line: { lineId: string; title: string };
   worker: { workerId: string; name: string } | null;
+  date?: string;
+  shiftOrder?: number;
   onOpenChange: (open: boolean) => void;
 };
 
@@ -205,6 +211,8 @@ type RosterDialogRoster = {
   unfilled: number;
   edits: number;
   conflicts: number;
+  // The rule warnings that stay on the roster when it is confirmed.
+  warnings: number;
 };
 
 export type ConfirmRosterDialogProps = {
@@ -217,22 +225,92 @@ export type GenerateAgainDialogProps = ConfirmRosterDialogProps & {
   generateInput: GenerateRosterInput;
 };
 
-// What the grid needs to open the Replace dialog for one row.
+// What the grid needs to open the Replace dialog for one row, or for one cell of it when date and
+// shiftOrder are set.
 export type ReplaceTarget = {
   line: { lineId: string; title: string };
   worker: { workerId: string; name: string };
+  date?: string;
+  shiftOrder?: number;
 };
+
+// One work cell the Replace dialog is opened for.
+export type SwapCellTarget = {
+  lineId: string;
+  lineTitle: string;
+  workerId: string;
+  workerName: string;
+  date: string;
+  shiftOrder: number;
+};
+
+// The line group the Add worker dialog is opened for.
+export type AddWorkerTarget = { lineId: string; lineTitle: string };
 
 export type RosterSummaryProps = { counts: RosterCounts };
 
 export type ConflictsPanelProps = { conflicts: RosterConflictView[] };
 
+export type WarningsPanelProps = { warnings: RosterWarningView[] };
+
 export type RosterGridProps = {
   days: string[];
+  shifts: GenerateShift[];
   lines: RosterLineView[];
-  // True for a draft: only a draft has the row menu.
+  // True for a draft: only a draft has cell buttons, the row menu, and Add worker.
   editable: boolean;
   onReplace: (target: ReplaceTarget) => void;
+  // Resolves when the edit is saved or refused, so the grid keeps its buttons disabled until then.
+  onEditCell: (change: CellChange) => Promise<void>;
+  onSwapCell: (target: SwapCellTarget) => void;
+  onAddWorker: (target: AddWorkerTarget) => void;
+};
+
+export type CellMenuProps = {
+  // The cell button's accessible name, such as "Edit Budi Santoso, Tue 10 Nov".
+  label: string;
+  cell: RosterCell;
+  shifts: GenerateShift[];
+  disabled: boolean;
+  onChoose: (to: CellTarget) => void;
+  onReplace: () => void;
+  // The cell's visual: a shift chip, OFF, BREAK, or a dot.
+  children: ReactNode;
+};
+
+// A candidate as the Replace dialog lists it, from either action. hard are the reasons that make
+// the worker impossible, warnings the rules the replacement would break.
+export type ReplaceOption = {
+  workerId: string;
+  employeeId: string;
+  name: string;
+  positionNames: string[];
+  hard: string[];
+  warnings: string[];
+};
+
+// A worker the Add worker dialog offers.
+export type AddableWorker = {
+  workerId: string;
+  employeeId: string;
+  name: string;
+  positionNames: string[];
+};
+
+// What editing one cell would do, as previewCellChange answers.
+export type CellPreview = { hard: string | null; warnings: string[] };
+
+// The Add worker form's values. choice is a shift's id, or "off" or "break".
+export type AddWorkerValues = { workerId: string; date: string; choice: string };
+
+// A preview answer belongs to the choice it was asked for.
+export type PreviewAnswer = { key: string; preview: CellPreview | null };
+
+export type AddWorkerDialogProps = {
+  roster: { id: string; version: string; days: string[]; shifts: GenerateShift[] };
+  // Null while the dialog is closed.
+  line: AddWorkerTarget | null;
+  onOpenChange: (open: boolean) => void;
 };
 
 export type GenerateFormProps = { view: GenerateView };

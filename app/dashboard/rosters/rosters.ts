@@ -43,6 +43,7 @@ import type {
   GenerateLine,
   GenerateView,
   LoadedEngineInput,
+  LocationWorker,
   Reader,
   ReplacementCandidate,
   ReplacementContextResult,
@@ -60,7 +61,7 @@ import type { SortCriterion } from "@/types/sort";
 import { parseRequestId } from "@/validation/request-id";
 import { requestScopeFilter } from "../requests/requests";
 import { evaluateRoster } from "./roster-evaluation";
-import { checkReplacement } from "./roster-replacement";
+import { checkReplacement, checkReplacementDetailed } from "./roster-replacement";
 import {
   addDays,
   evenSplit,
@@ -1057,6 +1058,26 @@ export async function loadReplacementContext(
   };
 }
 
+// The active workers of a location by employee ID, each with the names of their positions. The pool
+// the Add worker dialog and the cell candidate list choose from.
+export async function loadLocationWorkers(
+  reader: Reader,
+  locationId: string,
+): Promise<LocationWorker[]> {
+  const rows = await reader
+    .select({ id: worker.id, employeeId: worker.employeeId, name: worker.name })
+    .from(worker)
+    .where(and(eq(worker.locationId, locationId), isNull(worker.deletedAt)))
+    .orderBy(asc(worker.employeeId), asc(worker.id));
+
+  const positions = await loadWorkerPositions(
+    reader,
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => ({ ...row, positionNames: positions.get(row.id)?.names ?? [] }));
+}
+
 // Loads what a cell edit is judged and stored with: the whole roster as it stands, and the listed
 // workers, who may or may not be in it yet. A listed worker who is not an active worker of the
 // location gives reason "worker". Another roster's work days count for draft and confirmed rosters.
@@ -1217,7 +1238,7 @@ export async function replacementCandidates(
   const { context } = loaded;
 
   return context.candidates.map((candidate) => {
-    const result = checkReplacement({
+    const input = {
       row: context.row,
       candidate: {
         id: candidate.id,
@@ -1229,7 +1250,8 @@ export async function replacementCandidates(
       otherRosterWorkDates: candidate.otherRosterWorkDates,
       history: candidate.history,
       rules: context.rules,
-    });
+    };
+    const result = checkReplacement(input);
 
     return {
       workerId: candidate.id,
@@ -1237,6 +1259,7 @@ export async function replacementCandidates(
       name: candidate.name,
       positionNames: candidate.positionNames,
       reasons: result.ok ? [] : result.reasons,
+      hard: checkReplacementDetailed(input).hard.length > 0,
     };
   });
 }

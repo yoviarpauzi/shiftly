@@ -27,9 +27,10 @@ export type RosterFilters = {
 // The first day whose per-shift headcounts do not add up to the request's headcount.
 export type TargetsTotalError = { dayIndex: number; sum: number; required: number };
 
-// rosterId is set by generate, so the Generate screen can open the roster it made.
+// rosterId is set by generate, so the Generate screen can open the roster it made. warnings are the
+// rules an edit broke and saved anyway: only those it introduced.
 export type RosterActionResult =
-  | { ok: true; message?: string; rosterId?: string }
+  | { ok: true; message?: string; rosterId?: string; warnings?: string[] }
   | { ok: false; formError: string; fieldErrors?: Record<string, string> };
 
 export type RosterSortColumn = "po" | "type" | "date" | "location" | "status";
@@ -251,8 +252,30 @@ export type ReplacementCandidate = {
   employeeId: string;
   name: string;
   positionNames: string[];
-  // Empty when the worker can take the row.
+  // Empty when the worker can take the row. Hard and warning reasons together, in a fixed order.
   reasons: string[];
+  // True when at least one reason makes the worker impossible, not just a rule to warn about.
+  hard: boolean;
+};
+
+// A worker who could take over one cell. hard is why the worker cannot, null when they can, and
+// warnings are the rules the swap would break. inRoster is true when the worker has any cell in it.
+export type CellCandidate = {
+  workerId: string;
+  employeeId: string;
+  name: string;
+  positionNames: string[];
+  hard: string | null;
+  warnings: string[];
+  inRoster: boolean;
+};
+
+// An active worker of a location, with the names of their positions.
+export type LocationWorker = {
+  id: string;
+  employeeId: string;
+  name: string;
+  positionNames: string[];
 };
 
 // The engine's input without its targets, which come from the Generate screen.

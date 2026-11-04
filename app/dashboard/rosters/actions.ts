@@ -8,27 +8,49 @@ import { rosterRequest } from "@/database/schema/request-schema";
 import {
   roster,
   rosterAssignment,
+  rosterCellEdit,
   rosterConflict,
   rosterEdit,
   rosterShiftTarget,
 } from "@/database/schema/roster-schema";
 import { db } from "@/lib/db";
 import type { RequestAccess, Transaction } from "@/types/requests";
-import type { ReplacementCandidate, RosterActionResult } from "@/types/rosters";
+import type {
+  CellCandidate,
+  CellChange,
+  CellContext,
+  CellContextResult,
+  CellTarget,
+  EvalCell,
+  ReplacementCandidate,
+  RosterActionResult,
+} from "@/types/rosters";
 import {
+  cellCandidatesSchema,
   confirmRosterSchema,
+  editCellSchema,
   generateRosterSchema,
+  previewCellSchema,
   replaceWorkerSchema,
+  swapCellSchema,
+  type CellCandidatesInput,
   type ConfirmRosterInput,
+  type EditCellInput,
   type GenerateRosterInput,
+  type PreviewCellInput,
   type ReplaceWorkerInput,
+  type SwapCellInput,
 } from "@/validation/rosters";
 import { parseRequestId } from "@/validation/request-id";
 import { canAccessRosterLocation } from "./roster-access";
 import { generateRoster as runEngine } from "./roster-engine";
 import { requireRosterUser } from "./roster-guard";
-import { checkReplacement } from "./roster-replacement";
+import { applyCellChange, cellHardError, introducedWarnings, shortageRows } from "./roster-cell-edit";
+import { evaluateRoster } from "./roster-evaluation";
+import { checkReplacementDetailed } from "./roster-replacement";
 import {
+  CELL_DATE_MESSAGE,
+  CELL_WORKS_THAT_DAY_MESSAGE,
   isUniqueViolation,
   REPLACEMENT_WORKER_MISSING_MESSAGE,
   REQUEST_NOT_APPROVED_MESSAGE,
@@ -43,7 +65,9 @@ import {
   targetsTotalMessage,
 } from "./roster-rules";
 import {
+  loadCellContext,
   loadEngineInput,
+  loadLocationWorkers,
   loadReplacementContext,
   loadRequestLines,
   replacementCandidates,
@@ -125,14 +149,23 @@ async function lockRoster(
   return row ? { ...row, requestStatus: request.status } : null;
 }
 
-// A roster is read-only once its request is no longer approved, or once it is confirmed, and an
-// edit made on an old version would overwrite a newer one.
+// A roster is read-only once its request is no longer approved, or once it is confirmed.
+function statusError(row: { status: string; requestStatus: string }): string | null {
+  if (row.requestStatus !== "approved") return REQUEST_NOT_APPROVED_MESSAGE;
+  if (row.status === "confirmed") return ROSTER_CONFIRMED_MESSAGE;
+
+  return null;
+}
+
+// A roster that is read-only refuses every edit, and an edit made on an old version would overwrite
+// a newer one.
 function editError(
   row: { status: string; updatedAt: Date; requestStatus: string },
   version: string,
 ): string | null {
-  if (row.requestStatus !== "approved") return REQUEST_NOT_APPROVED_MESSAGE;
-  if (row.status === "confirmed") return ROSTER_CONFIRMED_MESSAGE;
+  const refused = statusError(row);
+
+  if (refused) return refused;
   if (row.updatedAt.toISOString() !== version) return ROSTER_CHANGED_MESSAGE;
 
   return null;
@@ -255,6 +288,7 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
         rosterId = existing.id;
 
         await tx.delete(rosterEdit).where(eq(rosterEdit.rosterId, rosterId));
+        await tx.delete(rosterCellEdit).where(eq(rosterCellEdit.rosterId, rosterId));
         await tx.delete(rosterConflict).where(eq(rosterConflict.rosterId, rosterId));
         await tx.delete(rosterAssignment).where(eq(rosterAssignment.rosterId, rosterId));
         await tx.delete(rosterShiftTarget).where(eq(rosterShiftTarget.rosterId, rosterId));
@@ -372,7 +406,7 @@ export async function replaceRosterWorker(input: ReplaceWorkerInput): Promise<Ro
       return { ok: false, formError: REPLACEMENT_WORKER_MISSING_MESSAGE };
     }
 
-    const check = checkReplacement({
+    const check = checkReplacementDetailed({
       row: context.row,
       candidate: {
         id: candidate.id,
@@ -386,8 +420,9 @@ export async function replaceRosterWorker(input: ReplaceWorkerInput): Promise<Ro
       rules: context.rules,
     });
 
-    if (!check.ok) {
-      return { ok: false, formError: check.reasons.join(" ") };
+    // Only the impossible reasons refuse. The rules the editor may knowingly break are returned.
+    if (check.hard.length > 0) {
+      return { ok: false, formError: check.hard.join(" ") };
     }
 
     await tx
@@ -412,7 +447,7 @@ export async function replaceRosterWorker(input: ReplaceWorkerInput): Promise<Ro
     // The new version, so a page loaded before this edit cannot write over it.
     await tx.update(roster).set({ updatedAt: new Date() }).where(eq(roster.id, data.rosterId));
 
-    return { ok: true };
+    return { ok: true, warnings: check.warnings };
   });
 
   if (result.ok) {
@@ -478,4 +513,500 @@ export async function listReplacementCandidates(input: {
   }
 
   return replacementCandidates(access, input.rosterId, input.lineId, input.fromWorkerId);
+}
+
+// ---- Cell edits. A cell is one worker on one day. Rules are warned about, never refused: only what
+// is impossible is refused, and nothing is written for a refusal.
+
+// A roster, line, or worker the context could not load, as the message the editor sees.
+function cellContextMessage(reason: Extract<CellContextResult, { ok: false }>["reason"]): string {
+  if (reason === "line") return ROSTER_LINE_MISSING_MESSAGE;
+  if (reason === "worker") return REPLACEMENT_WORKER_MISSING_MESSAGE;
+
+  return CELL_DATE_MESSAGE;
+}
+
+// The roster as the actor sees it, without taking any lock, for the read-only actions. Null when it
+// does not exist or is outside the actor's scope.
+async function visibleRoster(access: RequestAccess, rosterId: string) {
+  const [found] = await db
+    .select({ requestId: roster.requestId, status: roster.status })
+    .from(roster)
+    .where(eq(roster.id, rosterId));
+
+  if (!found) {
+    return null;
+  }
+
+  const [request] = await db
+    .select({
+      status: rosterRequest.status,
+      siteId: rosterRequest.siteId,
+      locationId: rosterRequest.locationId,
+    })
+    .from(rosterRequest)
+    .where(eq(rosterRequest.id, found.requestId));
+
+  if (!request || !canAccessRosterLocation(access, { id: request.locationId, siteId: request.siteId })) {
+    return null;
+  }
+
+  return { status: found.status, requestStatus: request.status, locationId: request.locationId };
+}
+
+const cellAt = (cells: EvalCell[], workerId: string, date: string): EvalCell | undefined =>
+  cells.find((cell) => cell.workerId === workerId && cell.date === date);
+
+const sameCell = (a: EvalCell | undefined, b: EvalCell | undefined): boolean =>
+  a === undefined ? b === undefined : b !== undefined && a.kind === b.kind && a.shiftId === b.shiftId;
+
+function evaluateCells(context: CellContext, cells: EvalCell[]) {
+  return evaluateRoster({
+    days: context.dates,
+    lines: context.lines,
+    workers: context.workers,
+    cells,
+    targets: context.targets,
+    rules: context.rules,
+    history: context.history,
+  });
+}
+
+type CellJudgement = { hard: string } | { hard: null; changes: CellChange[]; warnings: string[] };
+
+// The warnings the changes would introduce. before is the evaluation of the cells as they stand, so
+// a caller judging many changes against the same roster computes it once.
+function judgeChanges(
+  context: CellContext,
+  changes: CellChange[],
+  before = evaluateCells(context, context.cells),
+): CellJudgement {
+  const after = evaluateCells(context, changes.reduce(applyCellChange, context.cells));
+
+  return {
+    hard: null,
+    changes,
+    warnings: introducedWarnings(before, after).map((warning) => warning.message),
+  };
+}
+
+function judgeEdit(context: CellContext, input: PreviewCellInput): CellJudgement {
+  const { lineId, workerId, date, to: target } = input;
+  const order =
+    target.kind === "work" ? context.shifts.find((entry) => entry.id === target.shiftId)?.order : undefined;
+
+  const hard = cellHardError({
+    date,
+    days: context.dates,
+    workerActive: context.workers.some((entry) => entry.id === workerId && entry.active),
+    shiftKnown: target.kind !== "work" || order !== undefined,
+    rowsThatDay: context.cells.filter((cell) => cell.workerId === workerId && cell.date === date),
+    targetLineId: lineId,
+    // Clearing a cell books nothing, so another roster's work does not matter to it.
+    busyElsewhere:
+      target.kind !== "clear" &&
+      context.busy.some((entry) => entry.workerId === workerId && entry.date === date),
+  });
+
+  if (hard) {
+    return { hard };
+  }
+
+  const to: CellTarget =
+    target.kind === "work"
+      ? { kind: "work", shiftId: target.shiftId, shiftOrder: order ?? 0 }
+      : { kind: target.kind };
+
+  return judgeChanges(context, [{ lineId, workerId, date, to }]);
+}
+
+// The swap hands the old worker's work cell to the new worker and gives the old worker a day off.
+// The new worker may have an off cell, a break cell, or no cell that day, but not work.
+function judgeSwap(
+  context: CellContext,
+  input: Pick<SwapCellInput, "lineId" | "date" | "fromWorkerId" | "toWorkerId">,
+  before?: ReturnType<typeof evaluateCells>,
+): CellJudgement {
+  const { lineId, date, fromWorkerId, toWorkerId } = input;
+
+  if (!context.dates.includes(date)) {
+    return { hard: CELL_DATE_MESSAGE };
+  }
+
+  const from = context.cells.find(
+    (cell) =>
+      cell.workerId === fromWorkerId &&
+      cell.date === date &&
+      cell.lineId === lineId &&
+      cell.kind === "work",
+  );
+
+  if (!from || from.shiftId === null) {
+    return { hard: ROSTER_WORKER_MISSING_MESSAGE };
+  }
+
+  const rowsThatDay = context.cells.filter((cell) => cell.workerId === toWorkerId && cell.date === date);
+
+  const hard = cellHardError({
+    date,
+    days: context.dates,
+    workerActive: context.workers.some((entry) => entry.id === toWorkerId && entry.active),
+    shiftKnown: context.shifts.some((entry) => entry.id === from.shiftId),
+    rowsThatDay,
+    targetLineId: lineId,
+    busyElsewhere: context.busy.some((entry) => entry.workerId === toWorkerId && entry.date === date),
+  });
+
+  if (hard) {
+    return { hard };
+  }
+
+  if (rowsThatDay.some((cell) => cell.kind === "work")) {
+    return { hard: CELL_WORKS_THAT_DAY_MESSAGE };
+  }
+
+  return judgeChanges(
+    context,
+    [
+      { lineId, workerId: fromWorkerId, date, to: { kind: "off" } },
+      {
+        lineId,
+        workerId: toWorkerId,
+        date,
+        to: { kind: "work", shiftId: from.shiftId, shiftOrder: from.shiftOrder ?? 0 },
+      },
+    ],
+    before,
+  );
+}
+
+// Writes each change, with its audit row, then rewrites the roster's shortages for the new cells and
+// bumps the version. Returns false, with nothing written, when no change alters a cell.
+async function saveCells(
+  tx: Transaction,
+  input: { rosterId: string; userId: string; context: CellContext; changes: CellChange[] },
+): Promise<boolean> {
+  const { rosterId, userId, context } = input;
+  let cells = context.cells;
+  let wrote = false;
+
+  for (const change of input.changes) {
+    const before = cellAt(cells, change.workerId, change.date);
+
+    cells = applyCellChange(cells, change);
+
+    const after = cellAt(cells, change.workerId, change.date);
+
+    if (sameCell(before, after)) {
+      continue;
+    }
+
+    wrote = true;
+
+    const match = and(
+      eq(rosterAssignment.rosterId, rosterId),
+      eq(rosterAssignment.workerId, change.workerId),
+      eq(rosterAssignment.workDate, change.date),
+    );
+
+    if (!after) {
+      await tx.delete(rosterAssignment).where(match);
+    } else if (!before) {
+      await tx.insert(rosterAssignment).values({
+        rosterId,
+        requestLineId: change.lineId,
+        workerId: change.workerId,
+        workDate: change.date,
+        kind: after.kind,
+        shiftId: after.shiftId,
+      });
+    } else {
+      await tx
+        .update(rosterAssignment)
+        .set({ kind: after.kind, shiftId: after.shiftId })
+        .where(match);
+    }
+
+    await tx.insert(rosterCellEdit).values({
+      rosterId,
+      requestLineId: change.lineId,
+      workerId: change.workerId,
+      workDate: change.date,
+      beforeKind: before?.kind ?? null,
+      beforeShiftId: before?.shiftId ?? null,
+      afterKind: after?.kind ?? null,
+      afterShiftId: after?.shiftId ?? null,
+      editedBy: userId,
+    });
+  }
+
+  if (!wrote) {
+    return false;
+  }
+
+  const shortages = shortageRows({
+    targets: context.targets,
+    cells,
+    previous: context.previousConflicts,
+  });
+
+  await tx.delete(rosterConflict).where(eq(rosterConflict.rosterId, rosterId));
+
+  if (shortages.length > 0) {
+    await tx.insert(rosterConflict).values(
+      shortages.map((row) => ({
+        rosterId,
+        requestLineId: row.lineId,
+        workDate: row.date,
+        shiftId: row.shiftId,
+        code: "shortage",
+        shortfall: row.shortfall,
+        message: row.message,
+      })),
+    );
+  }
+
+  // The new version, so a page loaded before this edit cannot write over it.
+  await tx.update(roster).set({ updatedAt: new Date() }).where(eq(roster.id, rosterId));
+
+  return true;
+}
+
+export async function editRosterCell(input: EditCellInput): Promise<RosterActionResult> {
+  const { user, access } = await requireRosterUser();
+  const parsed = editCellSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return invalidInput(parsed.error);
+  }
+
+  const data = parsed.data;
+  let changed = false;
+
+  const result = await db.transaction(async (tx): Promise<RosterActionResult> => {
+    const locked = await lockRoster(tx, access, data.rosterId, { serialize: true });
+
+    if (!locked) {
+      return { ok: false, formError: ROSTER_NOT_FOUND_MESSAGE };
+    }
+
+    const refused = editError(locked, data.version);
+
+    if (refused) {
+      return { ok: false, formError: refused };
+    }
+
+    const loaded = await loadCellContext(tx, {
+      rosterId: data.rosterId,
+      lineId: data.lineId,
+      workerIds: [data.workerId],
+    });
+
+    if (!loaded.ok) {
+      return { ok: false, formError: cellContextMessage(loaded.reason) };
+    }
+
+    const judged = judgeEdit(loaded.context, data);
+
+    if (judged.hard !== null) {
+      return { ok: false, formError: judged.hard };
+    }
+
+    changed = await saveCells(tx, {
+      rosterId: data.rosterId,
+      userId: user.id,
+      context: loaded.context,
+      changes: judged.changes,
+    });
+
+    return { ok: true, warnings: changed ? judged.warnings : [] };
+  });
+
+  if (result.ok && changed) {
+    revalidateRoster(data.rosterId);
+  }
+
+  return result;
+}
+
+export async function swapRosterCellWorker(input: SwapCellInput): Promise<RosterActionResult> {
+  const { user, access } = await requireRosterUser();
+  const parsed = swapCellSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return invalidInput(parsed.error);
+  }
+
+  const data = parsed.data;
+
+  const result = await db.transaction(async (tx): Promise<RosterActionResult> => {
+    const locked = await lockRoster(tx, access, data.rosterId, { serialize: true });
+
+    if (!locked) {
+      return { ok: false, formError: ROSTER_NOT_FOUND_MESSAGE };
+    }
+
+    const refused = editError(locked, data.version);
+
+    if (refused) {
+      return { ok: false, formError: refused };
+    }
+
+    const loaded = await loadCellContext(tx, {
+      rosterId: data.rosterId,
+      lineId: data.lineId,
+      workerIds: [data.toWorkerId],
+    });
+
+    if (!loaded.ok) {
+      return { ok: false, formError: cellContextMessage(loaded.reason) };
+    }
+
+    const judged = judgeSwap(loaded.context, data);
+
+    if (judged.hard !== null) {
+      return { ok: false, formError: judged.hard };
+    }
+
+    await saveCells(tx, {
+      rosterId: data.rosterId,
+      userId: user.id,
+      context: loaded.context,
+      changes: judged.changes,
+    });
+
+    return { ok: true, warnings: judged.warnings };
+  });
+
+  if (result.ok) {
+    revalidateRoster(data.rosterId);
+  }
+
+  return result;
+}
+
+// Read-only. The active workers of the location who could take over one cell, each with why not or
+// the rules the swap would break. Nothing visible gives an empty list.
+export async function listCellCandidates(input: CellCandidatesInput): Promise<CellCandidate[]> {
+  const { access } = await requireRosterUser();
+  const parsed = cellCandidatesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  const data = parsed.data;
+  const visible = await visibleRoster(access, data.rosterId);
+
+  if (!visible) {
+    return [];
+  }
+
+  const pool = (await loadLocationWorkers(db, visible.locationId)).filter(
+    (entry) => entry.id !== data.fromWorkerId,
+  );
+
+  if (pool.length === 0) {
+    return [];
+  }
+
+  const loaded = await loadCellContext(db, {
+    rosterId: data.rosterId,
+    lineId: data.lineId,
+    workerIds: pool.map((entry) => entry.id),
+  });
+
+  if (!loaded.ok) {
+    return [];
+  }
+
+  const { context } = loaded;
+  const before = evaluateCells(context, context.cells);
+
+  return pool.map((entry) => {
+    const judged = judgeSwap(
+      context,
+      { lineId: data.lineId, date: data.date, fromWorkerId: data.fromWorkerId, toWorkerId: entry.id },
+      before,
+    );
+
+    return {
+      workerId: entry.id,
+      employeeId: entry.employeeId,
+      name: entry.name,
+      positionNames: entry.positionNames,
+      hard: judged.hard,
+      warnings: judged.hard === null ? judged.warnings : [],
+      inRoster: context.cells.some((cell) => cell.workerId === entry.id),
+    };
+  });
+}
+
+// Read-only. The active workers of the roster's location, for the Add worker dialog. Nothing visible
+// gives an empty list.
+export async function listAddableWorkers(input: {
+  rosterId: string;
+  lineId: string;
+}): Promise<{ workerId: string; employeeId: string; name: string; positionNames: string[] }[]> {
+  const { access } = await requireRosterUser();
+
+  if (!parseRequestId(input?.rosterId) || !parseRequestId(input?.lineId)) {
+    return [];
+  }
+
+  const visible = await visibleRoster(access, input.rosterId);
+
+  if (!visible) {
+    return [];
+  }
+
+  return (await loadLocationWorkers(db, visible.locationId)).map((entry) => ({
+    workerId: entry.id,
+    employeeId: entry.employeeId,
+    name: entry.name,
+    positionNames: entry.positionNames,
+  }));
+}
+
+// Read-only. What editRosterCell would refuse or warn about for this change, without writing and
+// without a version. Anything not visible answers as a roster that was not found.
+export async function previewCellChange(
+  input: PreviewCellInput,
+): Promise<{ hard: string | null; warnings: string[] }> {
+  const { access } = await requireRosterUser();
+  const parsed = previewCellSchema.safeParse(input);
+  const notFound = { hard: ROSTER_NOT_FOUND_MESSAGE, warnings: [] };
+
+  if (!parsed.success) {
+    return notFound;
+  }
+
+  const data = parsed.data;
+  const visible = await visibleRoster(access, data.rosterId);
+
+  if (!visible) {
+    return notFound;
+  }
+
+  const refused = statusError(visible);
+
+  if (refused) {
+    return { hard: refused, warnings: [] };
+  }
+
+  const loaded = await loadCellContext(db, {
+    rosterId: data.rosterId,
+    lineId: data.lineId,
+    workerIds: [data.workerId],
+  });
+
+  if (!loaded.ok) {
+    return { hard: cellContextMessage(loaded.reason), warnings: [] };
+  }
+
+  const judged = judgeEdit(loaded.context, data);
+
+  return judged.hard === null
+    ? { hard: null, warnings: judged.warnings }
+    : { hard: judged.hard, warnings: [] };
 }

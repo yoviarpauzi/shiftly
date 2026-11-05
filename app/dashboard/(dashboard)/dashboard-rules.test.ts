@@ -16,6 +16,7 @@ import {
   lastDays,
   rateDelta,
   sliceSeries,
+  spreadEndLabels,
   tickDates,
   weekChartCopy,
   weekDays,
@@ -903,5 +904,40 @@ describe("weekChartCopy", () => {
     expect(weekChartCopy("admin_site", kpis({ openConflicts: 1, conflictedRosters: 1 })).caption).toBe(
       "1 conflict in the draft roster",
     );
+  });
+});
+
+describe("spreadEndLabels", () => {
+  const bounds = { top: 8, bottom: 200, gap: 16 };
+
+  it("leaves labels that are far apart where the lines end", () => {
+    expect(spreadEndLabels(50, 180, bounds)).toEqual({ present: 50, notPresent: 180 });
+  });
+
+  it("spreads two close labels evenly around their middle, present above", () => {
+    expect(spreadEndLabels(100, 104, bounds)).toEqual({ present: 94, notPresent: 110 });
+  });
+
+  it("keeps present above when the lines end on the same height", () => {
+    expect(spreadEndLabels(100, 100, bounds)).toEqual({ present: 92, notPresent: 108 });
+  });
+
+  it("puts the lower label above the baseline when both lines end at 0", () => {
+    const labels = spreadEndLabels(200, 200, bounds);
+
+    expect(labels).toEqual({ present: 184, notPresent: 200 });
+    expect(labels.notPresent - labels.present).toBe(16);
+  });
+
+  it("shifts both labels up when only the lower one would cross the baseline", () => {
+    expect(spreadEndLabels(195, 200, bounds)).toEqual({ present: 184, notPresent: 200 });
+  });
+
+  it("keeps the gap and moves both down when the upper label would cross the top", () => {
+    expect(spreadEndLabels(8, 8, bounds)).toEqual({ present: 8, notPresent: 24 });
+  });
+
+  it("spreads the other way when not present is the higher line", () => {
+    expect(spreadEndLabels(104, 100, bounds)).toEqual({ present: 110, notPresent: 94 });
   });
 });

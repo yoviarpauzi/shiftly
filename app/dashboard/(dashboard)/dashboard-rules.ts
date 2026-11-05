@@ -8,6 +8,8 @@ import type {
   DashboardRole,
   KpiCard,
   SeriesPoint,
+  EndLabelBounds,
+  EndLabelYs,
   SeriesRange,
   WeekChartCopy,
 } from "@/types/dashboard";
@@ -495,4 +497,42 @@ export function weekChartCopy(role: DashboardRole, kpis: DashboardKpis): WeekCha
         : `${count} in ${rosters} ${plural(rosters, "draft roster", "draft rosters")}`,
     tone: "danger",
   };
+}
+
+// The Y of each end label of the attendance chart. Two labels closer than `gap` are spread evenly
+// around their middle, present above when the lines tie. The pair is then moved as a whole into
+// [top, bottom], so a label never sits on the X axis ticks when both lines end at 0.
+export function spreadEndLabels(
+  presentY: number,
+  notPresentY: number,
+  { top, bottom, gap }: EndLabelBounds,
+): EndLabelYs {
+  const presentIsAbove = presentY <= notPresentY;
+  let upper = Math.min(presentY, notPresentY);
+  let lower = Math.max(presentY, notPresentY);
+
+  if (lower - upper < gap) {
+    const middle = (upper + lower) / 2;
+
+    upper = middle - gap / 2;
+    lower = middle + gap / 2;
+  }
+
+  if (lower > bottom) {
+    const shift = lower - bottom;
+
+    upper -= shift;
+    lower -= shift;
+  }
+
+  if (upper < top) {
+    const shift = top - upper;
+
+    upper += shift;
+    lower += shift;
+  }
+
+  return presentIsAbove
+    ? { present: upper, notPresent: lower }
+    : { present: lower, notPresent: upper };
 }

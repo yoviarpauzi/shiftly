@@ -164,6 +164,18 @@ export type WeekChartProps = {
 
 export type WeekChartCopy = Omit<WeekChartProps, "points">;
 
+export type EndLabelBounds = {
+  top: number;
+  bottom: number;
+  // The least distance between the two labels.
+  gap: number;
+};
+
+export type EndLabelYs = {
+  present: number;
+  notPresent: number;
+};
+
 export type AttendanceEndLabelsProps = {
   last: SeriesPoint;
 };

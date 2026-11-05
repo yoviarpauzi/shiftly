@@ -9,6 +9,7 @@ import {
   formatDayLabel,
   formatMonthDay,
   sliceSeries,
+  spreadEndLabels,
   tickDates,
 } from "@/app/dashboard/(dashboard)/dashboard-rules";
 import {
@@ -65,6 +66,9 @@ const CHART_MARGIN = { top: 8, right: 104, bottom: 0, left: 0 };
 // Two labels closer than this many pixels are pushed apart so they stay readable.
 const LABEL_GAP = 16;
 
+// A label stays this far above the baseline, so its text clears the X axis tick labels.
+const LABEL_BASELINE_INSET = 4;
+
 function isView(value: unknown): value is AttendanceView {
   return VIEWS.some((view) => view.value === value);
 }
@@ -86,18 +90,13 @@ function EndLabels({ last }: AttendanceEndLabelsProps) {
     return null;
   }
 
-  // Present is normally the higher line. When the two end close together, spread them evenly.
-  let presentLabelY = presentY;
-  let notPresentLabelY = notPresentY;
-  const spread = Math.abs(presentY - notPresentY);
-
-  if (spread < LABEL_GAP) {
-    const shift = (LABEL_GAP - spread) / 2;
-    const presentIsAbove = presentY <= notPresentY;
-
-    presentLabelY += presentIsAbove ? -shift : shift;
-    notPresentLabelY += presentIsAbove ? shift : -shift;
-  }
+  // Present is normally the higher line. The labels are kept apart and inside the plot, so two
+  // lines that end at 0 do not push a label onto the X axis ticks.
+  const labelYs = spreadEndLabels(presentY, notPresentY, {
+    top: plot.y,
+    bottom: plot.y + plot.height - LABEL_BASELINE_INSET,
+    gap: LABEL_GAP,
+  });
 
   const x = plot.x + plot.width + 8;
 
@@ -105,12 +104,12 @@ function EndLabels({ last }: AttendanceEndLabelsProps) {
     <g>
       <circle cx={plot.x + plot.width} cy={presentY} r={3} fill="var(--color-present)" />
       <circle cx={plot.x + plot.width} cy={notPresentY} r={3} fill="var(--color-notPresent)" />
-      <text x={x} y={presentLabelY} dominantBaseline="central" className="fill-foreground text-xs">
+      <text x={x} y={labelYs.present} dominantBaseline="central" className="fill-foreground text-xs">
         Present {last.present}
       </text>
       <text
         x={x}
-        y={notPresentLabelY}
+        y={labelYs.notPresent}
         dominantBaseline="central"
         className="fill-foreground text-xs"
       >

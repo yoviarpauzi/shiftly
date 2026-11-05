@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export type NavLink = {
   label: string;
   href: string;
@@ -71,4 +73,8 @@ export type AuthLinkProps = {
   href: string;
   label: string;
   className?: string;
+};
+
+export type HeaderProps = {
+  action: ReactNode;
 };

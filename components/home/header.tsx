@@ -1,11 +1,33 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import AuthButton from "@/components/home/auth-button";
+import { useSyncExternalStore } from "react";
 import { NAV_LINKS } from "@/components/home/content";
+import type { HeaderProps } from "@/types/home";
+import { cn } from "cn";
 
-export default function Header() {
+function subscribeToScroll(onChange: () => void) {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
+export default function Header({ action }: HeaderProps) {
+  const scrolled = useSyncExternalStore(
+    subscribeToScroll,
+    () => window.scrollY > 0,
+    () => false,
+  );
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background">
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 h-16 border-b transition-[background-color,border-color,box-shadow] duration-150 ease-out",
+        scrolled
+          ? "border-border bg-background shadow-sm"
+          : "border-transparent bg-transparent",
+      )}
+    >
       <div className="container relative flex h-full items-center justify-between">
         <Link
           href="/"
@@ -22,7 +44,10 @@ export default function Header() {
           Shiftly
         </Link>
 
-        <nav aria-label="Primary" className="absolute left-1/2 hidden -translate-x-1/2 md:block">
+        <nav
+          aria-label="Primary"
+          className="absolute left-1/2 hidden -translate-x-1/2 md:block"
+        >
           <ul className="flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
@@ -37,7 +62,7 @@ export default function Header() {
           </ul>
         </nav>
 
-        <AuthButton className="h-11 rounded-lg px-4 sm:h-9 lg:h-8 lg:px-2.5" />
+        {action}
       </div>
     </header>
   );

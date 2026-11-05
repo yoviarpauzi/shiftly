@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type {
   CountCellProps,
   LocationRow,
+  NumberHeaderProps,
   RecentRequestRow,
   SiteRow,
 } from "@/types/dashboard";
@@ -35,7 +36,7 @@ function CountCell({ value, danger = false }: CountCellProps) {
   );
 }
 
-function NumberHeader({ label }: { label: string }) {
+function NumberHeader({ label }: NumberHeaderProps) {
   return <div className="text-right">{label}</div>;
 }
 

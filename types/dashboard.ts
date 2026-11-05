@@ -183,3 +183,11 @@ export type CountCellProps = {
   // A value above 0 gets the destructive color, for conflicts.
   danger?: boolean;
 };
+
+export type NumberHeaderProps = {
+  label: string;
+};
+
+export type IdentifiedRow = {
+  id: string;
+};

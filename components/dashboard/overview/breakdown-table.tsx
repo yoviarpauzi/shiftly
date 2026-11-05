@@ -10,7 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { BreakdownTableProps, SummaryTableProps } from "@/types/dashboard";
+import type {
+  BreakdownTableProps,
+  IdentifiedRow,
+  SummaryTableProps,
+} from "@/types/dashboard";
 import {
   locationColumns,
   requestColumns,
@@ -62,7 +66,7 @@ function SummaryTable<TData extends RowData>({ data, columns, getRowId }: Summar
   );
 }
 
-function rowId(row: { id: string }) {
+function rowId(row: IdentifiedRow) {
   return row.id;
 }
 

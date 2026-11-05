@@ -9,7 +9,7 @@ import { createUser, updateUser } from "@/app/dashboard/users/actions";
 import { assignableRoles } from "@/app/dashboard/users/user-access";
 import { ROLE_LABELS } from "@/lib/roles";
 import type { AppRole } from "@/types/roles";
-import type { LocationOption, UserAccess, UserFormDialogProps } from "@/types/users";
+import type { UserFormDialogProps } from "@/types/users";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,13 +60,6 @@ function defaultRole(role: string | null | undefined, roles: AppRole[]): AppRole
   return isAppRole(role) && roles.includes(role) ? role : "";
 }
 
-// Superadmin sees which site each location belongs to. HO sees its own locations only.
-function locationLabel(location: LocationOption, access: UserAccess) {
-  return access.role === "superadmin"
-    ? `${location.siteName} — ${location.name}`
-    : location.name;
-}
-
 export function UserFormDialog({
   user,
   access,
@@ -79,6 +72,19 @@ export function UserFormDialog({
   const roles = assignableRoles(access);
   const hasRoleChoice = roles.length > 1;
   const initialRole = defaultRole(user?.role, roles);
+
+  // The site only narrows the location list, so it lives outside the form values. HO has one site, and
+  // superadmin starts on the site of the user's current location when editing.
+  const [locationSiteId, setLocationSiteId] = useState(() => {
+    if (access.role === "ho") {
+      return choices.sites[0]?.id ?? "";
+    }
+
+    return (
+      choices.locations.find((location) => location.id === user?.locationId)
+        ?.siteId ?? ""
+    );
+  });
 
   // The form uses the update shape, where password is optional, so one form type fits both schemas.
   const defaultValues: UpdateUserInput = {
@@ -281,6 +287,7 @@ export function UserFormDialog({
                               field.handleChange(value);
                               form.setFieldValue("siteId", null);
                               form.setFieldValue("locationId", null);
+                              setLocationSiteId("");
                             }}
                             items={roles.map((role) => ({
                               value: role,
@@ -367,10 +374,45 @@ export function UserFormDialog({
                             <p className="text-sm">{choices.sites[0].name}</p>
                           </Field>
                         )}
+                        {access.role === "superadmin" && role === "admin_site" && (
+                          <Field>
+                            <FieldLabel htmlFor="location-site">Site</FieldLabel>
+                            <Select
+                              value={locationSiteId}
+                              onValueChange={(value) => {
+                                if (value && value !== locationSiteId) {
+                                  setLocationSiteId(value);
+                                  form.setFieldValue("locationId", null);
+                                }
+                              }}
+                              items={choices.sites.map((site) => ({
+                                value: site.id,
+                                label: site.name,
+                              }))}
+                              disabled={isSubmitting}
+                            >
+                              <SelectTrigger id="location-site" className="w-full">
+                                <SelectValue placeholder="Choose a site" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {choices.sites.map((site) => (
+                                    <SelectItem key={site.id} value={site.id}>
+                                      {site.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
                         {role === "admin_site" && (
                           <form.Field name="locationId">
                             {(field) => {
                               const isInvalid = field.state.meta.errors.length > 0;
+                              const siteLocations = choices.locations.filter(
+                                (location) => location.siteId === locationSiteId,
+                              );
 
                               return (
                                 <Field data-invalid={isInvalid || undefined}>
@@ -382,27 +424,33 @@ export function UserFormDialog({
                                         field.handleChange(value);
                                       }
                                     }}
-                                    items={choices.locations.map((location) => ({
+                                    items={siteLocations.map((location) => ({
                                       value: location.id,
-                                      label: locationLabel(location, access),
+                                      label: location.name,
                                     }))}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || locationSiteId === ""}
                                   >
                                     <SelectTrigger
                                       id={field.name}
                                       aria-invalid={isInvalid || undefined}
                                       className="w-full"
                                     >
-                                      <SelectValue placeholder="Choose a location" />
+                                      <SelectValue
+                                        placeholder={
+                                          locationSiteId === ""
+                                            ? "Choose a site first"
+                                            : "Choose a location"
+                                        }
+                                      />
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectGroup>
-                                        {choices.locations.map((location) => (
+                                        {siteLocations.map((location) => (
                                           <SelectItem
                                             key={location.id}
                                             value={location.id}
                                           >
-                                            {locationLabel(location, access)}
+                                            {location.name}
                                           </SelectItem>
                                         ))}
                                       </SelectGroup>

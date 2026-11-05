@@ -27,7 +27,7 @@ export default function SignInBand() {
                 {BAND_COPY.detail}
               </p>
             </div>
-            <AuthButton className="h-12 w-full rounded-lg px-6 text-base sm:h-11 md:w-auto md:px-5 lg:shrink-0" />
+            <AuthButton className="h-12 w-full rounded-lg px-6 text-base sm:h-11 md:w-auto md:px-5 lg:shrink-0 focus-visible:ring-offset-secondary" />
           </div>
         </div>
       </div>

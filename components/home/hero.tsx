@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AuthButton from "@/components/home/auth-button";
+import AuthButton, { CTA_FOCUS_CLASS } from "@/components/home/auth-button";
 import { HERO_COPY } from "@/components/home/content";
 import ProductWindow from "@/components/home/product-window";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export default function Hero() {
             href="#how-it-works"
             className={cn(
               buttonVariants({ variant: "secondary" }),
+              CTA_FOCUS_CLASS,
               BUTTON_CLASS,
             )}
           >

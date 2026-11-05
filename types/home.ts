@@ -58,3 +58,9 @@ export type FooterCopy = {
 export type AuthButtonProps = {
   className?: string;
 };
+
+export type AuthLinkProps = {
+  href: string;
+  label: string;
+  className?: string;
+};

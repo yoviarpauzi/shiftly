@@ -20,7 +20,7 @@ export default function ProductWindow() {
             alt="Dashboard with attendance and open conflicts"
             width={1920}
             height={1120}
-            sizes="(min-width: 1024px) 960px, (min-width: 768px) 704px, 480px"
+            sizes="(min-width: 1024px) 960px, (min-width: 640px) calc(100vw - 4rem), max(480px, calc(100vw - 2.5rem))"
             priority
             className="block h-auto w-[480px] max-w-none min-w-full md:w-full"
           />
@@ -34,7 +34,7 @@ export default function ProductWindow() {
         height={640}
         sizes="(min-width: 1024px) 240px, (min-width: 768px) 180px, 120px"
         aria-hidden="true"
-        className="pointer-events-none absolute top-[-46px] right-[-10px] w-[120px] max-w-none md:top-[-64px] md:right-[-16px] md:w-[180px] lg:top-[-80px] lg:right-[-40px] lg:w-[240px]"
+        className="pointer-events-none absolute top-[-46px] right-[-10px] w-[120px] max-w-none md:top-[-64px] md:right-[-16px] md:w-[180px] lg:top-[-80px] lg:right-[-16px] lg:w-[240px] xl:right-[-40px]"
       />
       <Image
         src="/landing/doodle-attendance.webp"
@@ -43,7 +43,7 @@ export default function ProductWindow() {
         height={640}
         sizes="(min-width: 1024px) 260px, (min-width: 768px) 200px, 130px"
         aria-hidden="true"
-        className="pointer-events-none absolute top-[174px] left-0 w-[130px] max-w-none md:top-[230px] md:left-[-24px] md:w-[200px] lg:top-[310px] lg:left-[-90px] lg:w-[260px]"
+        className="pointer-events-none absolute top-[174px] left-0 w-[130px] max-w-none md:top-[230px] md:left-[-24px] md:w-[200px] lg:top-[310px] lg:left-[-24px] lg:w-[260px] xl:left-[-90px]"
       />
     </div>
   );

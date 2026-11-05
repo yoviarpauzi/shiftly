@@ -68,7 +68,7 @@ export default function HowItWorks() {
               alt="A weekly roster with one conflict flagged"
               width={1512}
               height={1120}
-              sizes="(min-width: 1024px) 756px, (min-width: 768px) calc(100vw - 4rem), calc(100vw - 2.5rem)"
+              sizes="(min-width: 1264px) 756px, (min-width: 1024px) calc(100vw - 508px), (min-width: 640px) min(756px, calc(100vw - 4rem)), calc(100vw - 2.5rem)"
               className="block h-auto w-full"
             />
           </div>

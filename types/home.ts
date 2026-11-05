@@ -10,9 +10,17 @@ export type HomeSectionHeading = {
 
 export type HeroCopy = {
   lead: string;
-  highlight: string;
   tail: string;
   subtitle: string;
+};
+
+export type HeroWord = {
+  word: string;
+  dotClass: string;
+};
+
+export type RotatingWordProps = {
+  words: HeroWord[];
 };
 
 export type HomeStep = {

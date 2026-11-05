@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import * as content from "@/components/home/content";
 import {
   FOOTER_COPY,
+  HERO_COPY,
+  HERO_WORDS,
   NAV_LINKS,
   ROLES,
   RULES,
@@ -21,6 +23,26 @@ function collectStrings(value: unknown, found: string[] = []): string[] {
 }
 
 describe("landing copy", () => {
+  it("splits the headline into two lines around the rotating word", () => {
+    expect(HERO_COPY.lead).toBe("Rosters that");
+    expect(HERO_COPY.tail).toBe("the rules.");
+  });
+
+  it("rotates through four verbs and starts on follow", () => {
+    expect(HERO_WORDS.map((entry) => entry.word)).toEqual([
+      "follow",
+      "respect",
+      "honor",
+      "meet",
+    ]);
+  });
+
+  it("gives each rotating word its own dot colour from a theme token", () => {
+    const dots = HERO_WORDS.map((entry) => entry.dotClass);
+    expect(new Set(dots).size).toBe(HERO_WORDS.length);
+    for (const dot of dots) expect(dot).toMatch(/^bg-chart-[1-5]$/);
+  });
+
   it("lists the four words of the strip", () => {
     expect(WORDS).toEqual(["Requests", "Rosters", "Attendance", "Work rules"]);
   });

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import AuthButton, { CTA_FOCUS_CLASS } from "@/components/home/auth-button";
-import { HERO_COPY } from "@/components/home/content";
+import { HERO_COPY, HERO_WORDS } from "@/components/home/content";
 import ProductWindow from "@/components/home/product-window";
+import RotatingWord from "@/components/home/rotating-word";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "cn";
 
@@ -11,17 +12,13 @@ const BUTTON_CLASS =
 export default function Hero() {
   return (
     <section className="overflow-x-clip pt-10 pb-6 sm:pt-[72px] lg:pb-2.5">
-      <div className="home-container text-center">
-        <h1 className="flex flex-wrap items-center justify-center gap-x-[0.25em] text-[46px] leading-[50px] font-bold tracking-[-0.03em] min-[360px]:text-[52px] min-[360px]:leading-[56px] sm:text-[72px] sm:leading-[78px] lg:text-[88px] lg:leading-[96px]">
-          <span>{HERO_COPY.lead}</span>{" "}
-          <span className="inline-flex items-center gap-[0.18em] rounded-full bg-secondary px-[0.27em] py-[0.04em]">
-            <span
-              className="size-[0.5em] shrink-0 rounded-full bg-primary"
-              aria-hidden="true"
-            />
-            <span className="text-foreground">{HERO_COPY.highlight}</span>
-          </span>{" "}
-          <span>{HERO_COPY.tail}</span>
+      <div className="container text-center">
+        <h1 className="flex flex-col items-center text-[46px] leading-[50px] font-bold tracking-[-0.03em] min-[360px]:text-[52px] min-[360px]:leading-[56px] sm:text-[72px] sm:leading-[78px] lg:text-[88px] lg:leading-[96px]">
+          <span>{HERO_COPY.lead}</span>
+          <span className="flex flex-wrap items-center justify-center gap-x-[0.25em]">
+            <RotatingWord words={HERO_WORDS} />
+            <span>{HERO_COPY.tail}</span>
+          </span>
         </h1>
 
         <p className="mx-auto mt-5 max-w-[740px] text-[17px] leading-[26px] text-muted-foreground sm:mt-7 sm:text-[22px] sm:leading-8">

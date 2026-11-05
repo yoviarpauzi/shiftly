@@ -3,6 +3,7 @@ import type {
   ConflictExample,
   FooterCopy,
   HeroCopy,
+  HeroWord,
   HomeRole,
   HomeRule,
   HomeSectionHeading,
@@ -18,11 +19,20 @@ export const NAV_LINKS: NavLink[] = [
 
 export const HERO_COPY: HeroCopy = {
   lead: "Rosters that",
-  highlight: "follow",
   tail: "the rules.",
   subtitle:
     "Shiftly builds each location's roster from the requests you approve, and records any rule it cannot meet, with the reason.",
 };
+
+// The verb in the headline pill, in rotation order. The first word is the one shown
+// before the rotation starts and the one kept for reduced motion. Each dot colour is a
+// theme token written out in full so Tailwind can find the class.
+export const HERO_WORDS: HeroWord[] = [
+  { word: "follow", dotClass: "bg-chart-1" },
+  { word: "respect", dotClass: "bg-chart-2" },
+  { word: "honor", dotClass: "bg-chart-3" },
+  { word: "meet", dotClass: "bg-chart-4" },
+];
 
 export const WORDS: string[] = [
   "Requests",

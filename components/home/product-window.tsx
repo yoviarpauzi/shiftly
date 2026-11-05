@@ -1,4 +1,5 @@
 import Image from "next/image";
+import DashboardVideo from "@/components/home/dashboard-video";
 
 export default function ProductWindow() {
   return (
@@ -18,15 +19,18 @@ export default function ProductWindow() {
           </span>
         </div>
         <div className="h-60 overflow-hidden md:h-auto">
-          <Image
-            src="/landing/dashboard-window.webp"
-            alt="Dashboard with attendance and open conflicts"
-            width={1920}
-            height={1120}
-            sizes="(min-width: 1024px) 960px, (min-width: 640px) calc(100vw - 4rem), max(480px, calc(100vw - 2.5rem))"
-            priority
-            className="block h-auto w-[480px] max-w-none min-w-full md:w-full"
-          />
+          <div className="relative w-[480px] max-w-none min-w-full md:w-full">
+            <Image
+              src="/landing/dashboard-demo.webp"
+              alt="Dashboard with attendance and open conflicts"
+              width={1440}
+              height={780}
+              sizes="(min-width: 1024px) 960px, (min-width: 640px) calc(100vw - 4rem), max(480px, calc(100vw - 2.5rem))"
+              priority
+              className="block h-auto w-full"
+            />
+            <DashboardVideo />
+          </div>
         </div>
       </div>
 

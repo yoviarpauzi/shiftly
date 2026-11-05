@@ -41,7 +41,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { createUserSchema, updateUserSchema, type UpdateUserInput } from "@/validation/users";
+import {
+  createUserSchema,
+  updateUserSchema,
+  type UpdateUserInput,
+} from "@/validation/users";
 
 const ROLES: readonly string[] = Object.keys(ROLE_LABELS);
 
@@ -52,7 +56,10 @@ function isAppRole(role: string | null | undefined): role is AppRole {
 // The only role the actor can assign is fixed, so the form starts on it (HO assigns admin_site). When the actor
 // has a choice, the form starts on the user's own role if it is assignable, and otherwise empty so the user must
 // pick one. It never preselects a role, which would let a save grant superadmin by default.
-function defaultRole(role: string | null | undefined, roles: AppRole[]): AppRole | "" {
+function defaultRole(
+  role: string | null | undefined,
+  roles: AppRole[],
+): AppRole | "" {
   if (roles.length === 1) {
     return roles[0];
   }
@@ -94,11 +101,14 @@ export function UserFormDialog({
     // The empty role is deliberate and fails the schema's "Choose a role" check on submit.
     role: initialRole as AppRole,
     siteId: initialRole === "ho" ? (user?.siteId ?? null) : null,
-    locationId: initialRole === "admin_site" ? (user?.locationId ?? null) : null,
+    locationId:
+      initialRole === "admin_site" ? (user?.locationId ?? null) : null,
   };
 
   // The two schemas differ only in password, so the ternary's union type is narrowed to the form's shape.
-  const schema: StandardSchemaV1<UpdateUserInput> = user ? updateUserSchema : createUserSchema;
+  const schema: StandardSchemaV1<UpdateUserInput> = user
+    ? updateUserSchema
+    : createUserSchema;
 
   const form = useForm({
     defaultValues,
@@ -175,6 +185,7 @@ export function UserFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="User name"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
@@ -202,6 +213,7 @@ export function UserFormDialog({
                             type="email"
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="User email"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
@@ -229,7 +241,9 @@ export function UserFormDialog({
                               type={showPassword ? "text" : "password"}
                               autoComplete="new-password"
                               placeholder={
-                                user ? "Leave blank to keep the current password" : undefined
+                                user
+                                  ? "Leave blank to keep the current password"
+                                  : "Enter a password for the new user"
                               }
                               value={field.state.value ?? ""}
                               onBlur={field.handleBlur}
@@ -244,11 +258,15 @@ export function UserFormDialog({
                                 type="button"
                                 size="icon-xs"
                                 aria-label={
-                                  showPassword ? "Hide password" : "Show password"
+                                  showPassword
+                                    ? "Hide password"
+                                    : "Show password"
                                 }
                                 aria-pressed={showPassword}
                                 disabled={isSubmitting}
-                                onClick={() => setShowPassword((current) => !current)}
+                                onClick={() =>
+                                  setShowPassword((current) => !current)
+                                }
                               >
                                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                               </InputGroupButton>
@@ -325,11 +343,14 @@ export function UserFormDialog({
                         {access.role === "superadmin" && role === "ho" && (
                           <form.Field name="siteId">
                             {(field) => {
-                              const isInvalid = field.state.meta.errors.length > 0;
+                              const isInvalid =
+                                field.state.meta.errors.length > 0;
 
                               return (
                                 <Field data-invalid={isInvalid || undefined}>
-                                  <FieldLabel htmlFor={field.name}>Site</FieldLabel>
+                                  <FieldLabel htmlFor={field.name}>
+                                    Site
+                                  </FieldLabel>
                                   <Select
                                     value={field.state.value}
                                     onValueChange={(value) => {
@@ -353,7 +374,10 @@ export function UserFormDialog({
                                     <SelectContent>
                                       <SelectGroup>
                                         {choices.sites.map((site) => (
-                                          <SelectItem key={site.id} value={site.id}>
+                                          <SelectItem
+                                            key={site.id}
+                                            value={site.id}
+                                          >
                                             {site.name}
                                           </SelectItem>
                                         ))}
@@ -361,7 +385,9 @@ export function UserFormDialog({
                                     </SelectContent>
                                   </Select>
                                   {isInvalid && (
-                                    <FieldError errors={field.state.meta.errors} />
+                                    <FieldError
+                                      errors={field.state.meta.errors}
+                                    />
                                   )}
                                 </Field>
                               );
@@ -374,49 +400,59 @@ export function UserFormDialog({
                             <p className="text-sm">{choices.sites[0].name}</p>
                           </Field>
                         )}
-                        {access.role === "superadmin" && role === "admin_site" && (
-                          <Field>
-                            <FieldLabel htmlFor="location-site">Site</FieldLabel>
-                            <Select
-                              value={locationSiteId}
-                              onValueChange={(value) => {
-                                if (value && value !== locationSiteId) {
-                                  setLocationSiteId(value);
-                                  form.setFieldValue("locationId", null);
-                                }
-                              }}
-                              items={choices.sites.map((site) => ({
-                                value: site.id,
-                                label: site.name,
-                              }))}
-                              disabled={isSubmitting}
-                            >
-                              <SelectTrigger id="location-site" className="w-full">
-                                <SelectValue placeholder="Choose a site" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  {choices.sites.map((site) => (
-                                    <SelectItem key={site.id} value={site.id}>
-                                      {site.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          </Field>
-                        )}
+                        {access.role === "superadmin" &&
+                          role === "admin_site" && (
+                            <Field>
+                              <FieldLabel htmlFor="location-site">
+                                Site
+                              </FieldLabel>
+                              <Select
+                                value={locationSiteId}
+                                onValueChange={(value) => {
+                                  if (value && value !== locationSiteId) {
+                                    setLocationSiteId(value);
+                                    form.setFieldValue("locationId", null);
+                                  }
+                                }}
+                                items={choices.sites.map((site) => ({
+                                  value: site.id,
+                                  label: site.name,
+                                }))}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger
+                                  id="location-site"
+                                  className="w-full"
+                                >
+                                  <SelectValue placeholder="Choose a site" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    {choices.sites.map((site) => (
+                                      <SelectItem key={site.id} value={site.id}>
+                                        {site.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </Field>
+                          )}
                         {role === "admin_site" && (
                           <form.Field name="locationId">
                             {(field) => {
-                              const isInvalid = field.state.meta.errors.length > 0;
+                              const isInvalid =
+                                field.state.meta.errors.length > 0;
                               const siteLocations = choices.locations.filter(
-                                (location) => location.siteId === locationSiteId,
+                                (location) =>
+                                  location.siteId === locationSiteId,
                               );
 
                               return (
                                 <Field data-invalid={isInvalid || undefined}>
-                                  <FieldLabel htmlFor={field.name}>Location</FieldLabel>
+                                  <FieldLabel htmlFor={field.name}>
+                                    Location
+                                  </FieldLabel>
                                   <Select
                                     value={field.state.value}
                                     onValueChange={(value) => {
@@ -428,7 +464,9 @@ export function UserFormDialog({
                                       value: location.id,
                                       label: location.name,
                                     }))}
-                                    disabled={isSubmitting || locationSiteId === ""}
+                                    disabled={
+                                      isSubmitting || locationSiteId === ""
+                                    }
                                   >
                                     <SelectTrigger
                                       id={field.name}
@@ -457,7 +495,9 @@ export function UserFormDialog({
                                     </SelectContent>
                                   </Select>
                                   {isInvalid && (
-                                    <FieldError errors={field.state.meta.errors} />
+                                    <FieldError
+                                      errors={field.state.meta.errors}
+                                    />
                                   )}
                                 </Field>
                               );
@@ -475,7 +515,9 @@ export function UserFormDialog({
                 )}
                 <DialogFooter>
                   <DialogClose
-                    render={<Button variant="outline" disabled={isSubmitting} />}
+                    render={
+                      <Button variant="outline" disabled={isSubmitting} />
+                    }
                   >
                     Cancel
                   </DialogClose>

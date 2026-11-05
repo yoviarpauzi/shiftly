@@ -71,6 +71,17 @@
   }
 }
 
+@utility home-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: calc(1200px + 4rem);
+  padding-inline: 1.25rem;
+
+  @variant sm {
+    padding-inline: 2rem;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #14161f;

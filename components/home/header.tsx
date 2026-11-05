@@ -6,7 +6,7 @@ import { NAV_LINKS } from "@/components/home/content";
 export default function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background">
-      <div className="container relative flex h-full max-w-[1200px] items-center justify-between">
+      <div className="home-container relative flex h-full items-center justify-between">
         <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <Image
             src="/logo.webp"

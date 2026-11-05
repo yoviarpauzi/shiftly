@@ -3,6 +3,7 @@ import type {
   AttendanceCounts,
   AttentionCounts,
   AttentionItem,
+  AttentionKey,
   DashboardKpis,
   DashboardRole,
   KpiCard,
@@ -310,62 +311,79 @@ function attendanceItem(counts: AttentionCounts, today: string): AttentionItem {
   return { key: "attendance", title, detail, button: "Mark attendance", href };
 }
 
-// Only the items with something to do, in a fixed order. An empty list is the All caught up state.
+// The order of the list, as the frames show it. Admin site starts with its own attendance task.
+const ATTENTION_ORDER: Record<DashboardRole, AttentionKey[]> = {
+  superadmin: ["requests", "drafts", "conflicts", "attendance", "contracts"],
+  ho: ["requests", "drafts", "conflicts", "attendance", "contracts"],
+  admin_site: ["attendance", "requests", "drafts", "conflicts", "contracts"],
+};
+
+function attentionItem(
+  key: AttentionKey,
+  role: DashboardRole,
+  counts: AttentionCounts,
+  today: string,
+): AttentionItem | null {
+  switch (key) {
+    case "requests":
+      return counts.pendingRequests > 0 ? requestsItem(role, counts.pendingRequests) : null;
+    case "drafts": {
+      const drafts = counts.draftRosters;
+
+      return drafts > 0
+        ? {
+            key,
+            title: `${drafts} ${plural(drafts, "roster is still a draft", "rosters are still drafts")}`,
+            detail:
+              drafts === 1
+                ? "Confirm it so attendance can be marked against it."
+                : "Confirm a roster so attendance can be marked against it.",
+            button: "Open rosters",
+            href: "/dashboard/rosters?status=draft",
+          }
+        : null;
+    }
+    case "conflicts": {
+      const conflicts = counts.conflicts;
+
+      return conflicts > 0
+        ? {
+            key,
+            title: `${conflicts} ${plural(conflicts, "conflict", "conflicts")} in ${counts.conflictedRosters === 1 ? "the draft roster" : "draft rosters"}`,
+            detail: "Shifts the rules could not fill, each with its reason.",
+            button: "View conflicts",
+            href: "/dashboard/rosters?status=draft",
+          }
+        : null;
+    }
+    case "attendance":
+      return counts.unmarkedLocationIds.length > 0 ? attendanceItem(counts, today) : null;
+    case "contracts": {
+      const ending = counts.contractsEnding;
+
+      return ending > 0
+        ? {
+            key,
+            title: `${ending} worker ${plural(ending, "contract ends", "contracts end")} within 30 days`,
+            detail: "Renew or replace these workers before their end date.",
+            button: "View workers",
+            href: "/dashboard/workers?ending=1",
+          }
+        : null;
+    }
+  }
+}
+
+// Only the items with something to do, in the order of the role. An empty list is the All caught
+// up state.
 export function attentionItems(
   role: DashboardRole,
   counts: AttentionCounts,
   today: string,
 ): AttentionItem[] {
-  const items: AttentionItem[] = [];
-
-  if (counts.pendingRequests > 0) {
-    items.push(requestsItem(role, counts.pendingRequests));
-  }
-
-  if (counts.draftRosters > 0) {
-    const drafts = counts.draftRosters;
-
-    items.push({
-      key: "drafts",
-      title: `${drafts} ${plural(drafts, "roster is still a draft", "rosters are still drafts")}`,
-      detail:
-        drafts === 1
-          ? "Confirm it so attendance can be marked against it."
-          : "Confirm a roster so attendance can be marked against it.",
-      button: "Open rosters",
-      href: "/dashboard/rosters?status=draft",
-    });
-  }
-
-  if (counts.conflicts > 0) {
-    const conflicts = counts.conflicts;
-
-    items.push({
-      key: "conflicts",
-      title: `${conflicts} ${plural(conflicts, "conflict", "conflicts")} in ${counts.conflictedRosters === 1 ? "the draft roster" : "draft rosters"}`,
-      detail: "Shifts the rules could not fill, each with its reason.",
-      button: "View conflicts",
-      href: "/dashboard/rosters?status=draft",
-    });
-  }
-
-  if (counts.unmarkedLocationIds.length > 0) {
-    items.push(attendanceItem(counts, today));
-  }
-
-  if (counts.contractsEnding > 0) {
-    const ending = counts.contractsEnding;
-
-    items.push({
-      key: "contracts",
-      title: `${ending} worker ${plural(ending, "contract ends", "contracts end")} within 30 days`,
-      detail: "Renew or replace these workers before their end date.",
-      button: "View workers",
-      href: "/dashboard/workers?ending=1",
-    });
-  }
-
-  return items;
+  return ATTENTION_ORDER[role]
+    .map((key) => attentionItem(key, role, counts, today))
+    .filter((item): item is AttentionItem => item !== null);
 }
 
 // The seven dates of the week that holds `today`, Monday first.

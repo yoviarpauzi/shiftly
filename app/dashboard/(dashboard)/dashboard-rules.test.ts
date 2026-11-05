@@ -470,7 +470,7 @@ describe("attentionItems", () => {
     ]);
   });
 
-  it("matches the admin site frame item by item", () => {
+  it("matches the admin site frame item by item, attendance first", () => {
     const items = attentionItems(
       "admin_site",
       attention({
@@ -482,22 +482,61 @@ describe("attentionItems", () => {
       "2026-11-09",
     );
 
+    expect(items.map((item) => item.key)).toEqual(["attendance", "requests", "contracts"]);
     expect(items.map((item) => [item.title, item.detail, item.button])).toEqual([
-      [
-        "1 request is waiting for HO approval",
-        "You can follow its status here. Only HO or a superadmin can approve it.",
-        "View request",
-      ],
       [
         "Attendance is not marked today",
         "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
         "Mark attendance",
       ],
       [
+        "1 request is waiting for HO approval",
+        "You can follow its status here. Only HO or a superadmin can approve it.",
+        "View request",
+      ],
+      [
         "2 worker contracts end within 30 days",
         "Renew or replace these workers before their end date.",
         "View workers",
       ],
+    ]);
+  });
+
+  it("keeps requests before attendance for a superadmin with the same counts", () => {
+    const items = attentionItems(
+      "superadmin",
+      attention({
+        pendingRequests: 1,
+        unmarkedLocationIds: ["loc-1"],
+        unmarkedWorkers: 18,
+        contractsEnding: 2,
+      }),
+      "2026-11-09",
+    );
+
+    expect(items.map((item) => item.key)).toEqual(["requests", "attendance", "contracts"]);
+  });
+
+  it("orders every admin site item attendance, requests, drafts, conflicts, contracts", () => {
+    const items = attentionItems(
+      "admin_site",
+      attention({
+        pendingRequests: 1,
+        draftRosters: 1,
+        conflicts: 1,
+        conflictedRosters: 1,
+        unmarkedLocationIds: ["loc-1"],
+        contractsEnding: 1,
+      }),
+      "2026-11-09",
+    );
+
+    expect(items.map((item) => item.key)).toEqual([
+      "attendance",
+      "requests",
+      "drafts",
+      "conflicts",
+      "contracts",
     ]);
   });
 

@@ -332,21 +332,21 @@ describe("workRulesEmptyFor", () => {
 });
 
 describe("settingsHref", () => {
-  it("keeps the Work rules tab open and drops ids the scope does not use", () => {
+  it("drops ids the scope does not use", () => {
     expect(settingsHref({ scope: "global", siteId: SITE_A, locationId: LOCATION_A })).toBe(
-      `/dashboard/settings?tab=work-rules&scope=global&site=${SITE_A}`,
+      `/dashboard/settings?scope=global&site=${SITE_A}`,
     );
     expect(settingsHref({ scope: "site", siteId: SITE_A, locationId: LOCATION_A })).toBe(
-      `/dashboard/settings?tab=work-rules&scope=site&site=${SITE_A}`,
+      `/dashboard/settings?scope=site&site=${SITE_A}`,
     );
     expect(settingsHref({ scope: "location", siteId: SITE_A, locationId: LOCATION_A })).toBe(
-      `/dashboard/settings?tab=work-rules&scope=location&site=${SITE_A}&location=${LOCATION_A}`,
+      `/dashboard/settings?scope=location&site=${SITE_A}&location=${LOCATION_A}`,
     );
   });
 
   it("leaves out a missing site or location", () => {
     expect(settingsHref({ scope: "location", siteId: null, locationId: null })).toBe(
-      "/dashboard/settings?tab=work-rules&scope=location",
+      "/dashboard/settings?scope=location",
     );
   });
 });

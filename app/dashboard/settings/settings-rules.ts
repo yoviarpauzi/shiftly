@@ -120,11 +120,11 @@ export function workRulesEmptyFor(target: SettingsTarget): WorkRulesEmpty | null
   return target.scope === "location" && !target.locationId ? "no-location" : null;
 }
 
-// The URL of one level of the Work rules tab. The site is kept at every level so switching back
+// The URL of one level of the Work rules section. The site is kept at every level so switching back
 // from Global stays on it. The location is only kept at location level, so the page picks the
 // first location again after a site change.
 export function settingsHref(target: SettingsTarget): string {
-  const params = new URLSearchParams({ tab: "work-rules", scope: target.scope });
+  const params = new URLSearchParams({ scope: target.scope });
 
   if (target.siteId) {
     params.set("site", target.siteId);

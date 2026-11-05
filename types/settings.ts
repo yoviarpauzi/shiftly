@@ -72,9 +72,7 @@ export type LocationWorkRules = {
   own: Record<WorkRuleKey, boolean>;
 };
 
-export type SettingsTab = "account" | "work-rules";
-
-// The level the Work rules tab shows, as read from the URL after the access checks.
+// The level the Work rules section shows, as read from the URL after the access checks.
 export type SettingsTarget = {
   scope: WorkRuleScope;
   siteId: string | null;
@@ -119,9 +117,6 @@ export type WorkRulesView = {
   canEdit: boolean;
   empty: WorkRulesEmpty | null;
 };
-
-// workRules null hides the Work rules tab.
-export type SettingsTabsProps = { workRules: WorkRulesView | null; tab: SettingsTab };
 
 export type WorkRulesProps = WorkRulesView;
 

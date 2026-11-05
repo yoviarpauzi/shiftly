@@ -8,7 +8,6 @@ export default function Loading() {
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
       <div className="flex w-full flex-col gap-4">
-        <Skeleton className="h-8 w-44" />
         <div className="flex flex-col gap-5 rounded-lg border p-6">
           <div className="flex flex-col gap-2">
             <Skeleton className="h-5 w-40" />

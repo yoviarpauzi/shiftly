@@ -65,7 +65,7 @@ export default function HowItWorks() {
           <div className="mx-auto w-full max-w-[756px] overflow-hidden rounded-xl border bg-background shadow-[0_24px_64px_-24px] shadow-primary/30">
             <Image
               src="/landing/roster-screen.webp"
-              alt="A weekly roster with one conflict flagged"
+              alt="A weekly draft roster with unfilled shifts and their conflicts listed."
               width={1512}
               height={1120}
               sizes="(min-width: 1264px) 756px, (min-width: 1024px) calc(100vw - 508px), (min-width: 640px) min(756px, calc(100vw - 4rem)), calc(100vw - 2.5rem)"

@@ -7,7 +7,10 @@ export default function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background">
       <div className="home-container relative flex h-full items-center justify-between">
-        <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-sm text-base font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
           <Image
             src="/logo.webp"
             alt=""
@@ -17,7 +20,7 @@ export default function Header() {
             priority
           />
           Shiftly
-        </span>
+        </Link>
 
         <nav aria-label="Primary" className="absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8">

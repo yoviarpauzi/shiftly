@@ -1,46 +1,18 @@
 "use client";
 
-import {
-  MotionConfig,
-  motion,
-  useScroll,
-  useSpring,
-  useTransform,
-} from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import Image from "next/image";
-import { useRef } from "react";
 import DashboardVideo from "@/components/home/dashboard-video";
 
 const MotionImage = motion.create(Image);
 
-// The window starts tilted back and a little small, then settles flat as it scrolls up the
-// page. The first frame is already partly settled on a normal screen, so the poster is never
-// hidden. Reduced motion drops the transform with CSS, so the server and client markup match.
+// The window itself stays still. Only its two doodles move: they spring in from the sides the
+// first time they are on screen, and under reduced motion that is a fade.
 export default function ProductWindow() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "start 0.4"],
-  });
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 120,
-    damping: 30,
-    mass: 0.3,
-  });
-  const rotateX = useTransform(progress, [0, 1], [14, 0]);
-  const scale = useTransform(progress, [0, 1], [0.9, 1]);
-  const y = useTransform(progress, [0, 1], [48, 0]);
-
   return (
     <MotionConfig reducedMotion="user">
-      <div
-        ref={ref}
-        className="relative mx-auto w-full max-w-[960px] [perspective:1200px]"
-      >
-        <motion.div
-          style={{ rotateX, scale, y, transformOrigin: "50% 0%" }}
-          className="overflow-hidden rounded-xl border bg-muted shadow-[0_24px_64px_-24px] shadow-primary/30 motion-reduce:transform-none!"
-        >
+      <div className="relative mx-auto w-full max-w-[960px]">
+        <div className="overflow-hidden rounded-xl border bg-muted shadow-[0_24px_64px_-24px] shadow-primary/30">
           <div className="relative flex h-10 items-center border-b bg-muted px-4">
             <div className="flex gap-2" aria-hidden="true">
               <span className="size-3 rounded-full bg-border" />
@@ -68,7 +40,7 @@ export default function ProductWindow() {
               <DashboardVideo src="/landing/dashboard-demo.mp4" />
             </div>
           </div>
-        </motion.div>
+        </div>
 
         <MotionImage
           src="/landing/doodle-rosters.webp"

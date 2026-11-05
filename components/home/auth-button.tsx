@@ -24,13 +24,9 @@ function AuthLink({ href, label, className }: AuthLinkProps) {
 }
 
 async function SessionAuthLink({ className }: AuthButtonProps) {
+  let signedIn = false;
   try {
-    const user = await getCurrentUser();
-    if (user) {
-      return (
-        <AuthLink href="/dashboard" label="Dashboard" className={className} />
-      );
-    }
+    signedIn = Boolean(await getCurrentUser());
   } catch (error) {
     // Let Next's own signals (prerender postpone, redirects) pass through. A
     // real failure, such as the database being down, must not turn the whole
@@ -38,7 +34,11 @@ async function SessionAuthLink({ className }: AuthButtonProps) {
     unstable_rethrow(error);
   }
 
-  return <AuthLink href="/sign-in" label="Sign in" className={className} />;
+  return signedIn ? (
+    <AuthLink href="/dashboard" label="Dashboard" className={className} />
+  ) : (
+    <AuthLink href="/sign-in" label="Sign in" className={className} />
+  );
 }
 
 // The only part of the landing page that depends on the visitor. Everything

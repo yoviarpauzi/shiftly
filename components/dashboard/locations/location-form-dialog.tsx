@@ -3,9 +3,16 @@
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
-import { createLocation, updateLocation } from "@/app/dashboard/locations/actions";
+import {
+  createLocation,
+  updateLocation,
+} from "@/app/dashboard/locations/actions";
 import { nameFieldError } from "@/app/dashboard/locations/location-rules";
-import type { LocationFormDialogProps, LocationRow, SiteChoice } from "@/types/locations";
+import type {
+  LocationFormDialogProps,
+  LocationRow,
+  SiteChoice,
+} from "@/types/locations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -103,38 +110,14 @@ export function LocationFormDialog({
           }}
         >
           <DialogHeader>
-            <DialogTitle>{location ? "Edit location" : "Add location"}</DialogTitle>
+            <DialogTitle>
+              {location ? "Edit location" : "Add location"}
+            </DialogTitle>
           </DialogHeader>
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
               <>
                 <FieldGroup>
-                  <form.Field name="name">
-                    {(field) => {
-                      const isInvalid = field.state.meta.errors.length > 0;
-
-                      return (
-                        <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Name</FieldLabel>
-                          <Input
-                            id={field.name}
-                            name={field.name}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(event) =>
-                              field.handleChange(event.target.value)
-                            }
-                            autoFocus
-                            disabled={isSubmitting}
-                            aria-invalid={isInvalid || undefined}
-                          />
-                          {isInvalid && (
-                            <FieldError errors={field.state.meta.errors} />
-                          )}
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
                   <form.Field name="siteId">
                     {(field) => {
                       if (siteChoice.mode === "fixed") {
@@ -188,17 +171,46 @@ export function LocationFormDialog({
                       );
                     }}
                   </form.Field>
+                  <form.Field name="name">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
+
+                      return (
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel htmlFor={field.name}>Name</FieldLabel>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(event) =>
+                              field.handleChange(event.target.value)
+                            }
+                            autoFocus
+                            disabled={isSubmitting}
+                            aria-invalid={isInvalid || undefined}
+                          />
+                          {isInvalid && (
+                            <FieldError errors={field.state.meta.errors} />
+                          )}
+                        </Field>
+                      );
+                    }}
+                  </form.Field>
                   <form.Field name="timezone">
                     {(field) => {
                       const isInvalid = field.state.meta.errors.length > 0;
 
                       return (
                         <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Time zone</FieldLabel>
+                          <FieldLabel htmlFor={field.name}>
+                            Time zone
+                          </FieldLabel>
                           <Select
                             value={field.state.value}
                             onValueChange={(value) => {
-                              const zone = locationTimezoneSchema.safeParse(value);
+                              const zone =
+                                locationTimezoneSchema.safeParse(value);
 
                               if (zone.success) {
                                 field.handleChange(zone.data);
@@ -242,7 +254,9 @@ export function LocationFormDialog({
                 )}
                 <DialogFooter>
                   <DialogClose
-                    render={<Button variant="outline" disabled={isSubmitting} />}
+                    render={
+                      <Button variant="outline" disabled={isSubmitting} />
+                    }
                   >
                     Cancel
                   </DialogClose>

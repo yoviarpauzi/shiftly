@@ -150,7 +150,7 @@ export const ROLES: HomeRole[] = [
 ];
 
 export const BAND_COPY: BandCopy = {
-  title: "Sign in to see this week's roster.",
+  title: "Accounts come from your superadmin.",
   detail: "No account yet? Your superadmin adds people in the Users menu.",
 };
 

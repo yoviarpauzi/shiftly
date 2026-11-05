@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AuthButton, { CTA_FOCUS_CLASS } from "@/components/home/auth-button";
+import { CTA_FOCUS_CLASS } from "@/components/home/auth-button";
 import { HERO_COPY, HERO_WORDS } from "@/components/home/content";
 import ProductWindow from "@/components/home/product-window";
 import RotatingWord from "@/components/home/rotating-word";
@@ -26,7 +26,6 @@ export default function Hero() {
         </p>
 
         <div className="mt-5 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:justify-center">
-          <AuthButton className={BUTTON_CLASS} />
           <Link
             href="#how-it-works"
             className={cn(

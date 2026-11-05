@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as content from "@/components/home/content";
 import {
+  BAND_COPY,
   FOOTER_COPY,
   HERO_COPY,
   HERO_WORDS,
@@ -102,6 +103,13 @@ describe("landing copy", () => {
       "HO",
       "Admin site",
     ]);
+  });
+
+  it("tells visitors where accounts come from, without asking them to sign in", () => {
+    expect(BAND_COPY.title).toBe("Accounts come from your superadmin.");
+    expect(BAND_COPY.detail).toBe(
+      "No account yet? Your superadmin adds people in the Users menu.",
+    );
   });
 
   it("links the nav to the section anchors", () => {

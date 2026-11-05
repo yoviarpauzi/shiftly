@@ -27,15 +27,15 @@ import { createUserColumns, features } from "./columns"
 import { DeactivateUserDialog } from "./deactivate-user-dialog"
 import { UserFormDialog } from "./user-form-dialog"
 import { UsersSearch } from "./users-search"
-import { type UserFilterOption, UsersSelectFilter } from "./users-select-filter"
+import { type FilterOption, SelectFilter } from "@/components/dashboard/select-filter"
 
-const STATUS_OPTIONS: (UserFilterOption & { value: UserStatusFilter })[] = [
+const STATUS_OPTIONS: (FilterOption & { value: UserStatusFilter })[] = [
   { value: "all", label: "All statuses" },
   { value: "active", label: "Active" },
   { value: "banned", label: "Banned" },
 ]
 
-const ROLE_OPTIONS: (UserFilterOption & { value: UserRoleFilter })[] = [
+const ROLE_OPTIONS: (FilterOption & { value: UserRoleFilter })[] = [
   { value: "all", label: "All roles" },
   { value: "superadmin", label: "Superadmin" },
   { value: "ho", label: "HO" },
@@ -121,14 +121,14 @@ export function UsersDataTable({
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <UsersSearch />
-          <UsersSelectFilter
+          <SelectFilter
             param="status"
             value={status}
             options={STATUS_OPTIONS}
             ariaLabel="Filter users by status"
             className="h-9 w-36"
           />
-          <UsersSelectFilter
+          <SelectFilter
             param="role"
             value={role}
             options={ROLE_OPTIONS}
@@ -136,7 +136,7 @@ export function UsersDataTable({
             className="h-9 w-36"
           />
           {access.siteId === null && (
-            <UsersSelectFilter
+            <SelectFilter
               param="site"
               value={siteId ?? "all"}
               options={[
@@ -149,7 +149,7 @@ export function UsersDataTable({
             />
           )}
           {(access.siteId !== null || siteId !== null) && (
-            <UsersSelectFilter
+            <SelectFilter
               param="location"
               value={locationId ?? "all"}
               options={[

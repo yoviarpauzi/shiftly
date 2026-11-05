@@ -15,6 +15,7 @@ export type ShiftAccess = {
 export type ShiftLocationOption = {
   id: string;
   name: string;
+  siteId: string;
   siteName: string;
 };
 
@@ -45,6 +46,8 @@ export type ShiftPage = {
 
 export type ShiftListParams = PageParams & {
   status: ShiftStatus;
+  // null means every site the actor can see.
+  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<ShiftSortColumn>[];

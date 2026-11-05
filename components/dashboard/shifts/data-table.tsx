@@ -14,14 +14,17 @@ import { bulkShiftRestoreMessage } from "@/app/dashboard/shifts/shift-rules";
 import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
+import type { SiteOption } from "@/types/locations";
 import type {
   ShiftLocationChoice,
+  ShiftLocationOption,
   ShiftPage,
   ShiftRow,
   ShiftSortColumn,
   ShiftStatus,
 } from "@/types/shifts";
 import { TablePagination } from "@/components/dashboard/pagination";
+import { SelectFilter } from "@/components/dashboard/select-filter";
 import { BulkDeleteShiftsDialog } from "@/components/dashboard/shifts/bulk-delete-shifts-dialog";
 import {
   createShiftColumns,
@@ -30,7 +33,6 @@ import {
 import { DeleteShiftDialog } from "@/components/dashboard/shifts/delete-shift-dialog";
 import { ShiftFormDialog } from "@/components/dashboard/shifts/shift-form-dialog";
 import { ShiftsSearch } from "@/components/dashboard/shifts/shifts-search";
-import { ShiftsLocationFilter } from "@/components/dashboard/shifts/shifts-location-filter";
 import { ShiftsStatusFilter } from "@/components/dashboard/shifts/shifts-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,12 +57,20 @@ async function restoreWithToast(shift: ShiftRow) {
 export function ShiftsDataTable({
   data,
   status,
+  sites,
+  siteId,
+  locations,
   locationId,
   locationChoice,
   sort,
 }: {
   data: ShiftPage;
   status: ShiftStatus;
+  // null when the actor has no site to pick, which is every role except superadmin.
+  sites: SiteOption[] | null;
+  siteId: string | null;
+  // The locations the location filter lists.
+  locations: ShiftLocationOption[];
   locationId: string | null;
   locationChoice: ShiftLocationChoice;
   sort: SortCriterion<ShiftSortColumn>[];
@@ -171,10 +181,32 @@ export function ShiftsDataTable({
         <div className="flex items-center gap-2">
           <ShiftsSearch />
           <ShiftsStatusFilter status={status} />
-          {locationChoice.mode === "pick" && (
-            <ShiftsLocationFilter
-              locationId={locationId}
-              locations={locationChoice.locations}
+          {sites && (
+            <SelectFilter
+              param="site"
+              value={siteId ?? "all"}
+              options={[
+                { value: "all", label: "All sites" },
+                ...sites.map((site) => ({ value: site.id, label: site.name })),
+              ]}
+              ariaLabel="Filter shifts by site"
+              className="h-9 w-48"
+              resets={["location"]}
+            />
+          )}
+          {locationChoice.mode === "pick" && (!sites || siteId !== null) && (
+            <SelectFilter
+              param="location"
+              value={locationId ?? "all"}
+              options={[
+                { value: "all", label: "All locations" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                })),
+              ]}
+              ariaLabel="Filter shifts by location"
+              className="h-9 w-48"
             />
           )}
         </div>

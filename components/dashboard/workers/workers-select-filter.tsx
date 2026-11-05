@@ -14,7 +14,7 @@ import {
 // The "all" option removes the param, so the URL only carries filters that are set.
 const ALL = "all";
 
-// Copy of components/dashboard/users/users-select-filter.tsx, with worker wording.
+// Copy of components/dashboard/select-filter.tsx, with worker wording.
 export function WorkersSelectFilter({
   param,
   value,

@@ -10,13 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type UserFilterOption = { value: string; label: string };
+export type FilterOption = { value: string; label: string };
 
 // The "all" option removes the param, so the URL only carries filters that are set.
 const ALL = "all";
 
 // resets lists other params to drop when this filter changes, such as a location that belongs to the old site.
-export function UsersSelectFilter({
+export function SelectFilter({
   param,
   value,
   options,
@@ -26,7 +26,7 @@ export function UsersSelectFilter({
 }: {
   param: string;
   value: string;
-  options: UserFilterOption[];
+  options: FilterOption[];
   ariaLabel: string;
   className: string;
   resets?: string[];

@@ -44,6 +44,11 @@ const SHIFT_SORT_EXPRESSIONS: Record<ShiftSortColumn, SQLWrapper> = {
   status: sql`(${shift.deletedAt} is not null)`,
 };
 
+// Shifts of the locations of one site, as a subquery so a select or an update on shift alone can carry it.
+function shiftSiteFilter(siteId: string): SQL {
+  return sql`${shift.locationId} in (select ${location.id} from ${location} where ${location.siteId} = ${siteId})`;
+}
+
 // Superadmin sees every shift. HO sees the shifts of the locations of its site. Admin site sees the
 // shifts of its own location. The site case is a subquery rather than a join, so a select or an
 // update on shift alone can carry the filter.
@@ -53,7 +58,7 @@ export function shiftScopeFilter(access: ShiftAccess): SQL | undefined {
   }
 
   if (access.siteId) {
-    return sql`${shift.locationId} in (select ${location.id} from ${location} where ${location.siteId} = ${access.siteId})`;
+    return shiftSiteFilter(access.siteId);
   }
 
   return undefined;
@@ -76,12 +81,14 @@ function shiftFilter(
   access: ShiftAccess,
   query: string,
   status: ShiftStatus,
+  siteId: string | null,
   locationId: string | null,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     shiftScopeFilter(access),
+    siteId ? shiftSiteFilter(siteId) : undefined,
     locationId ? eq(shift.locationId, locationId) : undefined,
     status === "active" ? isNull(shift.deletedAt) : undefined,
     status === "deleted" ? isNotNull(shift.deletedAt) : undefined,
@@ -91,9 +98,9 @@ function shiftFilter(
 
 export async function listShifts(
   access: ShiftAccess,
-  { page, pageSize, query, status, locationId, sort }: ShiftListParams,
+  { page, pageSize, query, status, siteId, locationId, sort }: ShiftListParams,
 ): Promise<ShiftPage> {
-  const filter = shiftFilter(access, query, status, locationId);
+  const filter = shiftFilter(access, query, status, siteId, locationId);
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the shift table alone, so the joins do not inflate the total.
@@ -139,6 +146,7 @@ export async function shiftLocationChoiceFor(access: ShiftAccess): Promise<Shift
   const option = {
     id: location.id,
     name: location.name,
+    siteId: site.id,
     siteName: site.name,
   };
 

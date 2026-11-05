@@ -14,6 +14,8 @@ import {
   SHIFT_RESTORE_CONFLICT_MESSAGE,
   shiftFieldErrors,
   shiftLocationLabel,
+  shiftLocationsForSite,
+  shiftSitesOf,
   toHourMinute,
 } from "./shift-rules";
 
@@ -80,6 +82,38 @@ describe("shiftLocationLabel", () => {
     expect(shiftLocationLabel({ id: "l1", name: "Gudang", siteName: "Nestle" })).toBe(
       "Nestle / Gudang",
     );
+  });
+});
+
+const FILTER_LOCATIONS = [
+  { id: "l1", name: "Karawang", siteId: "s1", siteName: "Nestle" },
+  { id: "l2", name: "Kejayan", siteId: "s1", siteName: "Nestle" },
+  { id: "l3", name: "Gudang", siteId: "s2", siteName: "Unilever" },
+];
+
+describe("shiftSitesOf", () => {
+  it("lists each site once, in the order its first location appears", () => {
+    expect(shiftSitesOf(FILTER_LOCATIONS)).toEqual([
+      { id: "s1", name: "Nestle" },
+      { id: "s2", name: "Unilever" },
+    ]);
+  });
+
+  it("returns no sites when there are no locations", () => {
+    expect(shiftSitesOf([])).toEqual([]);
+  });
+});
+
+describe("shiftLocationsForSite", () => {
+  it("keeps only the locations of the site", () => {
+    expect(shiftLocationsForSite(FILTER_LOCATIONS, "s1").map((location) => location.id)).toEqual([
+      "l1",
+      "l2",
+    ]);
+  });
+
+  it("returns no locations for a site without any", () => {
+    expect(shiftLocationsForSite(FILTER_LOCATIONS, "s9")).toEqual([]);
   });
 });
 

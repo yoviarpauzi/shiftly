@@ -251,10 +251,23 @@ describe("conflicts card", () => {
     expect(conflicts.lines[1]).toBe("In 1 draft roster, with a reason");
   });
 
-  it("is calm at zero", () => {
-    const conflicts = card("superadmin", "conflicts", { openConflicts: 0, conflictedRosters: 0 });
+  it("is calm at zero for a superadmin and an HO", () => {
+    for (const role of ["superadmin", "ho"] as const) {
+      const conflicts = card(role, "conflicts", { openConflicts: 0, conflictedRosters: 0 });
 
-    expect(conflicts.value).toBe("0");
+      expect(conflicts.value).toBe("0");
+      expect(conflicts.badge).toEqual({ label: "None", tone: "neutral" });
+      expect(conflicts.danger).toBe(false);
+      expect(conflicts.lines).toEqual([
+        "No unfilled shifts",
+        "Every draft roster is fully covered",
+      ]);
+    }
+  });
+
+  it("is calm at zero for an admin site", () => {
+    const conflicts = card("admin_site", "conflicts", { openConflicts: 0, conflictedRosters: 0 });
+
     expect(conflicts.badge).toEqual({ label: "None", tone: "neutral" });
     expect(conflicts.danger).toBe(false);
     expect(conflicts.lines).toEqual([
@@ -293,13 +306,20 @@ describe("approvals card", () => {
   });
 
   it("is empty at zero", () => {
-    const approvals = card("superadmin", "approvals", {
-      pendingRequests: 0,
-      oldestPendingDate: null,
-    });
+    for (const role of ["superadmin", "ho"] as const) {
+      const approvals = card(role, "approvals", {
+        pendingRequests: 0,
+        oldestPendingDate: null,
+      });
 
-    expect(approvals.value).toBe("0");
-    expect(approvals.lines).toEqual(["Nothing is waiting", "Weekly requests appear here"]);
+      expect(approvals.value).toBe("0");
+      expect(approvals.badge?.label).toBe("Weekly");
+      expect(approvals.danger).toBe(false);
+      expect(approvals.lines).toEqual([
+        "No request is waiting",
+        "Every weekly request is decided",
+      ]);
+    }
   });
 });
 

@@ -168,7 +168,7 @@ function attendanceCard(today: AttendanceCounts, yesterday: AttendanceCounts): K
   };
 }
 
-function conflictsCard(kpis: DashboardKpis): KpiCard {
+function conflictsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
   const label = "Open conflicts";
 
   if (kpis.openConflicts === 0) {
@@ -177,7 +177,12 @@ function conflictsCard(kpis: DashboardKpis): KpiCard {
       label,
       value: "0",
       badge: { label: "None", tone: "neutral" },
-      lines: ["No unfilled shifts", "The roster for this week is covered"],
+      lines: [
+        "No unfilled shifts",
+        role === "admin_site"
+          ? "The roster for this week is covered"
+          : "Every draft roster is fully covered",
+      ],
       danger: false,
     };
   }
@@ -206,7 +211,7 @@ function approvalsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
       label,
       value: "0",
       badge: { label: "Weekly", tone: "neutral" },
-      lines: ["Nothing is waiting", "Weekly requests appear here"],
+      lines: ["No request is waiting", "Every weekly request is decided"],
       danger: false,
     };
   }
@@ -255,7 +260,7 @@ function requestsCard(kpis: DashboardKpis): KpiCard {
 export function kpiCards(role: DashboardRole, kpis: DashboardKpis): KpiCard[] {
   const workers = workersCard(role, kpis);
   const attendance = attendanceCard(kpis.today, kpis.yesterday);
-  const conflicts = conflictsCard(kpis);
+  const conflicts = conflictsCard(role, kpis);
 
   if (role === "admin_site") {
     return [workers, attendance, requestsCard(kpis), conflicts];

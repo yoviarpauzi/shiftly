@@ -13,14 +13,14 @@ export default function Hero() {
     <section className="overflow-x-clip pt-10 pb-6 sm:pt-[72px] lg:pb-2.5">
       <div className="home-container text-center">
         <h1 className="flex flex-wrap items-center justify-center gap-x-[0.25em] text-[46px] leading-[50px] font-bold tracking-[-0.03em] min-[360px]:text-[52px] min-[360px]:leading-[56px] sm:text-[72px] sm:leading-[78px] lg:text-[88px] lg:leading-[96px]">
-          <span>{HERO_COPY.lead}</span>
+          <span>{HERO_COPY.lead}</span>{" "}
           <span className="inline-flex items-center gap-[0.18em] rounded-full bg-secondary px-[0.27em] py-[0.04em]">
             <span
               className="size-[0.5em] shrink-0 rounded-full bg-primary"
               aria-hidden="true"
             />
             <span className="text-foreground">{HERO_COPY.highlight}</span>
-          </span>
+          </span>{" "}
           <span>{HERO_COPY.tail}</span>
         </h1>
 

@@ -1,4 +1,6 @@
+import type { ColumnDef, RowData } from "@tanstack/react-table";
 import type { RequestAccess, RequestStatus, RequestType } from "@/types/requests";
+import type { summaryFeatures } from "@/components/dashboard/overview/columns";
 import type { LocationTimezone } from "@/validation/location";
 
 export type DashboardRole = "superadmin" | "ho" | "admin_site";
@@ -162,4 +164,22 @@ export type WeekChartProps = {
 
 export type AttendanceEndLabelsProps = {
   last: SeriesPoint;
+};
+
+export type BreakdownTableProps = {
+  breakdown: Breakdown;
+  // The site name for HO, the location name for admin site, null for a superadmin.
+  contextName: string | null;
+};
+
+export type SummaryTableProps<TData extends RowData> = {
+  data: TData[];
+  columns: ColumnDef<typeof summaryFeatures, TData>[];
+  getRowId: (row: TData) => string;
+};
+
+export type CountCellProps = {
+  value: number;
+  // A value above 0 gets the destructive color, for conflicts.
+  danger?: boolean;
 };

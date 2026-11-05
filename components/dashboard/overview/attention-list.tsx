@@ -12,7 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { AttentionKey, AttentionListProps } from "@/types/dashboard";
+import type {
+  AttentionHeaderProps,
+  AttentionKey,
+  AttentionListProps,
+} from "@/types/dashboard";
 
 const ITEM_ICONS: Record<AttentionKey, LucideIcon> = {
   requests: ClipboardListIcon,
@@ -22,7 +26,7 @@ const ITEM_ICONS: Record<AttentionKey, LucideIcon> = {
   contracts: CalendarClockIcon,
 };
 
-function AttentionHeader({ count }: { count: number }) {
+function AttentionHeader({ count }: AttentionHeaderProps) {
   return (
     <CardHeader className="border-b">
       <div className="flex items-center gap-2">
@@ -44,8 +48,9 @@ export function AttentionList({ items }: AttentionListProps) {
           </span>
           <div className="flex flex-col gap-1">
             <p className="font-medium">All caught up</p>
-            <p className="text-muted-foreground">
-              Nothing needs attention right now.
+            <p className="max-w-sm text-muted-foreground">
+              No request is waiting, every draft roster is confirmed, and
+              today&apos;s attendance is marked in every location.
             </p>
           </div>
         </div>

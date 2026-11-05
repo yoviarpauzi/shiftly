@@ -16,11 +16,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { KpiCard, KpiCardsProps } from "@/types/dashboard";
+import type { KpiBadgeProps, KpiBadgeTone, KpiCardsProps } from "@/types/dashboard";
 
-type BadgeTone = NonNullable<KpiCard["badge"]>["tone"];
-
-const BADGE_ICONS: Record<BadgeTone, LucideIcon | null> = {
+const BADGE_ICONS: Record<KpiBadgeTone, LucideIcon | null> = {
   up: TrendingUpIcon,
   down: TrendingDownIcon,
   danger: TriangleAlertIcon,
@@ -28,7 +26,7 @@ const BADGE_ICONS: Record<BadgeTone, LucideIcon | null> = {
   neutral: null,
 };
 
-function KpiBadge({ badge }: { badge: NonNullable<KpiCard["badge"]> }) {
+function KpiBadge({ badge }: KpiBadgeProps) {
   const Icon = BADGE_ICONS[badge.tone];
   const isDanger = badge.tone === "danger";
 

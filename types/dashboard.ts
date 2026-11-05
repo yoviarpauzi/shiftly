@@ -126,3 +126,13 @@ export type OverviewHeaderProps = {
   role: DashboardRole;
   subtitle: string;
 };
+
+export type KpiBadgeTone = NonNullable<KpiCard["badge"]>["tone"];
+
+export type KpiBadgeProps = {
+  badge: NonNullable<KpiCard["badge"]>;
+};
+
+export type AttentionHeaderProps = {
+  count: number;
+};

@@ -10,6 +10,7 @@ import {
   formatDayLabel,
   formatLongDay,
   formatMonthDay,
+  scopeToday,
   formatShortDay,
   formatWeekdayDay,
   kpiCards,
@@ -861,6 +862,28 @@ describe("tickDates", () => {
 
   it("returns nothing for an empty series", () => {
     expect(tickDates([], "30d")).toEqual([]);
+  });
+});
+
+describe("scopeToday", () => {
+  it("is the latest today among the zones, whatever their order", () => {
+    expect(
+      scopeToday([
+        { timezone: "Asia/Makassar", today: "2026-11-10", locationIds: ["b"] },
+        { timezone: "Asia/Jakarta", today: "2026-11-09", locationIds: ["a"] },
+      ]),
+    ).toBe("2026-11-10");
+    expect(
+      scopeToday([
+        { timezone: "Asia/Jakarta", today: "2026-11-09", locationIds: ["a"] },
+        { timezone: "Asia/Makassar", today: "2026-11-10", locationIds: ["b"] },
+      ]),
+    ).toBe("2026-11-10");
+  });
+
+  it("falls back to today in the default zone when there is no zone", () => {
+    // 17:30 UTC on 9 Nov is already 10 Nov in WIB.
+    expect(scopeToday([], new Date("2026-11-09T17:30:00Z"))).toBe("2026-11-10");
   });
 });
 

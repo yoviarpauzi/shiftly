@@ -7,8 +7,6 @@ import { KpiCards } from "@/components/dashboard/overview/kpi-cards";
 import { OverviewHeader } from "@/components/dashboard/overview/overview-header";
 import { OverviewSkeleton } from "@/components/dashboard/overview/overview-skeleton";
 import { WeekChart } from "@/components/dashboard/overview/week-chart";
-import { dateInZone } from "@/lib/indonesia-date";
-import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import {
   getAttendanceSeries,
   getAttentionCounts,
@@ -21,6 +19,7 @@ import {
   attentionItems,
   dashboardSubtitle,
   kpiCards,
+  scopeToday,
   weekChartCopy,
 } from "./dashboard-rules";
 import { dashboardScopeFor } from "./dashboard-scope";
@@ -44,7 +43,8 @@ async function DashboardView() {
   const weekConflicts = gaps.reduce((total, point) => total + point.value, 0);
 
   const place = scope.locations[0] ?? null;
-  const today = scope.zones[0]?.today ?? dateInZone(DEFAULT_LOCATION_TIMEZONE);
+  // The latest zone's date, so a scope across zones never names the day before.
+  const today = scopeToday(scope.zones);
   const siteName = role === "superadmin" ? null : (place?.siteName ?? null);
   const locationName = role === "admin_site" ? (place?.name ?? null) : null;
 

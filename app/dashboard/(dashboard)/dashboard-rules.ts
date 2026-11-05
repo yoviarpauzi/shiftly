@@ -1,4 +1,6 @@
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
+import { dateInZone } from "@/lib/indonesia-date";
+import { DEFAULT_LOCATION_TIMEZONE } from "@/validation/location";
 import type {
   AttendanceCounts,
   AttentionCounts,
@@ -10,6 +12,7 @@ import type {
   SeriesPoint,
   EndLabelBounds,
   EndLabelYs,
+  ScopeZone,
   SeriesRange,
   WeekChartCopy,
 } from "@/types/dashboard";
@@ -411,6 +414,16 @@ export function attentionItems(
   return ATTENTION_ORDER[role]
     .map((key) => attentionItem(key, role, counts, today))
     .filter((item): item is AttentionItem => item !== null);
+}
+
+// The latest today among the scope's zones: a zone already on the next date is never cut off. With
+// no zone (an empty database), today in the default zone, so the charts still have an axis.
+export function scopeToday(zones: ScopeZone[], now: Date = new Date()): string {
+  if (zones.length === 0) {
+    return dateInZone(DEFAULT_LOCATION_TIMEZONE, now);
+  }
+
+  return zones.reduce((latest, zone) => (zone.today > latest ? zone.today : latest), zones[0].today);
 }
 
 // The seven dates of the week that holds `today`, Monday first.

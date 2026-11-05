@@ -122,6 +122,8 @@ export type RequestsDataTableProps = {
   pickSite: boolean;
   siteId: string | null;
   sites: SiteOption[];
+  // False for admin site, which has one location and so nothing to filter by.
+  pickLocation: boolean;
   locationId: string | null;
   // The locations the location filter offers, already narrowed to the chosen site.
   locations: RequestLocationOption[];

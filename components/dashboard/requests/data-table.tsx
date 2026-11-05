@@ -42,6 +42,7 @@ export function RequestsDataTable({
   pickSite,
   siteId,
   sites,
+  pickLocation,
   locationId,
   locations,
   sort,
@@ -117,7 +118,7 @@ export function RequestsDataTable({
           <RequestsStatusFilter status={status} />
           <RequestsTypeFilter type={type} />
           {pickSite && <RequestsSiteFilter siteId={siteId} sites={sites} />}
-          {(!pickSite || siteId !== null) && locations.length > 1 && (
+          {pickLocation && (!pickSite || siteId !== null) && (
             <RequestsLocationFilter
               locationId={locationId}
               locations={locations}

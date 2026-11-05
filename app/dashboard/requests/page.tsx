@@ -63,6 +63,7 @@ export default async function Page({
         pickSite={pickSite}
         siteId={siteId}
         sites={choices.sites.map(({ id, name }) => ({ id, name }))}
+        pickLocation={access.locationId === null}
         locationId={locationId}
         locations={locations.map(({ id, name }) => ({ id, name }))}
         sort={sort}

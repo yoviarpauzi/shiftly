@@ -95,6 +95,7 @@ export function SiteFormDialog({
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
+                            placeholder="Site name"
                             autoFocus
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}
@@ -118,6 +119,7 @@ export function SiteFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Site code"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }
@@ -139,7 +141,9 @@ export function SiteFormDialog({
                 )}
                 <DialogFooter>
                   <DialogClose
-                    render={<Button variant="outline" disabled={isSubmitting} />}
+                    render={
+                      <Button variant="outline" disabled={isSubmitting} />
+                    }
                   >
                     Cancel
                   </DialogClose>

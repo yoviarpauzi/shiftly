@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 
 const OPTIONS: { value: ShiftStatus; label: string }[] = [
-  { value: "all", label: "All" },
+  { value: "all", label: "All statuses" },
   { value: "active", label: "Active" },
   { value: "deleted", label: "Deleted" },
 ];
@@ -40,7 +40,7 @@ export function ShiftsStatusFilter({ status }: { status: ShiftStatus }) {
       }}
       items={OPTIONS}
     >
-      <SelectTrigger aria-label="Filter shifts by status" className="h-9 w-32">
+      <SelectTrigger aria-label="Filter shifts by status" className="h-9 w-40">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

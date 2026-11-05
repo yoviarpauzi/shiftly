@@ -12,12 +12,16 @@ import {
 } from "@/components/ui/select";
 
 const OPTIONS: { value: DepartmentStatus; label: string }[] = [
-  { value: "all", label: "All" },
+  { value: "all", label: "All statuses" },
   { value: "active", label: "Active" },
   { value: "deleted", label: "Deleted" },
 ];
 
-export function DepartmentsStatusFilter({ status }: { status: DepartmentStatus }) {
+export function DepartmentsStatusFilter({
+  status,
+}: {
+  status: DepartmentStatus;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -40,7 +44,10 @@ export function DepartmentsStatusFilter({ status }: { status: DepartmentStatus }
       }}
       items={OPTIONS}
     >
-      <SelectTrigger aria-label="Filter departments by status" className="h-9 w-32">
+      <SelectTrigger
+        aria-label="Filter departments by status"
+        className="h-9 w-40"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

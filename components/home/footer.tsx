@@ -15,7 +15,7 @@ export default function Footer() {
           />
           Shiftly
         </span>
-        <div className="flex flex-col gap-1 md:w-[440px] md:text-right">
+        <div className="flex flex-col gap-1 md:max-w-[440px] md:text-right">
           <p className="text-sm leading-5 text-muted-foreground">
             {FOOTER_COPY.tagline}
           </p>

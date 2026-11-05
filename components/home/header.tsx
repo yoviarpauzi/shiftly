@@ -10,7 +10,7 @@ export default function Header() {
         <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <Image
             src="/logo.webp"
-            alt="Shiftly logo"
+            alt=""
             width={25}
             height={28}
             className="h-7 w-auto"
@@ -34,7 +34,7 @@ export default function Header() {
           </ul>
         </nav>
 
-        <AuthButton className="h-11 rounded-lg px-4 sm:h-9" />
+        <AuthButton className="h-11 rounded-lg px-4 sm:h-9 lg:h-8 lg:px-2.5" />
       </div>
     </header>
   );

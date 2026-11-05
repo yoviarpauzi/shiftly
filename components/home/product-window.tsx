@@ -10,7 +10,10 @@ export default function ProductWindow() {
             <span className="size-3 rounded-full bg-border" />
             <span className="size-3 rounded-full bg-border" />
           </div>
-          <span className="absolute inset-x-0 text-center text-[13px] text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 text-center text-[13px] text-muted-foreground"
+          >
             Shiftly
           </span>
         </div>

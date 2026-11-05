@@ -56,13 +56,25 @@ export function workerScopeFilter(access: WorkerAccess): SQL | undefined {
   );
 }
 
+export const CONTRACT_ENDING_DAYS = 30;
+
+// Active workers whose contract ends from today to CONTRACT_ENDING_DAYS later. Today is read in the
+// time zone of the worker's location. A scalar subquery supplies it, so a query on the worker table
+// alone (the count) needs no join.
+export function contractEndingFilter(): SQL {
+  const today = sql`(select (timezone(${location.timezone}, now()))::date from ${location} where ${location.id} = ${worker.locationId})`;
+  const last = sql`(${today} + ${sql.raw(`interval '${CONTRACT_ENDING_DAYS} days'`)})::date`;
+
+  return sql`(${isNull(worker.deletedAt)} and ${worker.endContract} >= ${today} and ${worker.endContract} <= ${last})`;
+}
+
 // Matches name or employee ID case-insensitively. An empty query matches every worker in the status.
 // The site and location filters narrow inside the scope, so they can never widen it.
 function workerFilter(
   access: WorkerAccess,
-  { query, status, siteId, locationId, positionId }: Pick<
+  { query, status, siteId, locationId, positionId, ending }: Pick<
     WorkerListParams,
-    "query" | "status" | "siteId" | "locationId" | "positionId"
+    "query" | "status" | "siteId" | "locationId" | "positionId" | "ending"
   >,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
@@ -87,15 +99,23 @@ function workerFilter(
             ),
         )
       : undefined,
+    ending ? contractEndingFilter() : undefined,
     query ? or(ilike(worker.name, pattern), ilike(worker.employeeId, pattern)) : undefined,
   );
 }
 
 export async function listWorkers(
   access: WorkerAccess,
-  { page, pageSize, query, status, siteId, locationId, positionId, sort }: WorkerListParams,
+  { page, pageSize, query, status, siteId, locationId, positionId, ending, sort }: WorkerListParams,
 ): Promise<WorkerPage> {
-  const filter = workerFilter(access, { query, status, siteId, locationId, positionId });
+  const filter = workerFilter(access, {
+    query,
+    status,
+    siteId,
+    locationId,
+    positionId,
+    ending,
+  });
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the worker table alone, so the joins do not inflate the total.

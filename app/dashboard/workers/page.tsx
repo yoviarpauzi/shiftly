@@ -1,6 +1,8 @@
 import { WorkersDataTable } from "@/components/dashboard/workers/data-table";
+import { WorkersEndingNotice } from "@/components/dashboard/workers/workers-ending-notice";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";
+import { parseWorkerEnding } from "@/validation/worker-ending";
 import { parseWorkerLocation } from "@/validation/worker-location";
 import { parseWorkerPosition } from "@/validation/worker-position";
 import { parseWorkerSite } from "@/validation/worker-site";
@@ -9,6 +11,25 @@ import { requireWorkerManager } from "./worker-guard";
 import { listWorkers, workerFormOptionsFor } from "./workers";
 
 const WORKER_SORT_COLUMNS = ["employeeId", "name", "site", "location", "status"] as const;
+
+// The same URL without the ending filter. The page number goes too, since the list changes.
+function clearEndingHref(params: Record<string, string | string[] | undefined>): string {
+  const next = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "ending" || key === "page" || value === undefined) {
+      continue;
+    }
+
+    for (const item of Array.isArray(value) ? value : [value]) {
+      next.append(key, item);
+    }
+  }
+
+  const query = next.toString();
+
+  return query ? `/dashboard/workers?${query}` : "/dashboard/workers";
+}
 
 export default async function Page({
   searchParams,
@@ -40,12 +61,14 @@ export default async function Page({
       ? []
       : options.positions.filter((position) => !siteId || position.siteId === siteId);
   const positionId = parseWorkerPosition(params.position, positions);
+  const ending = parseWorkerEnding(params.ending);
   const workers = await listWorkers(access, {
     ...parsePageParams(params),
     status,
     siteId,
     locationId,
     positionId,
+    ending,
     sort,
   });
 
@@ -57,6 +80,7 @@ export default async function Page({
           Workers in the locations you can manage, with their positions.
         </p>
       </div>
+      {ending ? <WorkersEndingNotice clearHref={clearEndingHref(params)} /> : null}
       <WorkersDataTable
         data={workers}
         status={status}

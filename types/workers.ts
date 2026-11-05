@@ -50,6 +50,8 @@ export type WorkerListParams = PageParams & {
   locationId: string | null;
   // null means every position. A worker matches when it has this position.
   positionId: string | null;
+  // true keeps only workers whose contract ends within the next 30 days.
+  ending: boolean;
   sort: SortCriterion<WorkerSortColumn>[];
 };
 
@@ -136,4 +138,9 @@ export type WorkerPositionPickerProps = {
 export type WorkersPositionFilterProps = {
   positions: WorkerFormOption[];
   value: string | null;
+};
+
+export type WorkersEndingNoticeProps = {
+  // The Workers page without the ending filter, other params kept.
+  clearHref: string;
 };

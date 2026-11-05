@@ -41,6 +41,13 @@ export function formatShortDay(date: string): string {
   return `${WEEKDAYS[weekday]} ${day} ${MONTHS[month - 1]}`;
 }
 
+// The label under a bar of the weekly chart, as "Mon 9".
+export function formatWeekdayDay(date: string): string {
+  const { day, weekday } = parts(date);
+
+  return `${WEEKDAYS[weekday]} ${day}`;
+}
+
 function oneDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -406,6 +413,23 @@ export function lastDays(today: string, count: number): string[] {
 // The chart loads 30 days once, and a shorter range is the tail of it.
 export function sliceSeries(series: SeriesPoint[], range: SeriesRange): SeriesPoint[] {
   return series.slice(-SERIES_LENGTH[range]);
+}
+
+// Whole-number ticks from 0 for a chart axis: at most five steps of 1, 2, 5, 10, 20, 50 and so
+// on, and never fewer than `minimum` as the top, so an empty chart still has a scale.
+export function axisTicks(max: number, minimum: number): number[] {
+  const target = Math.max(Math.ceil(max), minimum);
+
+  for (let magnitude = 1; ; magnitude *= 10) {
+    for (const factor of [1, 2, 5]) {
+      const step = factor * magnitude;
+      const count = Math.ceil(target / step);
+
+      if (count <= 5) {
+        return Array.from({ length: count + 1 }, (_, index) => index * step);
+      }
+    }
+  }
 }
 
 export function dashboardSubtitle(

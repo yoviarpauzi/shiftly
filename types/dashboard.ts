@@ -136,3 +136,30 @@ export type KpiBadgeProps = {
 export type AttentionHeaderProps = {
   count: number;
 };
+
+// The view of the attendance chart: one of the ranges, or the table of the last range.
+export type AttendanceView = SeriesRange | "table";
+
+export type AttendanceChartProps = {
+  // 30 days, oldest first. A shorter range is the tail of it.
+  series: SeriesPoint[];
+};
+
+export type AttendanceTableProps = {
+  series: SeriesPoint[];
+};
+
+export type WeekChartTone = "danger" | "primary";
+
+export type WeekChartProps = {
+  title: string;
+  description: string;
+  // Seven days, Monday first.
+  points: WeekPoint[];
+  tone: WeekChartTone;
+  caption: string;
+};
+
+export type AttendanceEndLabelsProps = {
+  last: SeriesPoint;
+};

@@ -6,9 +6,11 @@ import {
   attendanceRate,
   attentionItems,
   dashboardSubtitle,
+  axisTicks,
   formatDayLabel,
   formatLongDay,
   formatShortDay,
+  formatWeekdayDay,
   kpiCards,
   lastDays,
   rateDelta,
@@ -773,7 +775,37 @@ describe("day labels", () => {
     expect(formatShortDay("2026-11-06")).toBe("Fri 6 Nov");
   });
 
+  it("formats the weekday and day for a bar label", () => {
+    expect(formatWeekdayDay("2026-11-09")).toBe("Mon 9");
+    expect(formatWeekdayDay("2026-11-15")).toBe("Sun 15");
+  });
+
   it("names a Sunday and a year boundary correctly", () => {
     expect(formatLongDay("2027-01-03")).toBe("Sun, 3 Jan 2027");
+  });
+});
+
+describe("axisTicks", () => {
+  it("steps by 50 for a series that peaks near 225", () => {
+    expect(axisTicks(225, 4)).toEqual([0, 50, 100, 150, 200, 250]);
+  });
+
+  it("keeps a scale of the minimum for an empty chart", () => {
+    expect(axisTicks(0, 4)).toEqual([0, 1, 2, 3, 4]);
+    expect(axisTicks(0, 3)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("uses whole numbers for small counts", () => {
+    expect(axisTicks(2, 3)).toEqual([0, 1, 2, 3]);
+    expect(axisTicks(18, 3)).toEqual([0, 5, 10, 15, 20]);
+  });
+
+  it("ends on a tick at or above the largest value", () => {
+    for (const max of [1, 5, 6, 12, 99, 101, 202, 1234]) {
+      const ticks = axisTicks(max, 3);
+
+      expect(ticks.at(-1)).toBeGreaterThanOrEqual(max);
+      expect(ticks.length).toBeLessThanOrEqual(6);
+    }
   });
 });

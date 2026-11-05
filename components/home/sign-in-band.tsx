@@ -20,14 +20,14 @@ export default function SignInBand() {
           />
           <div className="flex w-full min-w-0 flex-col items-start gap-5 md:flex-1 lg:flex-row lg:items-center lg:gap-12">
             <div className="min-w-0 lg:flex-1">
-              <h2 className="text-[32px] text-balance leading-[38px] font-bold tracking-[-0.02em] md:text-[36px] md:leading-[44px] lg:text-[44px] lg:leading-[50px]">
+              <h2 className="text-[32px] text-balance leading-[38px] font-bold tracking-[-0.03em] md:text-[36px] md:leading-[44px] lg:text-[44px] lg:leading-[50px]">
                 {BAND_COPY.title}
               </h2>
               <p className="mt-2.5 text-base leading-6 text-muted-foreground">
                 {BAND_COPY.detail}
               </p>
             </div>
-            <AuthButton className="h-12 w-full rounded-lg px-6 sm:h-11 md:w-auto md:px-5 lg:shrink-0" />
+            <AuthButton className="h-12 w-full rounded-lg px-6 text-base sm:h-11 md:w-auto md:px-5 lg:shrink-0" />
           </div>
         </div>
       </div>

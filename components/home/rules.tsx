@@ -24,7 +24,7 @@ export default function Rules() {
         />
 
         <div className="mt-6 text-center sm:mt-8">
-          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.02em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
+          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.03em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
             {RULES_HEADING.title}
           </h2>
           <p className="mx-auto mt-2.5 max-w-[920px] text-base text-balance leading-6 text-muted-foreground lg:text-lg lg:leading-7">
@@ -60,7 +60,7 @@ export default function Rules() {
                 <p className="text-base leading-6 font-medium text-foreground">
                   {rule.title}
                 </p>
-                <p className="mt-1 text-sm leading-[22px] text-muted-foreground">
+                <p className="mt-1 text-sm leading-5 text-muted-foreground">
                   {rule.detail}
                 </p>
               </li>

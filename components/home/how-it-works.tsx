@@ -7,7 +7,7 @@ export default function HowItWorks() {
     <section id="how-it-works" className="scroll-mt-16 bg-muted py-14 sm:py-24">
       <div className="home-container">
         <div className="text-center">
-          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.02em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
+          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.03em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
             {HOW_IT_WORKS.title}
           </h2>
           <p className="mx-auto mt-2.5 max-w-[920px] text-base text-balance leading-6 text-muted-foreground lg:text-lg lg:leading-7">
@@ -52,7 +52,7 @@ export default function HowItWorks() {
                       {step.title}
                     </p>
                     {step.detail ? (
-                      <p className="mt-1 text-sm leading-[22px] text-muted-foreground">
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground">
                         {step.detail}
                       </p>
                     ) : null}

@@ -6,7 +6,7 @@ import { cn } from "cn";
 const BOX_STYLES = [
   "rounded-xl bg-background p-5 sm:p-8",
   "rounded-lg bg-muted p-4 sm:p-8",
-  "rounded-lg bg-secondary p-4 sm:p-8",
+  "rounded-lg border-primary/25 bg-secondary p-4 sm:p-8",
 ];
 
 // Each role's box holds the next role, so a longer ROLES nests deeper.
@@ -43,7 +43,7 @@ export default function Roles() {
     <section id="roles" className="scroll-mt-16 bg-muted py-14 sm:py-24">
       <div className="home-container">
         <div className="text-center">
-          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.02em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
+          <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.03em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
             {ROLES_HEADING.title}
           </h2>
           <p className="mx-auto mt-2.5 max-w-[920px] text-base text-balance leading-6 text-muted-foreground lg:text-lg lg:leading-7">

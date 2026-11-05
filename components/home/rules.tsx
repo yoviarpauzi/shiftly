@@ -33,7 +33,7 @@ export default function Rules() {
         </div>
 
         <div className="mt-6 flex flex-col gap-7 sm:mt-8 sm:gap-10 lg:flex-row lg:items-start lg:gap-20">
-          <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-5 sm:p-6 lg:w-[480px] lg:shrink-0">
+          <div className="w-full rounded-lg border border-destructive/30 bg-destructive/5 p-5 sm:p-6 lg:w-[480px] lg:shrink-0">
             <p className="flex items-center gap-2 text-base leading-6 font-medium text-destructive">
               <TriangleAlertIcon className="size-[18px]" aria-hidden="true" />
               {CONFLICT_EXAMPLE.title}

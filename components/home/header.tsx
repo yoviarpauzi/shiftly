@@ -34,7 +34,7 @@ export default function Header() {
           </ul>
         </nav>
 
-        <AuthButton className="h-11 rounded-md px-4 sm:h-9" />
+        <AuthButton className="h-11 rounded-lg px-4 sm:h-9" />
       </div>
     </header>
   );

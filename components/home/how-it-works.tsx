@@ -62,7 +62,7 @@ export default function HowItWorks() {
             </ol>
           </div>
 
-          <div className="mx-auto w-full max-w-[756px] overflow-hidden rounded-2xl border bg-background shadow-[0_24px_64px_-24px] shadow-primary/30">
+          <div className="mx-auto w-full max-w-[756px] overflow-hidden rounded-xl border bg-background shadow-[0_24px_64px_-24px] shadow-primary/30">
             <Image
               src="/landing/roster-screen.webp"
               alt="A weekly roster with one conflict flagged"

@@ -5,7 +5,7 @@ import ProductWindow from "@/components/home/product-window";
 import { Button } from "@/components/ui/button";
 
 const BUTTON_CLASS =
-  "h-12 w-full rounded-xl px-6 text-[17px] sm:h-[52px] sm:w-auto sm:text-[18px]";
+  "h-12 w-full rounded-lg px-6 text-[17px] sm:h-[52px] sm:w-auto sm:text-[18px]";
 
 export default function Hero() {
   return (

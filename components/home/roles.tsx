@@ -4,9 +4,9 @@ import { cn } from "cn";
 
 // Box colours, outermost first. A role past the list reuses it from the start.
 const BOX_STYLES = [
-  "rounded-2xl bg-background p-5 sm:p-8",
-  "rounded-xl bg-muted p-4 sm:p-8",
-  "rounded-xl bg-secondary p-4 sm:p-8",
+  "rounded-xl bg-background p-5 sm:p-8",
+  "rounded-lg bg-muted p-4 sm:p-8",
+  "rounded-lg bg-secondary p-4 sm:p-8",
 ];
 
 // Each role's box holds the next role, so a longer ROLES nests deeper.

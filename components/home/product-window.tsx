@@ -3,7 +3,7 @@ import Image from "next/image";
 export default function ProductWindow() {
   return (
     <div className="relative mx-auto w-full max-w-[960px]">
-      <div className="overflow-hidden rounded-2xl border bg-muted shadow-[0_24px_64px_-24px] shadow-primary/30">
+      <div className="overflow-hidden rounded-xl border bg-muted shadow-[0_24px_64px_-24px] shadow-primary/30">
         <div className="relative flex h-10 items-center border-b bg-muted px-4">
           <div className="flex gap-2" aria-hidden="true">
             <span className="size-3 rounded-full bg-border" />

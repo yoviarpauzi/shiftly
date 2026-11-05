@@ -17,6 +17,9 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const SERIES_LENGTH: Record<SeriesRange, number> = { "30d": 30, "14d": 14, "7d": 7 };
 
+// Days between two labels on the X axis of the attendance chart, so the labels do not collide.
+const TICK_STEP: Record<SeriesRange, number> = { "30d": 4, "14d": 2, "7d": 1 };
+
 function parts(date: string): { year: number; month: number; day: number; weekday: number } {
   const [year, month, day] = date.split("-").map(Number);
 
@@ -39,6 +42,13 @@ export function formatShortDay(date: string): string {
   const { month, day, weekday } = parts(date);
 
   return `${WEEKDAYS[weekday]} ${day} ${MONTHS[month - 1]}`;
+}
+
+// The X axis label of the attendance chart, as "Nov 9".
+export function formatMonthDay(date: string): string {
+  const { month, day } = parts(date);
+
+  return `${MONTHS[month - 1]} ${day}`;
 }
 
 // The label under a bar of the weekly chart, as "Mon 9".
@@ -430,6 +440,15 @@ export function axisTicks(max: number, minimum: number): number[] {
       }
     }
   }
+}
+
+// The dates labelled on the X axis: every Nth date counted back from the last one, oldest first.
+export function tickDates(series: SeriesPoint[], range: SeriesRange): string[] {
+  const step = TICK_STEP[range];
+
+  return series
+    .filter((_, index) => (series.length - 1 - index) % step === 0)
+    .map((point) => point.date);
 }
 
 export function dashboardSubtitle(

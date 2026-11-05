@@ -7,8 +7,9 @@ import { Area, AreaChart, CartesianGrid, usePlotArea, useYAxisScale, XAxis, YAxi
 import {
   axisTicks,
   formatDayLabel,
-  formatShortDay,
+  formatMonthDay,
   sliceSeries,
+  tickDates,
 } from "@/app/dashboard/(dashboard)/dashboard-rules";
 import {
   Card,
@@ -130,7 +131,12 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
     Math.max(0, ...visible.map((point) => Math.max(point.present, point.notPresent))),
     4,
   );
+  const dayTicks = tickDates(visible, range);
   const title = RANGES.find((item) => item.value === range)?.title ?? RANGES[0].title;
+
+  const chartLabel = last
+    ? `${title}: Present ${last.present}, Not present ${last.notPresent} on the last day`
+    : title;
 
   function select(value: unknown) {
     if (!isView(value)) {
@@ -168,7 +174,7 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
             ))}
           </ToggleGroup>
           <Select value={view} onValueChange={select} items={VIEWS}>
-            <SelectTrigger className="h-11 w-40 sm:hidden" aria-label="Attendance view">
+            <SelectTrigger className="w-40 data-[size=default]:h-11 sm:hidden" aria-label="Attendance view">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -185,7 +191,12 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
         {view === "table" ? (
           <AttendanceTable series={visible} />
         ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-72 w-full">
+          <ChartContainer
+            config={chartConfig}
+            role="group"
+            aria-label={chartLabel}
+            className="aspect-auto h-72 w-full"
+          >
             <AreaChart data={visible} margin={CHART_MARGIN}>
               <defs>
                 <linearGradient id={`${gradientId}-present`} x1="0" y1="0" x2="0" y2="1">
@@ -203,8 +214,8 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                minTickGap={24}
-                tickFormatter={(value: string) => formatShortDay(value)}
+                ticks={dayTicks}
+                tickFormatter={(value: string) => formatMonthDay(value)}
               />
               <YAxis
                 width={32}
@@ -251,14 +262,9 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
               <ChartLegend
                 verticalAlign="bottom"
                 align="left"
-                content={(legend) => (
-                  <ChartLegendContent
-                    verticalAlign={legend.verticalAlign}
-                    // The legend lists the areas bottom-up, so it is turned to read Present first.
-                    payload={[...(legend.payload ?? [])].reverse()}
-                    className="justify-start pt-4"
-                  />
-                )}
+                // Keep the order of the areas. The default sorts the entries by name.
+                itemSorter={null}
+                content={<ChartLegendContent className="justify-start pt-4" />}
               />
             </AreaChart>
           </ChartContainer>

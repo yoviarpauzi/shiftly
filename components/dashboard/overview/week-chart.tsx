@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Bar, BarChart, CartesianGrid, Rectangle, XAxis, YAxis } from "recharts";
 
 import { axisTicks, formatWeekdayDay } from "@/app/dashboard/(dashboard)/dashboard-rules";
@@ -15,6 +16,7 @@ const TONE_CONFIG: Record<WeekChartTone, ChartConfig> = {
 const CHART_MARGIN = { top: 20, right: 8, bottom: 0, left: 0 };
 
 export function WeekChart({ title, description, points, tone, caption }: WeekChartProps) {
+  const captionId = React.useId();
   const ticks = axisTicks(Math.max(...points.map((point) => point.value)), 3);
   const data = points.map((point) => ({ ...point, label: formatWeekdayDay(point.date) }));
 
@@ -25,7 +27,13 @@ export function WeekChart({ title, description, points, tone, caption }: WeekCha
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        <ChartContainer config={TONE_CONFIG[tone]} className="aspect-auto h-60 w-full">
+        <ChartContainer
+          config={TONE_CONFIG[tone]}
+          role="group"
+          aria-label={`${title}, Monday to Sunday`}
+          aria-describedby={captionId}
+          className="aspect-auto h-60 w-full"
+        >
           <BarChart data={data} margin={CHART_MARGIN}>
             <CartesianGrid vertical={false} />
             <XAxis
@@ -69,7 +77,9 @@ export function WeekChart({ title, description, points, tone, caption }: WeekCha
             />
           </BarChart>
         </ChartContainer>
-        <p className="text-sm text-muted-foreground">{caption}</p>
+        <p id={captionId} className="text-sm text-muted-foreground">
+          {caption}
+        </p>
       </CardContent>
     </Card>
   );

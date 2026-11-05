@@ -9,12 +9,14 @@ import {
   axisTicks,
   formatDayLabel,
   formatLongDay,
+  formatMonthDay,
   formatShortDay,
   formatWeekdayDay,
   kpiCards,
   lastDays,
   rateDelta,
   sliceSeries,
+  tickDates,
   weekDays,
 } from "./dashboard-rules";
 
@@ -807,5 +809,48 @@ describe("axisTicks", () => {
       expect(ticks.at(-1)).toBeGreaterThanOrEqual(max);
       expect(ticks.length).toBeLessThanOrEqual(6);
     }
+  });
+});
+
+describe("formatMonthDay", () => {
+  it("formats a date as month and day without a weekday", () => {
+    expect(formatMonthDay("2026-11-09")).toBe("Nov 9");
+    expect(formatMonthDay("2026-10-12")).toBe("Oct 12");
+    expect(formatMonthDay("2027-01-03")).toBe("Jan 3");
+  });
+});
+
+describe("tickDates", () => {
+  const series = lastDays("2026-11-09", 30).map((date) => ({ date, present: 0, notPresent: 0 }));
+
+  it("takes every 4th date of 30 days, ending on the last date", () => {
+    expect(tickDates(sliceSeries(series, "30d"), "30d").map(formatMonthDay)).toEqual([
+      "Oct 12",
+      "Oct 16",
+      "Oct 20",
+      "Oct 24",
+      "Oct 28",
+      "Nov 1",
+      "Nov 5",
+      "Nov 9",
+    ]);
+  });
+
+  it("takes every 2nd date of 14 days, ending on the last date", () => {
+    const ticks = tickDates(sliceSeries(series, "14d"), "14d");
+
+    expect(ticks).toHaveLength(7);
+    expect(ticks.at(-1)).toBe("2026-11-09");
+    expect(ticks[0]).toBe("2026-10-28");
+  });
+
+  it("takes every date of 7 days", () => {
+    expect(tickDates(sliceSeries(series, "7d"), "7d")).toEqual(
+      sliceSeries(series, "7d").map((point) => point.date),
+    );
+  });
+
+  it("returns nothing for an empty series", () => {
+    expect(tickDates([], "30d")).toEqual([]);
   });
 });

@@ -9,6 +9,7 @@ import type {
   KpiCard,
   SeriesPoint,
   SeriesRange,
+  WeekChartCopy,
 } from "@/types/dashboard";
 
 // Fixed English names, so the text does not depend on the server's locale.
@@ -466,4 +467,32 @@ export function dashboardSubtitle(
   const place = [names.siteName, names.locationName].filter(Boolean).join(" / ");
 
   return `What needs attention at ${place || "your location"}.`;
+}
+
+// The title, description, caption and tone of the week chart. Superadmin and HO see the gaps the
+// rules left, and an admin site sees how many workers are scheduled.
+export function weekChartCopy(role: DashboardRole, kpis: DashboardKpis): WeekChartCopy {
+  const conflicts = kpis.openConflicts;
+  const count = `${conflicts} ${plural(conflicts, "conflict", "conflicts")}`;
+
+  if (role === "admin_site") {
+    return {
+      title: "Workers scheduled this week",
+      description: "Workers on a shift, per day",
+      caption: conflicts === 0 ? "No unfilled shifts this week" : `${count} in the draft roster`,
+      tone: "primary",
+    };
+  }
+
+  const rosters = kpis.conflictedRosters;
+
+  return {
+    title: "Gaps in this week's rosters",
+    description: "Shifts the rules could not fill, per day",
+    caption:
+      conflicts === 0
+        ? "No conflicts in draft rosters"
+        : `${count} in ${rosters} ${plural(rosters, "draft roster", "draft rosters")}`,
+    tone: "danger",
+  };
 }

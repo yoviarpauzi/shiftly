@@ -162,6 +162,8 @@ export type WeekChartProps = {
   caption: string;
 };
 
+export type WeekChartCopy = Omit<WeekChartProps, "points">;
+
 export type AttendanceEndLabelsProps = {
   last: SeriesPoint;
 };

@@ -2,8 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { MenuIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { NAV_LINKS } from "@/components/home/content";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import type { HeaderProps } from "@/types/home";
 import { cn } from "cn";
 
@@ -12,7 +23,7 @@ function subscribeToScroll(onChange: () => void) {
   return () => window.removeEventListener("scroll", onChange);
 }
 
-export default function Header({ action }: HeaderProps) {
+export default function Header({ action, mobileAction }: HeaderProps) {
   const scrolled = useSyncExternalStore(
     subscribeToScroll,
     () => window.scrollY > 0,
@@ -62,7 +73,44 @@ export default function Header({ action }: HeaderProps) {
           </ul>
         </nav>
 
-        {action}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {action}
+          <Sheet>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 md:hidden"
+                  aria-label="Open menu"
+                />
+              }
+            >
+              <MenuIcon />
+            </SheetTrigger>
+            <SheetContent side="right">
+              <SheetHeader>
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+              </SheetHeader>
+              <nav aria-label="Mobile" className="px-4 pt-10">
+                <ul className="flex flex-col">
+                  {NAV_LINKS.map((link) => (
+                    <li key={link.href} className="border-b last:border-b-0">
+                      <SheetClose
+                        render={<Link href={link.href} />}
+                        nativeButton={false}
+                        className="block rounded-sm py-4 text-lg font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {link.label}
+                      </SheetClose>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <SheetFooter>{mobileAction}</SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

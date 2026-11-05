@@ -13,8 +13,9 @@ export default function Page() {
     <>
       <Header
         action={
-          <AuthButton className="h-11 rounded-lg px-4 sm:h-9 lg:h-8 lg:px-2.5" />
+          <AuthButton className="hidden h-9 rounded-lg px-4 md:inline-flex lg:h-8 lg:px-2.5" />
         }
+        mobileAction={<AuthButton className="h-11 w-full rounded-lg" />}
       />
       <main className="pt-16">
         <Hero />

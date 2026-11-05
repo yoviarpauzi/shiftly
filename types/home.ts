@@ -76,5 +76,8 @@ export type AuthLinkProps = {
 };
 
 export type HeaderProps = {
+  // Shown in the header from md up.
   action: ReactNode;
+  // Shown at the bottom of the mobile menu.
+  mobileAction: ReactNode;
 };

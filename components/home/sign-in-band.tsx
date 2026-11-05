@@ -7,7 +7,7 @@ import { BAND_COPY } from "@/components/home/content";
 export default function SignInBand() {
   return (
     <section className="bg-background pt-6 pb-12 sm:py-16 md:py-24">
-      <div className="home-container">
+      <div className="container">
         <div className="flex flex-col items-start gap-5 rounded-xl bg-secondary px-6 pt-8 pb-7 sm:p-10 md:flex-row md:items-center md:gap-8 lg:gap-12 lg:p-16">
           <Image
             src="/landing/doodle-requests.webp"

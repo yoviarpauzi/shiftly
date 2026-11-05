@@ -41,7 +41,7 @@ function RoleBox({ roles, depth }: RoleBoxProps) {
 export default function Roles() {
   return (
     <section id="roles" className="scroll-mt-16 bg-muted py-14 sm:py-24">
-      <div className="home-container">
+      <div className="container">
         <div className="text-center">
           <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.03em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
             {ROLES_HEADING.title}

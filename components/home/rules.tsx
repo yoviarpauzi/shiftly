@@ -12,7 +12,7 @@ export default function Rules() {
       id="rules"
       className="scroll-mt-16 bg-background pt-12 pb-14 sm:pt-[72px] sm:pb-24"
     >
-      <div className="home-container">
+      <div className="container">
         <Image
           src="/landing/doodle-work-rules.webp"
           alt=""

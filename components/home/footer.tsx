@@ -4,7 +4,7 @@ import { FOOTER_COPY } from "@/components/home/content";
 export default function Footer() {
   return (
     <footer className="border-t bg-background py-8 md:py-10">
-      <div className="home-container flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="container flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <Image
             src="/logo.webp"

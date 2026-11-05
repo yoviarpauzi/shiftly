@@ -6,7 +6,7 @@ import { NAV_LINKS } from "@/components/home/content";
 export default function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background">
-      <div className="home-container relative flex h-full items-center justify-between">
+      <div className="container relative flex h-full items-center justify-between">
         <Link
           href="/"
           className="flex items-center gap-2 rounded-sm text-base font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

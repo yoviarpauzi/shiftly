@@ -124,6 +124,7 @@ export function SignInForm({ className }: { className?: string }) {
                         onChange={(event) =>
                           field.handleChange(event.target.value)
                         }
+                        placeholder="••••••••"
                         required
                         disabled={isSubmitting}
                         aria-invalid={isInvalid || undefined}

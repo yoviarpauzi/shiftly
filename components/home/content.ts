@@ -74,20 +74,14 @@ export const RULES: HomeRule[] = [
     detail: "The most days a worker can be scheduled in one calendar month.",
   },
   {
-    title: "Break",
-    detail: "How many break days a worker gets, and how often.",
-  },
-  {
-    title: "Annual off",
-    detail: "How many off days each worker gets per year.",
-  },
-  {
     title: "Shift change",
-    detail: "Workers can move to a higher shift number, but not back to a lower one.",
+    detail:
+      "A worker can move back to a lower shift only after a set number of working days.",
   },
   {
     title: "Position match",
-    detail: "Only workers with the request line's position are assigned.",
+    detail:
+      "When required, only workers with the request line's position are assigned.",
   },
 ];
 

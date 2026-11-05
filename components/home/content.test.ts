@@ -46,15 +46,24 @@ describe("landing copy", () => {
     });
   });
 
-  it("has six rules in order", () => {
+  it("has the four rules the roster engine enforces, in order", () => {
     expect(RULES.map((rule) => rule.title)).toEqual([
       "Working days per week",
       "Max working days per month",
-      "Break",
-      "Annual off",
       "Shift change",
       "Position match",
     ]);
+  });
+
+  it("describes shift change and position match as the engine applies them", () => {
+    const detail = (title: string) =>
+      RULES.find((rule) => rule.title === title)?.detail;
+    expect(detail("Shift change")).toBe(
+      "A worker can move back to a lower shift only after a set number of working days.",
+    );
+    expect(detail("Position match")).toBe(
+      "When required, only workers with the request line's position are assigned.",
+    );
   });
 
   it("has three roles, outermost first", () => {

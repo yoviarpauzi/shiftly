@@ -1,4 +1,5 @@
 import { ROLES, ROLES_HEADING } from "@/components/home/content";
+import Reveal from "@/components/home/reveal";
 import type { RoleBoxProps } from "@/types/home";
 import { cn } from "cn";
 
@@ -15,7 +16,12 @@ function RoleBox({ roles, depth }: RoleBoxProps) {
   if (!role) return null;
 
   return (
-    <div className={cn("border", BOX_STYLES[depth % BOX_STYLES.length])}>
+    <Reveal
+      className={cn("border", BOX_STYLES[depth % BOX_STYLES.length])}
+      delay={depth * 0.18}
+      y={20}
+      scale={0.98}
+    >
       <div className="flex flex-col gap-3 md:flex-row md:justify-between md:gap-8">
         <div className="shrink-0">
           <h3 className="text-lg leading-7 font-semibold text-foreground">
@@ -34,7 +40,7 @@ function RoleBox({ roles, depth }: RoleBoxProps) {
           <RoleBox roles={inner} depth={depth + 1} />
         </div>
       ) : null}
-    </div>
+    </Reveal>
   );
 }
 
@@ -42,14 +48,14 @@ export default function Roles() {
   return (
     <section id="roles" className="scroll-mt-16 bg-muted py-14 sm:py-24">
       <div className="container">
-        <div className="text-center">
+        <Reveal className="text-center">
           <h2 className="text-[34px] text-balance leading-10 font-bold tracking-[-0.03em] sm:text-[44px] sm:leading-[52px] lg:text-[56px] lg:leading-[62px]">
             {ROLES_HEADING.title}
           </h2>
           <p className="mx-auto mt-2.5 max-w-[920px] text-base text-balance leading-6 text-muted-foreground lg:text-lg lg:leading-7">
             {ROLES_HEADING.subtitle}
           </p>
-        </div>
+        </Reveal>
 
         <div className="mt-7 sm:mt-12">
           <RoleBox roles={ROLES} depth={0} />

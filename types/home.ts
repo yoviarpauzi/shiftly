@@ -87,3 +87,14 @@ export type HeaderProps = {
   // Shown at the bottom of the mobile menu.
   mobileAction: ReactNode;
 };
+
+export type RevealProps = {
+  children: ReactNode;
+  className?: string;
+  // Seconds to wait after the element enters the view, so siblings can follow one another.
+  delay?: number;
+  // Where the element starts, in px, and how big it starts. It ends at 0, 0 and scale 1.
+  x?: number;
+  y?: number;
+  scale?: number;
+};

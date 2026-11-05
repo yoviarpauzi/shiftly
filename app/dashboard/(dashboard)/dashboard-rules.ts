@@ -491,7 +491,7 @@ export function weekChartCopy(role: DashboardRole, kpis: DashboardKpis): WeekCha
     description: "Shifts the rules could not fill, per day",
     caption:
       conflicts === 0
-        ? "No conflicts in draft rosters"
+        ? "No unfilled shifts this week"
         : `${count} in ${rosters} ${plural(rosters, "draft roster", "draft rosters")}`,
     tone: "danger",
   };

@@ -881,9 +881,9 @@ describe("weekChartCopy", () => {
     );
   });
 
-  it("says there are no conflicts when there are none", () => {
+  it("says nothing is unfilled when there are no conflicts", () => {
     expect(weekChartCopy("ho", kpis({ openConflicts: 0, conflictedRosters: 0 })).caption).toBe(
-      "No conflicts in draft rosters",
+      "No unfilled shifts this week",
     );
   });
 

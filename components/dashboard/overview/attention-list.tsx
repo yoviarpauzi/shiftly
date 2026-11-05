@@ -59,7 +59,7 @@ export function AttentionList({ items }: AttentionListProps) {
   }
 
   return (
-    <Card className="h-full">
+    <Card className="h-full gap-0 pb-0">
       <AttentionHeader count={items.length} />
       <ul className="flex flex-col divide-y">
         {items.map((item) => {
@@ -69,7 +69,7 @@ export function AttentionList({ items }: AttentionListProps) {
           return (
             <li
               key={item.key}
-              className="flex flex-col gap-3 px-(--card-spacing) py-3 sm:flex-row sm:items-center sm:gap-4"
+              className="flex flex-col gap-3 px-(--card-spacing) py-4 sm:flex-row sm:items-center sm:gap-4"
             >
               <div className="flex min-w-0 flex-1 items-start gap-3">
                 <span

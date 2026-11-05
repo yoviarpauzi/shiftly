@@ -32,7 +32,7 @@ function SummaryTable<TData extends RowData>({ data, columns, getRowId }: Summar
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} colSpan={header.colSpan}>
+                <TableHead key={header.id} colSpan={header.colSpan} className="px-3">
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </TableHead>
               ))}
@@ -42,9 +42,9 @@ function SummaryTable<TData extends RowData>({ data, columns, getRowId }: Summar
         <TableBody>
           {table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow key={row.id} className="h-12">
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} className="px-3">
                     <table.FlexRender cell={cell} />
                   </TableCell>
                 ))}

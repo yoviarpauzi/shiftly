@@ -61,7 +61,7 @@ export function KpiCards({ cards }: KpiCardsProps) {
               <CardDescription>{card.label}</CardDescription>
               <CardTitle
                 className={cn(
-                  "text-3xl font-semibold tabular-nums",
+                  "text-4xl font-semibold tabular-nums",
                   card.danger && "text-destructive"
                 )}
               >
@@ -75,7 +75,7 @@ export function KpiCards({ cards }: KpiCardsProps) {
             </CardHeader>
             <CardFooter
               className={cn(
-                "flex-col items-start gap-1 text-sm",
+                "mt-auto flex-col items-start gap-1 text-sm",
                 card.danger && "border-destructive/20 bg-destructive/5"
               )}
             >

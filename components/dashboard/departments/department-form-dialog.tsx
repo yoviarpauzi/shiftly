@@ -3,7 +3,10 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
-import { createDepartment, updateDepartment } from "@/app/dashboard/departments/actions";
+import {
+  createDepartment,
+  updateDepartment,
+} from "@/app/dashboard/departments/actions";
 import {
   departmentLocationAfterSiteChange,
   departmentLocationsFor,
@@ -41,7 +44,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { departmentNameSchema, departmentSchema } from "@/validation/department";
+import {
+  departmentNameSchema,
+  departmentSchema,
+} from "@/validation/department";
 
 // A location manager's location is fixed, so the form starts on it. An edit keeps the department's own
 // location. Otherwise the form starts on the location of the starting site, if that site has just one.
@@ -68,7 +74,10 @@ export function DepartmentFormDialog({
   const [formError, setFormError] = useState<string | null>(null);
   // The site only narrows the locations. It is not sent, because the server reads the site from the location.
   const initialSiteId = department ? "" : departmentSiteDefault(locationChoice);
-  const sites = locationChoice.mode === "pick" ? departmentSitesFrom(locationChoice.locations) : [];
+  const sites =
+    locationChoice.mode === "pick"
+      ? departmentSitesFrom(locationChoice.locations)
+      : [];
   const pickSite = sites.length > 1;
 
   const form = useForm({
@@ -103,7 +112,10 @@ export function DepartmentFormDialog({
 
       const result = department
         ? await updateDepartment(department.id, { name: value.name })
-        : await createDepartment({ name: value.name, locationId: value.locationId });
+        : await createDepartment({
+            name: value.name,
+            locationId: value.locationId,
+          });
 
       if (!result.ok) {
         setFormError(result.formError ?? null);
@@ -190,7 +202,9 @@ export function DepartmentFormDialog({
                         return (
                           <Field>
                             <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{locationChoice.location.siteName}</p>
+                            <p className="text-sm">
+                              {locationChoice.location.siteName}
+                            </p>
                           </Field>
                         );
                       }
@@ -200,7 +214,9 @@ export function DepartmentFormDialog({
                         return (
                           <Field>
                             <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{sites[0]?.name ?? "No site available"}</p>
+                            <p className="text-sm">
+                              {sites[0]?.name ?? "No site available"}
+                            </p>
                           </Field>
                         );
                       }
@@ -222,7 +238,10 @@ export function DepartmentFormDialog({
                                 );
                               }
                             }}
-                            items={sites.map((site) => ({ value: site.id, label: site.name }))}
+                            items={sites.map((site) => ({
+                              value: site.id,
+                              label: site.name,
+                            }))}
                             disabled={isSubmitting}
                           >
                             <SelectTrigger id={field.name} className="w-full">
@@ -257,7 +276,9 @@ export function DepartmentFormDialog({
                         return (
                           <Field>
                             <FieldLabel>Location</FieldLabel>
-                            <p className="text-sm">{locationChoice.location.name}</p>
+                            <p className="text-sm">
+                              {locationChoice.location.name}
+                            </p>
                           </Field>
                         );
                       }
@@ -286,13 +307,20 @@ export function DepartmentFormDialog({
                               className="w-full"
                             >
                               <SelectValue
-                                placeholder={siteId ? "Choose a location" : "Choose a site first"}
+                                placeholder={
+                                  siteId
+                                    ? "Choose a location"
+                                    : "Choose a site first"
+                                }
                               />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
                                 {siteLocations.map((location) => (
-                                  <SelectItem key={location.id} value={location.id}>
+                                  <SelectItem
+                                    key={location.id}
+                                    value={location.id}
+                                  >
                                     {location.name}
                                   </SelectItem>
                                 ))}
@@ -314,7 +342,9 @@ export function DepartmentFormDialog({
                 )}
                 <DialogFooter>
                   <DialogClose
-                    render={<Button variant="outline" disabled={isSubmitting} />}
+                    render={
+                      <Button variant="outline" disabled={isSubmitting} />
+                    }
                   >
                     Cancel
                   </DialogClose>

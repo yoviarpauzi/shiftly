@@ -56,13 +56,18 @@ function latestToday(scope: DashboardScope): string {
   return scope.zones.reduce((latest, zone) => (zone.today > latest ? zone.today : latest), "");
 }
 
-// A scheduled shift: a work assignment in a confirmed roster, for a request in one of the zone's
-// locations, dated from `from` to `to`. Every shift metric reads through this one condition. The
-// worker, department, and position are not joined, so a shift keeps counting after they are
+// A roster is live only while its request is approved. A roster of a cancelled request stays on
+// record, read-only, and is never counted, as in the Roster and Attendance menus.
+const liveRequest = () => eq(rosterRequest.status, "approved");
+
+// A scheduled shift: a work assignment in a confirmed roster of an approved request in one of the
+// zone's locations, dated from `from` to `to`. Every shift metric reads through this one condition.
+// The worker, department, and position are not joined, so a shift keeps counting after they are
 // soft-deleted.
 function scheduledShifts(locationIds: string[], from: string, to: string, ...extra: SQL[]) {
   return and(
     eq(roster.status, "confirmed"),
+    liveRequest(),
     eq(rosterAssignment.kind, "work"),
     inArray(rosterRequest.locationId, locationIds),
     gte(rosterAssignment.workDate, from),
@@ -105,7 +110,9 @@ function draftCounts(locationIds: string[]) {
     .from(roster)
     .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
     .leftJoin(rosterConflict, eq(rosterConflict.rosterId, roster.id))
-    .where(and(eq(roster.status, "draft"), inArray(rosterRequest.locationId, locationIds)))
+    .where(
+      and(eq(roster.status, "draft"), liveRequest(), inArray(rosterRequest.locationId, locationIds)),
+    )
     .groupBy(rosterRequest.locationId);
 }
 
@@ -302,6 +309,7 @@ function gapCounts(zone: ScopeZone, monday: string, sunday: string) {
     .where(
       and(
         eq(roster.status, "draft"),
+        liveRequest(),
         inArray(rosterRequest.locationId, zone.locationIds),
         gte(rosterConflict.workDate, monday),
         lte(rosterConflict.workDate, sunday),

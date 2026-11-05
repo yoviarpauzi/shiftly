@@ -157,10 +157,12 @@ function zoneOf(call: Call): "WIB" | "WITA" {
   return ids.includes(LOC_B) ? "WITA" : "WIB";
 }
 
+// A scheduled shift: a work assignment in a confirmed roster of an approved request. A roster of a
+// cancelled request stays on record and must never count.
 function scheduledWhere(ids: number): string {
-  const list = Array.from({ length: ids }, (_, index) => `$${index + 3}`).join(", ");
+  const list = Array.from({ length: ids }, (_, index) => `$${index + 4}`).join(", ");
 
-  return `("roster"."status" = $1 and "roster_assignment"."kind" = $2 and "roster_request"."location_id" in (${list}) and "roster_assignment"."work_date" >= $${ids + 3} and "roster_assignment"."work_date" <= $${ids + 4}`;
+  return `("roster"."status" = $1 and "roster_request"."status" = $2 and "roster_assignment"."kind" = $3 and "roster_request"."location_id" in (${list}) and "roster_assignment"."work_date" >= $${ids + 4} and "roster_assignment"."work_date" <= $${ids + 5}`;
 }
 
 function expectScheduledJoins(call: Call) {
@@ -235,11 +237,11 @@ describe("getKpis", () => {
 
     expect(render(wib.where)).toEqual({
       sql: `${scheduledWhere(2)})`,
-      params: ["confirmed", "work", LOC_A, LOC_C, "2026-11-08", "2026-11-09"],
+      params: ["confirmed", "approved", "work", LOC_A, LOC_C, "2026-11-08", "2026-11-09"],
     });
     expect(render(wita.where)).toEqual({
       sql: `${scheduledWhere(1)})`,
-      params: ["confirmed", "work", LOC_B, "2026-11-09", "2026-11-10"],
+      params: ["confirmed", "approved", "work", LOC_B, "2026-11-09", "2026-11-10"],
     });
     expect(wib.groupBy).toEqual([rosterAssignment.workDate]);
 
@@ -303,8 +305,8 @@ describe("getKpis", () => {
       { kind: "left", table: rosterConflict },
     ]);
     expect(render(drafts.where)).toEqual({
-      sql: '("roster"."status" = $1 and "roster_request"."location_id" in ($2, $3, $4))',
-      params: ["draft", LOC_A, LOC_B, LOC_C],
+      sql: '("roster"."status" = $1 and "roster_request"."status" = $2 and "roster_request"."location_id" in ($3, $4, $5))',
+      params: ["draft", "approved", LOC_A, LOC_B, LOC_C],
     });
     expect(drafts.groupBy).toEqual([rosterRequest.locationId]);
     // Rows, not the shortfall they carry.
@@ -433,11 +435,11 @@ describe("getAttendanceSeries", () => {
 
     expect(render(wib.where)).toEqual({
       sql: `${scheduledWhere(2)})`,
-      params: ["confirmed", "work", LOC_A, LOC_C, "2026-10-12", "2026-11-09"],
+      params: ["confirmed", "approved", "work", LOC_A, LOC_C, "2026-10-12", "2026-11-09"],
     });
     expect(render(wita.where)).toEqual({
       sql: `${scheduledWhere(1)})`,
-      params: ["confirmed", "work", LOC_B, "2026-10-12", "2026-11-10"],
+      params: ["confirmed", "approved", "work", LOC_B, "2026-10-12", "2026-11-10"],
     });
     expect(calls()).toHaveLength(2);
   });
@@ -487,11 +489,11 @@ describe("getAttentionCounts", () => {
 
     expect(render(wib.where)).toEqual({
       sql: `${scheduledWhere(2)} and "attendance"."id" is null)`,
-      params: ["confirmed", "work", LOC_A, LOC_C, "2026-11-09", "2026-11-09"],
+      params: ["confirmed", "approved", "work", LOC_A, LOC_C, "2026-11-09", "2026-11-09"],
     });
     expect(render(wita.where)).toEqual({
       sql: `${scheduledWhere(1)} and "attendance"."id" is null)`,
-      params: ["confirmed", "work", LOC_B, "2026-11-10", "2026-11-10"],
+      params: ["confirmed", "approved", "work", LOC_B, "2026-11-10", "2026-11-10"],
     });
     expect(wib.groupBy).toEqual([rosterRequest.locationId]);
     expect(column(wib, "shifts").sql).toBe("count(*)");
@@ -534,7 +536,7 @@ describe("getAttentionCounts", () => {
     });
 
     const [drafts] = callsOn(roster);
-    expect(render(drafts.where).params).toEqual(["draft", LOC_A, LOC_B, LOC_C]);
+    expect(render(drafts.where).params).toEqual(["draft", "approved", LOC_A, LOC_B, LOC_C]);
 
     const [contracts] = callsOn(worker);
     expect(callsOn(worker)).toHaveLength(1);
@@ -566,10 +568,10 @@ describe("getWeekChart", () => {
       { kind: "inner", table: rosterRequest },
     ]);
     expect(render(wib.where)).toEqual({
-      sql: '("roster"."status" = $1 and "roster_request"."location_id" in ($2, $3) and "roster_conflict"."work_date" >= $4 and "roster_conflict"."work_date" <= $5)',
-      params: ["draft", LOC_A, LOC_C, "2026-11-09", "2026-11-15"],
+      sql: '("roster"."status" = $1 and "roster_request"."status" = $2 and "roster_request"."location_id" in ($3, $4) and "roster_conflict"."work_date" >= $5 and "roster_conflict"."work_date" <= $6)',
+      params: ["draft", "approved", LOC_A, LOC_C, "2026-11-09", "2026-11-15"],
     });
-    expect(render(wita.where).params).toEqual(["draft", LOC_B, "2026-11-09", "2026-11-15"]);
+    expect(render(wita.where).params).toEqual(["draft", "approved", LOC_B, "2026-11-09", "2026-11-15"]);
     expect(wib.groupBy).toEqual([rosterConflict.workDate]);
     // Conflict rows, never the shortfall.
     expect(column(wib, "value").sql).toBe("count(*)");
@@ -604,7 +606,7 @@ describe("getWeekChart", () => {
     expectScheduledJoins(shifts);
     expect(render(shifts.where)).toEqual({
       sql: `${scheduledWhere(1)})`,
-      params: ["confirmed", "work", LOC_A, "2026-11-09", "2026-11-15"],
+      params: ["confirmed", "approved", "work", LOC_A, "2026-11-09", "2026-11-15"],
     });
 
     expect(points.map((point) => point.date)).toEqual([

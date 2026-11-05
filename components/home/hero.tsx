@@ -9,7 +9,7 @@ const BUTTON_CLASS =
 
 export default function Hero() {
   return (
-    <section className="overflow-x-clip pt-10 pb-16 sm:pt-[72px] md:pb-24 lg:pb-[120px]">
+    <section className="overflow-x-clip pt-10 pb-6 sm:pt-[72px] lg:pb-2.5">
       <div className="home-container text-center">
         <h1 className="flex flex-wrap items-center justify-center gap-x-[0.25em] text-[52px] leading-[56px] font-bold tracking-[-0.03em] sm:text-[72px] sm:leading-[78px] lg:text-[88px] lg:leading-[96px]">
           <span>{HERO_COPY.lead}</span>
@@ -23,11 +23,11 @@ export default function Hero() {
           <span>{HERO_COPY.tail}</span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-[740px] text-[17px] leading-[26px] text-muted-foreground sm:mt-8 sm:text-[22px] sm:leading-8">
+        <p className="mx-auto mt-5 max-w-[740px] text-[17px] leading-[26px] text-muted-foreground sm:mt-7 sm:text-[22px] sm:leading-8">
           {HERO_COPY.subtitle}
         </p>
 
-        <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:justify-center">
+        <div className="mt-5 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:justify-center">
           <AuthButton className={BUTTON_CLASS} />
           <Button
             variant="secondary"
@@ -46,4 +46,3 @@ export default function Hero() {
     </section>
   );
 }
-

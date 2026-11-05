@@ -24,6 +24,12 @@ const PASSWORD_LABELS: Record<PasswordField, string> = {
   confirmPassword: "Confirm password",
 };
 
+const PASSWORD_PLACEHOLDERS: Record<PasswordField, string> = {
+  currentPassword: "Enter your current password",
+  newPassword: "Enter a new password",
+  confirmPassword: "Repeat the new password",
+};
+
 const PASSWORD_FIELDS = Object.keys(PASSWORD_LABELS) as PasswordField[];
 
 function PasswordInput({
@@ -31,6 +37,7 @@ function PasswordInput({
   name,
   value,
   autoComplete,
+  placeholder,
   invalid,
   disabled,
   onChange,
@@ -45,6 +52,7 @@ function PasswordInput({
         name={name}
         type={visible ? "text" : "password"}
         autoComplete={autoComplete}
+        placeholder={placeholder}
         value={value}
         onBlur={onBlur}
         onChange={(event) => onChange(event.target.value)}
@@ -149,6 +157,7 @@ export function PasswordForm() {
                           autoComplete={
                             name === "currentPassword" ? "current-password" : "new-password"
                           }
+                          placeholder={PASSWORD_PLACEHOLDERS[name]}
                           invalid={isInvalid}
                           disabled={isSubmitting}
                           onChange={field.handleChange}

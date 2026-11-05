@@ -116,6 +116,7 @@ export function RejectRequestDialog({
                           value={field.state.value}
                           maxLength={REASON_MAX_LENGTH}
                           onBlur={field.handleBlur}
+                          placeholder="Explain why the request is rejected"
                           onChange={(event) =>
                             field.handleChange(event.target.value)
                           }

@@ -162,6 +162,7 @@ export function ShiftFormDialog({
                             step={1}
                             value={Number.isNaN(field.state.value) ? "" : field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Order from 1 to 9"
                             onChange={(event) =>
                               field.handleChange(
                                 event.target.value === ""
@@ -192,6 +193,7 @@ export function ShiftFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Shift name"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }

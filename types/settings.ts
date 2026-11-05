@@ -195,6 +195,7 @@ export type PasswordInputProps = {
   name: string;
   value: string;
   autoComplete: "current-password" | "new-password";
+  placeholder: string;
   invalid: boolean;
   disabled: boolean;
   onChange: (value: string) => void;

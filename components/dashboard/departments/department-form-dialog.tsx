@@ -164,6 +164,7 @@ export function DepartmentFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Department name"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }

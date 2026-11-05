@@ -111,6 +111,7 @@ export function SubDepartmentFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Sub-department name"
                             onChange={(event) => field.handleChange(event.target.value)}
                             autoFocus
                             disabled={isSubmitting}

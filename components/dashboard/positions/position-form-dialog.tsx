@@ -134,6 +134,7 @@ export function PositionFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Position name"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }

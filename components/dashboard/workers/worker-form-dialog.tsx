@@ -155,6 +155,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Employee ID"
                             onChange={(event) => field.handleChange(event.target.value)}
                             autoFocus
                             disabled={isSubmitting}
@@ -177,6 +178,7 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
+                            placeholder="Worker name"
                             onChange={(event) => field.handleChange(event.target.value)}
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}

@@ -474,29 +474,27 @@ export function dashboardSubtitle(
 }
 
 // The title, description, caption and tone of the week chart. Superadmin and HO see the gaps the
-// rules left, and an admin site sees how many workers are scheduled.
-export function weekChartCopy(role: DashboardRole, kpis: DashboardKpis): WeekChartCopy {
-  const conflicts = kpis.openConflicts;
-  const count = `${conflicts} ${plural(conflicts, "conflict", "conflicts")}`;
+// rules left, and an admin site sees how many workers are scheduled. For every role the caption
+// counts the conflicts dated this week (the sum of the gaps chart), so it agrees with the bars.
+export function weekChartCopy(role: DashboardRole, weekConflicts: number): WeekChartCopy {
+  const caption =
+    weekConflicts === 0
+      ? "No unfilled shifts this week"
+      : `${weekConflicts} ${plural(weekConflicts, "conflict", "conflicts")} this week`;
 
   if (role === "admin_site") {
     return {
       title: "Workers scheduled this week",
       description: "Workers on a shift, per day",
-      caption: conflicts === 0 ? "No unfilled shifts this week" : `${count} in the draft roster`,
+      caption,
       tone: "primary",
     };
   }
 
-  const rosters = kpis.conflictedRosters;
-
   return {
     title: "Gaps in this week's rosters",
     description: "Shifts the rules could not fill, per day",
-    caption:
-      conflicts === 0
-        ? "No unfilled shifts this week"
-        : `${count} in ${rosters} ${plural(rosters, "draft roster", "draft rosters")}`,
+    caption,
     tone: "danger",
   };
 }

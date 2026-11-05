@@ -29,13 +29,19 @@ async function DashboardView() {
   const { role, access } = await requireDashboardUser();
   const scope = await dashboardScopeFor(access);
 
-  const [kpis, series, counts, week, breakdown] = await Promise.all([
+  // The caption counts this week's gaps for every role, so admin site loads them beside its
+  // scheduled-workers bars.
+  const [kpis, series, counts, gaps, scheduled, breakdown] = await Promise.all([
     getKpis(scope),
     getAttendanceSeries(scope),
     getAttentionCounts(scope),
-    getWeekChart(scope, role === "admin_site" ? "scheduled" : "gaps"),
+    getWeekChart(scope, "gaps"),
+    role === "admin_site" ? getWeekChart(scope, "scheduled") : null,
     getBreakdown(scope, role),
   ]);
+
+  const week = scheduled ?? gaps;
+  const weekConflicts = gaps.reduce((total, point) => total + point.value, 0);
 
   const place = scope.locations[0] ?? null;
   const today = scope.zones[0]?.today ?? dateInZone(DEFAULT_LOCATION_TIMEZONE);
@@ -49,7 +55,7 @@ async function DashboardView() {
       <AttendanceChart series={series} />
       <div className="grid grid-cols-1 gap-4 md:gap-6 @4xl/main:grid-cols-2">
         <AttentionList items={attentionItems(role, counts, today)} />
-        <WeekChart points={week} {...weekChartCopy(role, kpis)} />
+        <WeekChart points={week} {...weekChartCopy(role, weekConflicts)} />
       </div>
       <BreakdownTable
         breakdown={breakdown}

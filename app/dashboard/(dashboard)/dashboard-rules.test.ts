@@ -865,38 +865,36 @@ describe("tickDates", () => {
 });
 
 describe("weekChartCopy", () => {
-  it("frames the gaps chart for a superadmin", () => {
-    expect(weekChartCopy("superadmin", kpis({ openConflicts: 5, conflictedRosters: 2 }))).toEqual({
+  // The caption counts the conflicts dated this week, the same days the bars show, not every
+  // conflict in every draft roster.
+  it("frames the gaps chart for a superadmin with this week's conflicts", () => {
+    expect(weekChartCopy("superadmin", 5)).toEqual({
       title: "Gaps in this week's rosters",
       description: "Shifts the rules could not fill, per day",
-      caption: "5 conflicts in 2 draft rosters",
+      caption: "5 conflicts this week",
       tone: "danger",
     });
   });
 
   it("uses the same gaps chart for an HO", () => {
-    expect(weekChartCopy("ho", kpis({ openConflicts: 2, conflictedRosters: 1 }))).toEqual({
+    expect(weekChartCopy("ho", 2)).toEqual({
       title: "Gaps in this week's rosters",
       description: "Shifts the rules could not fill, per day",
-      caption: "2 conflicts in 1 draft roster",
+      caption: "2 conflicts this week",
       tone: "danger",
     });
   });
 
   it("uses the singular for one conflict", () => {
-    expect(weekChartCopy("superadmin", kpis({ openConflicts: 1, conflictedRosters: 1 })).caption).toBe(
-      "1 conflict in 1 draft roster",
-    );
+    expect(weekChartCopy("superadmin", 1).caption).toBe("1 conflict this week");
   });
 
-  it("says nothing is unfilled when there are no conflicts", () => {
-    expect(weekChartCopy("ho", kpis({ openConflicts: 0, conflictedRosters: 0 })).caption).toBe(
-      "No unfilled shifts this week",
-    );
+  it("says nothing is unfilled when there are no conflicts this week", () => {
+    expect(weekChartCopy("ho", 0).caption).toBe("No unfilled shifts this week");
   });
 
   it("shows the scheduled workers for an admin site", () => {
-    expect(weekChartCopy("admin_site", kpis({ openConflicts: 0, conflictedRosters: 0 }))).toEqual({
+    expect(weekChartCopy("admin_site", 0)).toEqual({
       title: "Workers scheduled this week",
       description: "Workers on a shift, per day",
       caption: "No unfilled shifts this week",
@@ -904,13 +902,9 @@ describe("weekChartCopy", () => {
     });
   });
 
-  it("counts the conflicts in the draft roster for an admin site", () => {
-    expect(weekChartCopy("admin_site", kpis({ openConflicts: 2, conflictedRosters: 1 })).caption).toBe(
-      "2 conflicts in the draft roster",
-    );
-    expect(weekChartCopy("admin_site", kpis({ openConflicts: 1, conflictedRosters: 1 })).caption).toBe(
-      "1 conflict in the draft roster",
-    );
+  it("counts this week's conflicts for an admin site too", () => {
+    expect(weekChartCopy("admin_site", 2).caption).toBe("2 conflicts this week");
+    expect(weekChartCopy("admin_site", 1).caption).toBe("1 conflict this week");
   });
 });
 

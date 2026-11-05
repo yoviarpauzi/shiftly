@@ -16,46 +16,51 @@ export default function HowItWorks() {
         </div>
 
         <div className="mt-7 flex flex-col gap-5 sm:mt-12 sm:gap-10 lg:flex-row lg:items-center lg:gap-16">
-          <ol
-            role="list"
-            className="relative flex w-full shrink-0 list-none flex-col gap-3.5 lg:w-[380px]"
-          >
+          <div className="relative w-full shrink-0 lg:w-[380px]">
+            {/* The line sits beside the ol, not inside it (an ol may only hold li).
+                It runs from the first circle's centre to the last one's:
+                top and bottom 22 = row padding 8 + half the 28 px circle;
+                left 13 = circle centre 14 minus half the 2 px line.
+                Change these with the circle size or the li padding. The li are
+                relative and come later, so their circles paint over the line. */}
             <span
               className="absolute top-[22px] bottom-[22px] left-[13px] w-0.5 bg-border"
               aria-hidden="true"
             />
-            {STEPS.map((step, index) => (
-              <li key={step.title} className="relative flex gap-4 py-2">
-                <span
-                  className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] leading-4 font-medium",
-                    step.active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground",
-                  )}
-                >
-                  {index + 1}
-                </span>
-                <div className="min-w-0 pt-0.5">
-                  <p
+            <ol role="list" className="flex list-none flex-col gap-3.5">
+              {STEPS.map((step, index) => (
+                <li key={step.title} className="relative flex gap-4 py-2">
+                  <span
                     className={cn(
-                      "text-base leading-6 font-medium",
+                      "flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] leading-4 font-medium",
                       step.active
-                        ? "text-secondary-foreground"
-                        : "text-foreground",
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground",
                     )}
                   >
-                    {step.title}
-                  </p>
-                  {step.detail ? (
-                    <p className="mt-1 text-sm leading-[22px] text-muted-foreground">
-                      {step.detail}
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p
+                      className={cn(
+                        "text-base leading-6 font-medium",
+                        step.active
+                          ? "text-secondary-foreground"
+                          : "text-foreground",
+                      )}
+                    >
+                      {step.title}
                     </p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
+                    {step.detail ? (
+                      <p className="mt-1 text-sm leading-[22px] text-muted-foreground">
+                        {step.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
 
           <div className="mx-auto w-full max-w-[756px] overflow-hidden rounded-2xl border bg-background shadow-[0_24px_64px_-24px] shadow-primary/30">
             <Image

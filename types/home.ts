@@ -21,14 +21,20 @@ export type HeroWord = {
   dotClass: string;
 };
 
+export type DashboardVideoProps = {
+  src: string;
+};
+
 export type RotatingWordProps = {
   words: HeroWord[];
 };
 
 export type HomeStep = {
   title: string;
-  detail: string | null;
-  active: boolean;
+  detail: string;
+  video: string;
+  poster: string;
+  alt: string;
 };
 
 export type ConflictExample = {

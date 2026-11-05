@@ -48,18 +48,47 @@ export const HOW_IT_WORKS: HomeSectionHeading = {
 };
 
 export const STEPS: HomeStep[] = [
-  { title: "Request", detail: null, active: false },
-  { title: "Approve", detail: null, active: false },
+  {
+    title: "Request",
+    detail:
+      "A location asks for workers by department and position, with a headcount for each day.",
+    video: "/landing/steps/request.mp4",
+    poster: "/landing/steps/request.webp",
+    alt: "A weekly request being filled in with its type, start date, site, location, department, position, and headcount.",
+  },
+  {
+    title: "Approve",
+    detail:
+      "A weekly request waits for the HO of the site or a superadmin. A daily request is approved when it is saved.",
+    video: "/landing/steps/approve.mp4",
+    poster: "/landing/steps/approve.webp",
+    alt: "A pending request approved from the requests table.",
+  },
   {
     title: "Generate",
     detail:
       "Shiftly builds the roster from your work rules. The same request always gives the same roster.",
-    active: true,
+    video: "/landing/steps/generate.mp4",
+    poster: "/landing/steps/generate.webp",
+    alt: "A roster generated for an approved request, then the draft roster with each worker's shifts.",
   },
-  { title: "Confirm", detail: null, active: false },
-  { title: "Mark attendance", detail: null, active: false },
+  {
+    title: "Confirm",
+    detail:
+      "A confirmed roster is locked. Its shifts are what attendance is marked against.",
+    video: "/landing/steps/confirm.mp4",
+    poster: "/landing/steps/confirm.webp",
+    alt: "A draft roster confirmed, after which its status changes to confirmed.",
+  },
+  {
+    title: "Mark attendance",
+    detail:
+      "Mark each scheduled shift as present, absent, sick, or on leave.",
+    video: "/landing/steps/attendance.mp4",
+    poster: "/landing/steps/attendance.webp",
+    alt: "Attendance marked for a location's scheduled shifts and saved.",
+  },
 ];
-
 export const RULES_HEADING: HomeSectionHeading = {
   title: "When a rule cannot be met, Shiftly says why.",
   subtitle:

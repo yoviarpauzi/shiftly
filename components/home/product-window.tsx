@@ -29,7 +29,7 @@ export default function ProductWindow() {
               priority
               className="block h-auto w-full"
             />
-            <DashboardVideo />
+            <DashboardVideo src="/landing/dashboard-demo.mp4" />
           </div>
         </div>
       </div>

@@ -2,13 +2,14 @@
 
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import type { DashboardVideoProps } from "@/types/home";
 import { cn } from "cn";
 
-// A recording of the dashboard that plays over its poster. The first frame of the video is the
+// A recording of the app that plays over its poster. The first frame of the video is the
 // poster, so nothing jumps when it starts. It plays only while it is on screen and the tab is
 // visible, and it never plays under reduced motion or when the browser asks to save data. It is
 // always rendered and hidden with CSS, so the server and the client markup match.
-export default function DashboardVideo() {
+export default function DashboardVideo({ src }: DashboardVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -51,6 +52,7 @@ export default function DashboardVideo() {
   return (
     <video
       ref={videoRef}
+      src={src}
       muted
       loop
       playsInline
@@ -64,8 +66,6 @@ export default function DashboardVideo() {
         "absolute inset-0 size-full object-cover transition-opacity duration-150 ease-out motion-reduce:hidden",
         playing ? "opacity-100" : "opacity-0",
       )}
-    >
-      <source src="/landing/dashboard-demo.mp4" type="video/mp4" />
-    </video>
+    />
   );
 }

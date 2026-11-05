@@ -47,7 +47,7 @@ describe("landing copy", () => {
     expect(WORDS).toEqual(["Requests", "Rosters", "Attendance", "Work rules"]);
   });
 
-  it("has five steps and only the third is active with a detail", () => {
+  it("has the five steps in order", () => {
     expect(STEPS.map((step) => step.title)).toEqual([
       "Request",
       "Approve",
@@ -55,17 +55,25 @@ describe("landing copy", () => {
       "Confirm",
       "Mark attendance",
     ]);
-    expect(STEPS.map((step) => step.active)).toEqual([
-      false,
-      false,
-      true,
-      false,
-      false,
-    ]);
+  });
+
+  it("gives every step a detail, its own video, and its own poster", () => {
+    const slugs = ["request", "approve", "generate", "confirm", "attendance"];
+
     STEPS.forEach((step, index) => {
-      if (index === 2) expect(step.detail).toEqual(expect.any(String));
-      else expect(step.detail).toBeNull();
+      expect(step.detail.length).toBeGreaterThan(20);
+      expect(step.alt.length).toBeGreaterThan(20);
+      expect(step.video).toBe(`/landing/steps/${slugs[index]}.mp4`);
+      expect(step.poster).toBe(`/landing/steps/${slugs[index]}.webp`);
     });
+    expect(new Set(STEPS.map((step) => step.detail)).size).toBe(STEPS.length);
+    expect(new Set(STEPS.map((step) => step.alt)).size).toBe(STEPS.length);
+  });
+
+  it("keeps the generate step's detail about the work rules and a repeatable roster", () => {
+    expect(STEPS[2]?.detail).toBe(
+      "Shiftly builds the roster from your work rules. The same request always gives the same roster.",
+    );
   });
 
   it("has the four rules the roster engine enforces, in order", () => {

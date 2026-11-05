@@ -1,56 +1,40 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
-import { Button } from "@/components/ui/button";
-import { getCurrentUser } from "@/lib/session";
-
-function AuthButton({ href, label }: { href: string; label: string }) {
-  return (
-    <Button
-      render={<Link href={href} />}
-      nativeButton={false}
-      className="h-9 rounded-md px-4"
-    >
-      {label}
-    </Button>
-  );
-}
-
-async function HeaderAuthButton() {
-  const user = await getCurrentUser();
-
-  return user ? (
-    <AuthButton href="/dashboard" label="Dashboard" />
-  ) : (
-    <AuthButton href="/sign-in" label="Sign in" />
-  );
-}
+import AuthButton from "@/components/home/auth-button";
+import { NAV_LINKS } from "@/components/home/content";
 
 export default function Header() {
   return (
-    <header className="fixed top-0 left-0 w-full z-50 py-4">
-      <div className="container">
-        <nav className="flex items-center justify-between">
-          {/* logo */}
-          <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            <Image
-              src="/logo.webp"
-              alt="Shiftly logo"
-              width={25}
-              height={28}
-              className="h-7 w-auto"
-              priority
-            />
-            Shiftly
-          </span>
+    <header className="fixed inset-x-0 top-0 z-50 h-16 border-b bg-background">
+      <div className="container relative flex h-full max-w-[1200px] items-center justify-between">
+        <span className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <Image
+            src="/logo.webp"
+            alt="Shiftly logo"
+            width={25}
+            height={28}
+            className="h-7 w-auto"
+            priority
+          />
+          Shiftly
+        </span>
 
-          <ul></ul>
-
-          {/* sign-in or dashboard button */}
-          <Suspense fallback={<AuthButton href="/sign-in" label="Sign in" />}>
-            <HeaderAuthButton />
-          </Suspense>
+        <nav aria-label="Primary" className="absolute left-1/2 hidden -translate-x-1/2 md:block">
+          <ul className="flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="rounded-sm text-sm font-medium text-foreground/80 transition-colors duration-150 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
+
+        <AuthButton className="h-11 rounded-md px-4 sm:h-9" />
       </div>
     </header>
   );

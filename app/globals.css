@@ -160,3 +160,9 @@
     animation-delay: 0ms;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

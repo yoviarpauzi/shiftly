@@ -71,6 +71,24 @@ export type WeekPoint = {
   value: number;
 };
 
+// One location's request counts, as the dashboard query groups them.
+export type RequestCountRow = {
+  locationId: string;
+  pending: number;
+  // YYYY-MM-DD in the location's zone, null when nothing is pending.
+  oldestPending: string | null;
+  thisWeek: number;
+  thisWeekPending: number;
+};
+
+// One location's draft rosters and the conflict rows they hold.
+export type DraftCountRow = {
+  locationId: string;
+  draftRosters: number;
+  conflicts: number;
+  conflictedRosters: number;
+};
+
 export type SeriesRange = "30d" | "14d" | "7d";
 
 export type KpiCard = {

@@ -32,7 +32,9 @@ import type {
   DashboardKpis,
   DashboardRole,
   DashboardScope,
+  DraftCountRow,
   LocationRow,
+  RequestCountRow,
   ScopeZone,
   SeriesPoint,
   SiteRow,
@@ -93,7 +95,7 @@ function shiftCounts(zone: ScopeZone, from: string, to: string) {
 }
 
 // Per location: draft rosters, the conflict rows they hold, and how many of them hold any.
-function draftCounts(locationIds: string[]) {
+function draftCounts(locationIds: string[]): Promise<DraftCountRow[]> {
   return db
     .select({
       locationId: rosterRequest.locationId,
@@ -113,7 +115,7 @@ function draftCounts(locationIds: string[]) {
 // Per location of the zone: pending requests and the oldest day one was made (in the location's
 // zone), and the requests whose period overlaps the zone's Monday to Sunday week. A daily request
 // covers its start date, a weekly request seven days from it.
-function requestCounts(zone: ScopeZone) {
+function requestCounts(zone: ScopeZone): Promise<RequestCountRow[]> {
   const week = weekDays(zone.today);
   const monday = week[0];
   const sunday = week[6];
@@ -137,9 +139,6 @@ function requestCounts(zone: ScopeZone) {
     .where(inArray(rosterRequest.locationId, zone.locationIds))
     .groupBy(rosterRequest.locationId);
 }
-
-type RequestCountRow = Awaited<ReturnType<typeof requestCounts>>[number];
-type DraftCountRow = Awaited<ReturnType<typeof draftCounts>>[number];
 
 function requestCountsByZone(scope: DashboardScope): Promise<RequestCountRow[]> {
   return Promise.all(scope.zones.map(requestCounts)).then((zones) => zones.flat());

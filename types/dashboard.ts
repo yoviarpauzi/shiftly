@@ -113,3 +113,16 @@ export type Breakdown =
   | { kind: "sites"; rows: SiteRow[] }
   | { kind: "locations"; rows: LocationRow[] }
   | { kind: "requests"; rows: RecentRequestRow[] };
+
+export type KpiCardsProps = {
+  cards: KpiCard[];
+};
+
+export type AttentionListProps = {
+  items: AttentionItem[];
+};
+
+export type OverviewHeaderProps = {
+  role: DashboardRole;
+  subtitle: string;
+};

@@ -53,7 +53,7 @@ export default function Rules() {
 
           <ul
             role="list"
-            className="grid w-full list-none grid-cols-1 gap-x-12 gap-y-5 sm:grid-cols-2 sm:gap-y-8 lg:flex-1"
+            className="grid w-full list-none grid-cols-2 gap-x-4 gap-y-5 sm:gap-x-12 sm:gap-y-8 lg:flex-1"
           >
             {RULES.map((rule) => (
               <li key={rule.title}>

@@ -8,7 +8,6 @@ import {
   maxWorkingDaysRuleSchema,
   parseSettingsLocation,
   parseSettingsScope,
-  parseSettingsTab,
   qualificationRuleSchema,
   shiftChangeRuleSchema,
   toWholeNumber,
@@ -381,18 +380,5 @@ describe("parseSettingsLocation", () => {
     expect(parseSettingsLocation(SITE_ID, locations)).toBeNull();
     expect(parseSettingsLocation(undefined, locations)).toBeNull();
     expect(parseSettingsLocation(LOCATION_ID, [])).toBeNull();
-  });
-});
-
-describe("parseSettingsTab", () => {
-  it("opens Work rules only when asked and available", () => {
-    expect(parseSettingsTab("work-rules", true)).toBe("work-rules");
-    expect(parseSettingsTab(["work-rules"], true)).toBe("work-rules");
-  });
-
-  it("falls back to Account", () => {
-    expect(parseSettingsTab("work-rules", false)).toBe("account");
-    expect(parseSettingsTab(undefined, true)).toBe("account");
-    expect(parseSettingsTab("other", true)).toBe("account");
   });
 });

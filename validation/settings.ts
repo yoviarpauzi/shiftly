@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type {
   SettingsLocation,
-  SettingsTab,
   WorkRuleKey,
   WorkRuleScope,
 } from "@/types/settings";
@@ -196,12 +195,4 @@ export function parseSettingsLocation(
   const first = firstParam(value);
 
   return locations.some((location) => location.id === first) ? (first as string) : null;
-}
-
-// Reads ?tab=, so a scope change (which reloads the page) stays on the Work rules tab.
-export function parseSettingsTab(
-  value: string | string[] | undefined,
-  hasWorkRules: boolean,
-): SettingsTab {
-  return hasWorkRules && firstParam(value) === "work-rules" ? "work-rules" : "account";
 }

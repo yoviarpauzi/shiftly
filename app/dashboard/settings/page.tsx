@@ -1,6 +1,6 @@
-import { SettingsTabs } from "@/components/dashboard/settings/settings-tabs";
+import { PasswordForm } from "@/components/dashboard/settings/password-form";
+import { WorkRules } from "@/components/dashboard/settings/work-rules";
 import type { SettingsAccess, SettingsSearchParams, WorkRulesView } from "@/types/settings";
-import { parseSettingsTab } from "@/validation/settings";
 import { canEditWorkRule, workRuleAccessTargetFor } from "./settings-access";
 import { requireSettingsAccess } from "./settings-guard";
 import {
@@ -62,7 +62,18 @@ export default async function Page({
           Manage your account and the rules rosters follow.
         </p>
       </div>
-      <SettingsTabs workRules={workRules} tab={parseSettingsTab(params.tab, workRules !== null)} />
+      <PasswordForm />
+      {workRules && (
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">Work rules</h2>
+            <p className="text-sm text-muted-foreground">
+              The rules rosters follow, set at global, site, or location level.
+            </p>
+          </div>
+          <WorkRules {...workRules} />
+        </section>
+      )}
     </div>
   );
 }

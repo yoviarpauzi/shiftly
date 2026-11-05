@@ -14,7 +14,7 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
-import { lastDays, weekDays } from "@/app/dashboard/(dashboard)/dashboard-rules";
+import { lastDays, scopeToday, weekDays } from "@/app/dashboard/(dashboard)/dashboard-rules";
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
 import { contractEndingFilter } from "@/app/dashboard/workers/workers";
 import { attendance } from "@/database/schema/attendance-schema";
@@ -48,12 +48,6 @@ function countWhere(condition: SQL): SQL<number> {
 
 function scopeIds(scope: DashboardScope): string[] {
   return scope.locations.map((row) => row.id);
-}
-
-// The latest today of the scope. The 30-day and weekly axes end on it, so a zone that is already
-// on the next date is never cut off.
-function latestToday(scope: DashboardScope): string {
-  return scope.zones.reduce((latest, zone) => (zone.today > latest ? zone.today : latest), "");
 }
 
 // A roster is live only while its request is approved. A roster of a cancelled request stays on
@@ -226,13 +220,15 @@ export async function getKpis(scope: DashboardScope): Promise<DashboardKpis> {
 }
 
 // The last 30 days up to the latest today, oldest first. A zone counts up to its own today only.
+// With no zone, 30 zero days and no query, so the chart keeps its axis.
 export async function getAttendanceSeries(scope: DashboardScope): Promise<SeriesPoint[]> {
+  const days = lastDays(scopeToday(scope.zones), SERIES_DAYS);
+  const points = new Map(days.map((date) => [date, { date, present: 0, notPresent: 0 }]));
+
   if (scope.zones.length === 0) {
-    return [];
+    return [...points.values()];
   }
 
-  const days = lastDays(latestToday(scope), SERIES_DAYS);
-  const points = new Map(days.map((date) => [date, { date, present: 0, notPresent: 0 }]));
   const zones = await Promise.all(scope.zones.map((zone) => shiftCounts(zone, days[0], zone.today)));
 
   for (const row of zones.flat()) {
@@ -321,16 +317,17 @@ function gapCounts(zone: ScopeZone, monday: string, sunday: string) {
 }
 
 // Seven points, Monday first, on the week of the latest today. Each zone is read on its own week
-// and merged by date, so they differ only for the few hours one zone is in the next week.
+// and merged by date, so they differ only for the few hours one zone is in the next week. With no
+// zone, seven zero days and no query.
 export async function getWeekChart(
   scope: DashboardScope,
   kind: "gaps" | "scheduled",
 ): Promise<WeekPoint[]> {
-  if (scope.zones.length === 0) {
-    return [];
-  }
+  const points = new Map(weekDays(scopeToday(scope.zones)).map((date) => [date, { date, value: 0 }]));
 
-  const points = new Map(weekDays(latestToday(scope)).map((date) => [date, { date, value: 0 }]));
+  if (scope.zones.length === 0) {
+    return [...points.values()];
+  }
 
   const zones = await Promise.all(
     scope.zones.map(async (zone) => {
@@ -391,6 +388,8 @@ async function locationRows(scope: DashboardScope): Promise<LocationRow[]> {
   }));
 }
 
+// Every active site gets a row, a site with no location in scope a row of zeros. With no location
+// at all, only the sites are read.
 async function siteRows(scope: DashboardScope): Promise<SiteRow[]> {
   const [sites, locations] = await Promise.all([
     db
@@ -403,7 +402,7 @@ async function siteRows(scope: DashboardScope): Promise<SiteRow[]> {
         ),
       )
       .orderBy(asc(site.name), asc(site.id)),
-    locationRows(scope),
+    scope.locations.length > 0 ? locationRows(scope) : [],
   ]);
 
   const siteOf = new Map(scope.locations.map((row) => [row.id, row.siteId]));
@@ -440,14 +439,15 @@ function recentRequests(scope: DashboardScope) {
 
 // Superadmin sees By site, HO By location, and admin site its latest requests.
 export async function getBreakdown(scope: DashboardScope, role: DashboardRole): Promise<Breakdown> {
-  const kind = role === "superadmin" ? "sites" : role === "ho" ? "locations" : "requests";
-
-  if (scope.zones.length === 0) {
-    return { kind, rows: [] } as Breakdown;
+  // A superadmin's sites are listed even with no location, as rows of zeros.
+  if (role === "superadmin") {
+    return { kind: "sites", rows: await siteRows(scope) };
   }
 
-  if (kind === "sites") {
-    return { kind, rows: await siteRows(scope) };
+  const kind = role === "ho" ? "locations" : "requests";
+
+  if (scope.zones.length === 0) {
+    return { kind, rows: [] };
   }
 
   if (kind === "locations") {

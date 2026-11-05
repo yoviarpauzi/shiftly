@@ -1,6 +1,6 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attendance } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
@@ -204,7 +204,6 @@ describe("a scope with no locations", () => {
       requestsThisWeek: 0,
       requestsThisWeekPending: 0,
     });
-    expect(await getAttendanceSeries(emptyScope)).toEqual([]);
     expect(await getAttentionCounts(emptyScope)).toEqual({
       pendingRequests: 0,
       draftRosters: 0,
@@ -214,13 +213,72 @@ describe("a scope with no locations", () => {
       unmarkedWorkers: 0,
       contractsEnding: 0,
     });
-    expect(await getWeekChart(emptyScope, "gaps")).toEqual([]);
-    expect(await getWeekChart(emptyScope, "scheduled")).toEqual([]);
-    expect(await getBreakdown(emptyScope, "superadmin")).toEqual({ kind: "sites", rows: [] });
     expect(await getBreakdown(emptyScope, "ho")).toEqual({ kind: "locations", rows: [] });
     expect(await getBreakdown(emptyScope, "admin_site")).toEqual({ kind: "requests", rows: [] });
 
     expect(calls()).toHaveLength(0);
+  });
+
+  describe("charts", () => {
+    beforeEach(() => {
+      // 17:30 UTC on Thursday 12 Nov is Friday 13 Nov in WIB, the default zone.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-11-12T17:30:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("zero-fills 30 days to today in the default zone, without querying", async () => {
+      const series = await getAttendanceSeries(emptyScope);
+
+      expect(series).toHaveLength(30);
+      expect(series[0]).toEqual({ date: "2026-10-15", present: 0, notPresent: 0 });
+      expect(series[29]).toEqual({ date: "2026-11-13", present: 0, notPresent: 0 });
+      expect(series.every((point) => point.present === 0 && point.notPresent === 0)).toBe(true);
+      expect(calls()).toHaveLength(0);
+    });
+
+    it("zero-fills the default zone's week, Monday first, without querying", async () => {
+      const week = [
+        "2026-11-09",
+        "2026-11-10",
+        "2026-11-11",
+        "2026-11-12",
+        "2026-11-13",
+        "2026-11-14",
+        "2026-11-15",
+      ].map((date) => ({ date, value: 0 }));
+
+      expect(await getWeekChart(emptyScope, "gaps")).toEqual(week);
+      expect(await getWeekChart(emptyScope, "scheduled")).toEqual(week);
+      expect(calls()).toHaveLength(0);
+    });
+  });
+
+  it("still lists every active site as a zero row for a superadmin", async () => {
+    fake.answer = (call: Call) =>
+      call.table === site
+        ? [
+            { id: SITE_B, name: "Indofood Cikarang" },
+            { id: SITE_A, name: "Nestle Kejayan" },
+          ]
+        : [];
+
+    const zero = { locations: 0, workers: 0, pendingRequests: 0, draftRosters: 0, conflicts: 0 };
+
+    expect(await getBreakdown(emptyScope, "superadmin")).toEqual({
+      kind: "sites",
+      rows: [
+        { id: SITE_B, name: "Indofood Cikarang", ...zero },
+        { id: SITE_A, name: "Nestle Kejayan", ...zero },
+      ],
+    });
+
+    // Only the sites are read: there is no location to count anything in.
+    expect(calls()).toHaveLength(1);
+    expect(calls()[0].table).toBe(site);
   });
 });
 

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/session";
 import type { AuthButtonProps } from "@/types/home";
+import { cn } from "cn";
 
 function AuthLink({
   href,
@@ -14,13 +15,9 @@ function AuthLink({
   className?: string;
 }) {
   return (
-    <Button
-      render={<Link href={href} />}
-      nativeButton={false}
-      className={className}
-    >
+    <Link href={href} className={cn(buttonVariants(), className)}>
       {label}
-    </Button>
+    </Link>
   );
 }
 

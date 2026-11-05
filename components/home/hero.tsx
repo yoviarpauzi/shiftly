@@ -2,7 +2,8 @@ import Link from "next/link";
 import AuthButton from "@/components/home/auth-button";
 import { HERO_COPY } from "@/components/home/content";
 import ProductWindow from "@/components/home/product-window";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "cn";
 
 const BUTTON_CLASS =
   "h-12 w-full rounded-lg px-6 text-[17px] sm:h-[52px] sm:w-auto sm:text-[18px]";
@@ -29,14 +30,15 @@ export default function Hero() {
 
         <div className="mt-5 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:justify-center">
           <AuthButton className={BUTTON_CLASS} />
-          <Button
-            variant="secondary"
-            render={<Link href="#how-it-works" />}
-            nativeButton={false}
-            className={BUTTON_CLASS}
+          <Link
+            href="#how-it-works"
+            className={cn(
+              buttonVariants({ variant: "secondary" }),
+              BUTTON_CLASS,
+            )}
           >
             How it works
-          </Button>
+          </Link>
         </div>
 
         <div className="mt-16 sm:mt-24 lg:mt-[118px]">

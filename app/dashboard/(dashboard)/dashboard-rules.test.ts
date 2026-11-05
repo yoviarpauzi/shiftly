@@ -127,6 +127,16 @@ describe("workers card", () => {
     expect(workers.danger).toBe(false);
   });
 
+  it("words the second line for the confirmed roster of one location for admin site", () => {
+    const workers = card("admin_site", "workers", { workersToday: 18, workersYesterday: 17 });
+
+    expect(workers.lines).toEqual(["1 more than yesterday", "Scheduled in the confirmed roster"]);
+  });
+
+  it("keeps the plural second line for HO", () => {
+    expect(card("ho", "workers").lines[1]).toBe("Scheduled in confirmed rosters");
+  });
+
   it("shows the same as yesterday", () => {
     const workers = card("superadmin", "workers", { workersYesterday: 214 });
 
@@ -300,12 +310,26 @@ describe("requests card", () => {
     expect(requests.label).toBe("Requests this week");
     expect(requests.value).toBe("4");
     expect(requests.badge).toEqual({ label: "1 pending", tone: "pending" });
+    expect(requests.lines).toEqual([
+      "1 is waiting for HO approval",
+      "Only HO or superadmin can approve",
+    ]);
+  });
+
+  it("counts several waiting requests", () => {
+    const requests = card("admin_site", "requests", { requestsThisWeekPending: 2 });
+
+    expect(requests.lines[0]).toBe("2 are waiting for HO approval");
   });
 
   it("says None pending at zero", () => {
     const requests = card("admin_site", "requests", { requestsThisWeekPending: 0 });
 
     expect(requests.badge).toEqual({ label: "None pending", tone: "neutral" });
+    expect(requests.lines).toEqual([
+      "None waiting for HO approval",
+      "Only HO or superadmin can approve",
+    ]);
   });
 });
 
@@ -341,6 +365,13 @@ describe("attentionItems", () => {
       "5 conflicts in draft rosters",
       "Attendance is not marked in 4 locations today",
       "6 worker contracts end within 30 days",
+    ]);
+    expect(items.map((item) => item.detail)).toEqual([
+      "Weekly requests stay pending until HO or a superadmin approves them.",
+      "Confirm a roster so attendance can be marked against it.",
+      "Shifts the rules could not fill, each with its reason.",
+      "Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.",
+      "Renew or replace these workers before their end date.",
     ]);
     expect(items.map((item) => item.button)).toEqual([
       "Review",
@@ -386,6 +417,118 @@ describe("attentionItems", () => {
       "Attendance is not marked today",
       "1 worker contract ends within 30 days",
     ]);
+    expect(items.map((item) => item.detail)).toEqual([
+      "Weekly requests stay pending until HO or a superadmin approves them.",
+      "Confirm it so attendance can be marked against it.",
+      "Shifts the rules could not fill, each with its reason.",
+      "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
+      "Renew or replace these workers before their end date.",
+    ]);
+  });
+
+  it("matches the HO frame item by item", () => {
+    const items = attentionItems(
+      "ho",
+      attention({
+        pendingRequests: 1,
+        draftRosters: 1,
+        conflicts: 2,
+        conflictedRosters: 1,
+        unmarkedLocationIds: ["a", "b"],
+        unmarkedWorkers: 30,
+        contractsEnding: 3,
+      }),
+      "2026-11-09",
+    );
+
+    expect(items.map((item) => [item.title, item.detail, item.button])).toEqual([
+      [
+        "1 request is waiting for approval",
+        "Weekly requests stay pending until you or a superadmin approve them.",
+        "Review",
+      ],
+      [
+        "1 roster is still a draft",
+        "Confirm it so attendance can be marked against it.",
+        "Open rosters",
+      ],
+      [
+        "2 conflicts in the draft roster",
+        "Shifts the rules could not fill, each with its reason.",
+        "View conflicts",
+      ],
+      [
+        "Attendance is not marked in 2 locations today",
+        "Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.",
+        "Mark attendance",
+      ],
+      [
+        "3 worker contracts end within 30 days",
+        "Renew or replace these workers before their end date.",
+        "View workers",
+      ],
+    ]);
+  });
+
+  it("matches the admin site frame item by item", () => {
+    const items = attentionItems(
+      "admin_site",
+      attention({
+        pendingRequests: 1,
+        unmarkedLocationIds: ["loc-1"],
+        unmarkedWorkers: 18,
+        contractsEnding: 2,
+      }),
+      "2026-11-09",
+    );
+
+    expect(items.map((item) => [item.title, item.detail, item.button])).toEqual([
+      [
+        "1 request is waiting for HO approval",
+        "You can follow its status here. Only HO or a superadmin can approve it.",
+        "View request",
+      ],
+      [
+        "Attendance is not marked today",
+        "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
+        "Mark attendance",
+      ],
+      [
+        "2 worker contracts end within 30 days",
+        "Renew or replace these workers before their end date.",
+        "View workers",
+      ],
+    ]);
+  });
+
+  it("words the draft detail for several rosters", () => {
+    const [item] = attentionItems("superadmin", attention({ draftRosters: 2 }), "2026-11-09");
+
+    expect(item.detail).toBe("Confirm a roster so attendance can be marked against it.");
+  });
+
+  it("falls back to the generic attendance detail for one location with no worker count", () => {
+    const [item] = attentionItems(
+      "superadmin",
+      attention({ unmarkedLocationIds: ["loc-1"], unmarkedWorkers: 0 }),
+      "2026-11-09",
+    );
+
+    expect(item.title).toBe("Attendance is not marked today");
+    expect(item.detail).toBe("Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.");
+    expect(item.href).toBe("/dashboard/attendance?location=loc-1");
+  });
+
+  it("uses the singular worker wording for one unmarked worker", () => {
+    const [item] = attentionItems(
+      "admin_site",
+      attention({ unmarkedLocationIds: ["loc-1"], unmarkedWorkers: 1 }),
+      "2026-11-09",
+    );
+
+    expect(item.detail).toBe(
+      "Mon, 9 Nov 2026. 1 worker in the confirmed roster is waiting to be marked.",
+    );
   });
 
   it("says the draft roster when many conflicts sit in one roster", () => {
@@ -420,6 +563,16 @@ describe("attentionItems", () => {
 
     expect(item.href).toBe("/dashboard/attendance");
     expect(item.detail).toBe("Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.");
+  });
+
+  it("words the admin site approvals item for several requests", () => {
+    const [item] = attentionItems("admin_site", attention({ pendingRequests: 3 }), "2026-11-09");
+
+    expect(item.title).toBe("3 requests are waiting for HO approval");
+    expect(item.button).toBe("View request");
+    expect(item.detail).toBe(
+      "You can follow their status here. Only HO or a superadmin can approve them.",
+    );
   });
 
   it("words the admin site approvals item for a user who cannot approve", () => {

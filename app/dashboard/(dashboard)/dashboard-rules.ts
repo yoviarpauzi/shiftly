@@ -72,7 +72,7 @@ export function rateDelta(today: number | null, yesterday: number | null): numbe
   return oneDecimal(oneDecimal(today) - oneDecimal(yesterday));
 }
 
-function workersCard(kpis: DashboardKpis): KpiCard {
+function workersCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
   const delta = kpis.workersToday - kpis.workersYesterday;
 
   let badge: KpiCard["badge"];
@@ -94,7 +94,10 @@ function workersCard(kpis: DashboardKpis): KpiCard {
     label: "Workers today",
     value: String(kpis.workersToday),
     badge,
-    lines: [comparison, "Scheduled in confirmed rosters"],
+    lines: [
+      comparison,
+      role === "admin_site" ? "Scheduled in the confirmed roster" : "Scheduled in confirmed rosters",
+    ],
     danger: false,
   };
 }
@@ -237,14 +240,19 @@ function requestsCard(kpis: DashboardKpis): KpiCard {
       pending > 0
         ? { label: `${pending} pending`, tone: "pending" }
         : { label: "None pending", tone: "neutral" },
-    lines: ["Requests that cover this week", "Rejected and cancelled are left out"],
+    lines: [
+      pending === 0
+        ? "None waiting for HO approval"
+        : `${pending} ${plural(pending, "is", "are")} waiting for HO approval`,
+      "Only HO or superadmin can approve",
+    ],
     danger: false,
   };
 }
 
 // Superadmin and HO approve requests, so they see approvals. Admin site follows its own requests.
 export function kpiCards(role: DashboardRole, kpis: DashboardKpis): KpiCard[] {
-  const workers = workersCard(kpis);
+  const workers = workersCard(role, kpis);
   const attendance = attendanceCard(kpis.today, kpis.yesterday);
   const conflicts = conflictsCard(kpis);
 
@@ -268,12 +276,13 @@ function requestsItem(role: DashboardRole, count: number): AttentionItem {
     };
   }
 
-  const who = role === "ho" ? "you or a superadmin approves" : "HO or a superadmin approves";
+  // The frames word this the same for one request and for many.
+  const who = role === "ho" ? "you or a superadmin approve" : "HO or a superadmin approves";
 
   return {
     key: "requests",
     title: `${count} ${plural(count, "request is", "requests are")} waiting for approval`,
-    detail: `Weekly requests stay pending until ${who} ${plural(count, "it", "them")}.`,
+    detail: `Weekly requests stay pending until ${who} them.`,
     button: "Review",
     href,
   };
@@ -319,7 +328,10 @@ export function attentionItems(
     items.push({
       key: "drafts",
       title: `${drafts} ${plural(drafts, "roster is still a draft", "rosters are still drafts")}`,
-      detail: "Confirm a draft roster to schedule its workers.",
+      detail:
+        drafts === 1
+          ? "Confirm it so attendance can be marked against it."
+          : "Confirm a roster so attendance can be marked against it.",
       button: "Open rosters",
       href: "/dashboard/rosters?status=draft",
     });
@@ -331,7 +343,7 @@ export function attentionItems(
     items.push({
       key: "conflicts",
       title: `${conflicts} ${plural(conflicts, "conflict", "conflicts")} in ${counts.conflictedRosters === 1 ? "the draft roster" : "draft rosters"}`,
-      detail: "Shifts the rules could not fill. Each one has a reason.",
+      detail: "Shifts the rules could not fill, each with its reason.",
       button: "View conflicts",
       href: "/dashboard/rosters?status=draft",
     });
@@ -347,7 +359,7 @@ export function attentionItems(
     items.push({
       key: "contracts",
       title: `${ending} worker ${plural(ending, "contract ends", "contracts end")} within 30 days`,
-      detail: "Renew or replace them before the end date.",
+      detail: "Renew or replace these workers before their end date.",
       button: "View workers",
       href: "/dashboard/workers?ending=1",
     });

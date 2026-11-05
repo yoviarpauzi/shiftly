@@ -54,7 +54,8 @@ export type AttentionCounts = {
   draftRosters: number;
   conflicts: number;
   conflictedRosters: number;
-  unmarkedLocationIds: string[];
+  // With the site, because the Attendance page picks a location only inside the chosen site.
+  unmarkedLocations: { id: string; siteId: string }[];
   unmarkedWorkers: number;
   contractsEnding: number;
 };

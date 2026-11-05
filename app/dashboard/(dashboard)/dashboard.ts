@@ -267,7 +267,7 @@ export async function getAttentionCounts(scope: DashboardScope): Promise<Attenti
       draftRosters: 0,
       conflicts: 0,
       conflictedRosters: 0,
-      unmarkedLocationIds: [],
+      unmarkedLocations: [],
       unmarkedWorkers: 0,
       contractsEnding: 0,
     };
@@ -293,7 +293,9 @@ export async function getAttentionCounts(scope: DashboardScope): Promise<Attenti
     draftRosters: sum(drafts, (row) => row.draftRosters),
     conflicts: sum(drafts, (row) => row.conflicts),
     conflictedRosters: sum(drafts, (row) => row.conflictedRosters),
-    unmarkedLocationIds: ids.filter((id) => unmarkedIds.has(id)),
+    unmarkedLocations: scope.locations
+      .filter((row) => unmarkedIds.has(row.id))
+      .map((row) => ({ id: row.id, siteId: row.siteId })),
     unmarkedWorkers: sum(unmarked, (row) => row.shifts),
     contractsEnding: contracts[0]?.total ?? 0,
   };

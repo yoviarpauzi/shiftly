@@ -48,11 +48,18 @@ function attention(overrides: Partial<AttentionCounts> = {}): AttentionCounts {
     draftRosters: 0,
     conflicts: 0,
     conflictedRosters: 0,
-    unmarkedLocationIds: [],
+    unmarkedLocations: [],
     unmarkedWorkers: 0,
     contractsEnding: 0,
     ...overrides,
   };
+}
+
+// The Attendance page picks a location only inside the chosen site, so the link carries both.
+const ONE_LOCATION = { id: "loc-1", siteId: "site-1" };
+
+function unmarked(count: number): AttentionCounts["unmarkedLocations"] {
+  return Array.from({ length: count }, (_, index) => ({ id: `loc-${index + 1}`, siteId: "site-1" }));
 }
 
 function card(role: Parameters<typeof kpiCards>[0], key: string, overrides: Partial<DashboardKpis> = {}) {
@@ -373,7 +380,7 @@ describe("attentionItems", () => {
         conflictedRosters: 2,
         draftRosters: 2,
         pendingRequests: 3,
-        unmarkedLocationIds: ["a", "b", "c", "d"],
+        unmarkedLocations: unmarked(4),
       }),
       "2026-11-09",
     );
@@ -429,7 +436,7 @@ describe("attentionItems", () => {
         draftRosters: 1,
         conflicts: 1,
         conflictedRosters: 1,
-        unmarkedLocationIds: ["loc-1"],
+        unmarkedLocations: [ONE_LOCATION],
         unmarkedWorkers: 18,
         contractsEnding: 1,
       }),
@@ -460,7 +467,7 @@ describe("attentionItems", () => {
         draftRosters: 1,
         conflicts: 2,
         conflictedRosters: 1,
-        unmarkedLocationIds: ["a", "b"],
+        unmarkedLocations: unmarked(2),
         unmarkedWorkers: 30,
         contractsEnding: 3,
       }),
@@ -501,7 +508,7 @@ describe("attentionItems", () => {
       "admin_site",
       attention({
         pendingRequests: 1,
-        unmarkedLocationIds: ["loc-1"],
+        unmarkedLocations: [ONE_LOCATION],
         unmarkedWorkers: 18,
         contractsEnding: 2,
       }),
@@ -533,7 +540,7 @@ describe("attentionItems", () => {
       "superadmin",
       attention({
         pendingRequests: 1,
-        unmarkedLocationIds: ["loc-1"],
+        unmarkedLocations: [ONE_LOCATION],
         unmarkedWorkers: 18,
         contractsEnding: 2,
       }),
@@ -551,7 +558,7 @@ describe("attentionItems", () => {
         draftRosters: 1,
         conflicts: 1,
         conflictedRosters: 1,
-        unmarkedLocationIds: ["loc-1"],
+        unmarkedLocations: [ONE_LOCATION],
         contractsEnding: 1,
       }),
       "2026-11-09",
@@ -575,19 +582,19 @@ describe("attentionItems", () => {
   it("falls back to the generic attendance detail for one location with no worker count", () => {
     const [item] = attentionItems(
       "superadmin",
-      attention({ unmarkedLocationIds: ["loc-1"], unmarkedWorkers: 0 }),
+      attention({ unmarkedLocations: [ONE_LOCATION], unmarkedWorkers: 0 }),
       "2026-11-09",
     );
 
     expect(item.title).toBe("Attendance is not marked today");
     expect(item.detail).toBe("Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.");
-    expect(item.href).toBe("/dashboard/attendance?location=loc-1");
+    expect(item.href).toBe("/dashboard/attendance?site=site-1&location=loc-1");
   });
 
   it("uses the singular worker wording for one unmarked worker", () => {
     const [item] = attentionItems(
       "admin_site",
-      attention({ unmarkedLocationIds: ["loc-1"], unmarkedWorkers: 1 }),
+      attention({ unmarkedLocations: [ONE_LOCATION], unmarkedWorkers: 1 }),
       "2026-11-09",
     );
 
@@ -609,11 +616,11 @@ describe("attentionItems", () => {
   it("links to one location when exactly one is unmarked", () => {
     const [item] = attentionItems(
       "admin_site",
-      attention({ unmarkedLocationIds: ["loc-1"], unmarkedWorkers: 18 }),
+      attention({ unmarkedLocations: [ONE_LOCATION], unmarkedWorkers: 18 }),
       "2026-11-09",
     );
 
-    expect(item.href).toBe("/dashboard/attendance?location=loc-1");
+    expect(item.href).toBe("/dashboard/attendance?site=site-1&location=loc-1");
     expect(item.detail).toBe(
       "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
     );
@@ -622,7 +629,7 @@ describe("attentionItems", () => {
   it("does not pick a location when several are unmarked", () => {
     const [item] = attentionItems(
       "superadmin",
-      attention({ unmarkedLocationIds: ["a", "b"], unmarkedWorkers: 30 }),
+      attention({ unmarkedLocations: unmarked(2), unmarkedWorkers: 30 }),
       "2026-11-09",
     );
 

@@ -315,7 +315,7 @@ function requestsItem(role: DashboardRole, count: number): AttentionItem {
 }
 
 function attendanceItem(counts: AttentionCounts, today: string): AttentionItem {
-  const locations = counts.unmarkedLocationIds.length;
+  const locations = counts.unmarkedLocations.length;
   const day = formatLongDay(today);
 
   const title =
@@ -328,9 +328,11 @@ function attendanceItem(counts: AttentionCounts, today: string): AttentionItem {
       ? `${day}. ${counts.unmarkedWorkers} ${plural(counts.unmarkedWorkers, "worker in the confirmed roster is", "workers in the confirmed roster are")} waiting to be marked.`
       : `${day}. Confirmed rosters are waiting to be marked.`;
 
+  // The Attendance page reads `location` only inside the chosen site, so one location names both.
+  const [only] = counts.unmarkedLocations;
   const href =
     locations === 1
-      ? `/dashboard/attendance?location=${encodeURIComponent(counts.unmarkedLocationIds[0])}`
+      ? `/dashboard/attendance?site=${encodeURIComponent(only.siteId)}&location=${encodeURIComponent(only.id)}`
       : "/dashboard/attendance";
 
   return { key: "attendance", title, detail, button: "Mark attendance", href };
@@ -382,7 +384,7 @@ function attentionItem(
         : null;
     }
     case "attendance":
-      return counts.unmarkedLocationIds.length > 0 ? attendanceItem(counts, today) : null;
+      return counts.unmarkedLocations.length > 0 ? attendanceItem(counts, today) : null;
     case "contracts": {
       const ending = counts.contractsEnding;
 

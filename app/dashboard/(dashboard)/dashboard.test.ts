@@ -210,7 +210,7 @@ describe("a scope with no locations", () => {
       draftRosters: 0,
       conflicts: 0,
       conflictedRosters: 0,
-      unmarkedLocationIds: [],
+      unmarkedLocations: [],
       unmarkedWorkers: 0,
       contractsEnding: 0,
     });
@@ -498,8 +498,11 @@ describe("getAttentionCounts", () => {
     expect(wib.groupBy).toEqual([rosterRequest.locationId]);
     expect(column(wib, "shifts").sql).toBe("count(*)");
 
-    // In the order of the scope's locations.
-    expect(counts.unmarkedLocationIds).toEqual([LOC_B, LOC_C]);
+    // In the order of the scope's locations, each with its site for the Attendance link.
+    expect(counts.unmarkedLocations).toEqual([
+      { id: LOC_B, siteId: SITE_A },
+      { id: LOC_C, siteId: SITE_B },
+    ]);
     expect(counts.unmarkedWorkers).toBe(5);
   });
 
@@ -530,7 +533,7 @@ describe("getAttentionCounts", () => {
       draftRosters: 3,
       conflicts: 4,
       conflictedRosters: 1,
-      unmarkedLocationIds: [],
+      unmarkedLocations: [],
       unmarkedWorkers: 0,
       contractsEnding: 4,
     });

@@ -40,6 +40,11 @@ export type HomeRole = {
   summary: string;
 };
 
+export type RoleBoxProps = {
+  roles: HomeRole[];
+  depth: number;
+};
+
 export type BandCopy = {
   title: string;
   detail: string;

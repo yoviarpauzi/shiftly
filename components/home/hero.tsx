@@ -15,7 +15,7 @@ const BUTTON_CLASS =
 
 export default function Hero() {
   return (
-    <section className="overflow-x-clip pt-10 pb-6 sm:pt-[72px] lg:pb-2.5">
+    <section className="overflow-x-clip pt-10 pb-6 sm:pt-18 lg:pb-2.5">
       <div className="container text-center">
         <h1 className="flex flex-col items-center text-[40px] leading-[44px] font-bold tracking-[-0.03em] sm:text-5xl sm:leading-[56px] lg:text-[64px] lg:leading-[68px]">
           <span className="sr-only">{HEADLINE}</span>

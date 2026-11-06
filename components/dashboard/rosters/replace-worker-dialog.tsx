@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SearchIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
 import {
@@ -9,7 +10,12 @@ import {
   replaceRosterWorker,
   swapRosterCellWorker,
 } from "@/app/dashboard/rosters/actions";
-import { shortDate, warningsAddedMessage, warningsLabel } from "@/app/dashboard/rosters/roster-rules";
+import {
+  filterReplacementCandidates,
+  shortDate,
+  warningsAddedMessage,
+  warningsLabel,
+} from "@/app/dashboard/rosters/roster-rules";
 import type { ReplaceOption, ReplaceWorkerDialogProps } from "@/types/rosters";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -32,6 +39,7 @@ type BodyProps = Omit<ReplaceWorkerDialogProps, "worker"> & {
 function ReplaceWorkerBody({ roster, line, worker, date, shiftOrder, onOpenChange }: BodyProps) {
   const [candidates, setCandidates] = useState<ReplaceOption[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,7 +131,9 @@ function ReplaceWorkerBody({ roster, line, worker, date, shiftOrder, onOpenChang
     }
   }
 
+  // The pick stays even when the search hides it, so the confirm button never changes silently.
   const picked = candidates?.find((candidate) => candidate.workerId === selected) ?? null;
+  const shown = candidates ? filterReplacementCandidates(candidates, query) : [];
 
   return (
     <>
@@ -149,57 +159,97 @@ function ReplaceWorkerBody({ roster, line, worker, date, shiftOrder, onOpenChang
           No other worker at this location can be considered.
         </p>
       ) : (
-        <RadioGroup
-          value={selected ?? ""}
-          onValueChange={(value) => setSelected(value as string)}
-          aria-label="Replacement worker"
-          className="max-h-72 overflow-y-auto"
-        >
-          {candidates.map((candidate) => {
-            const impossible = candidate.hard.length > 0;
-            const eligible = !impossible && candidate.warnings.length === 0;
-
-            return (
-              <label
-                key={candidate.workerId}
-                className={cn(
-                  "flex items-start gap-3 rounded-lg border p-3 text-sm",
-                  impossible ? "cursor-not-allowed opacity-80" : "cursor-pointer",
-                )}
+        <>
+          <div className="relative">
+            <SearchIcon
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Escape clears the search first. The dialog closes on the next press.
+                if (event.key === "Escape" && query !== "") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setQuery("");
+                }
+              }}
+              placeholder="Search name, ID or position"
+              aria-label="Search replacement workers"
+              className="pr-10 pl-8 [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            {query !== "" && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
-                <RadioGroupItem
-                  value={candidate.workerId}
-                  disabled={impossible}
-                  className="mt-0.5"
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-medium">
-                    {candidate.name}{" "}
-                    <span className="font-normal text-muted-foreground">{candidate.employeeId}</span>
-                  </span>
-                  {candidate.positionNames.length > 0 && (
-                    <span className="text-muted-foreground">{candidate.positionNames.join(", ")}</span>
-                  )}
-                  {eligible && (
-                    <span className="text-emerald-700 dark:text-emerald-400">
-                      Eligible: no rule is broken.
+                <XIcon className="size-4" />
+              </button>
+            )}
+          </div>
+          {shown.length === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              No worker matches &ldquo;{query.trim()}&rdquo;.
+            </p>
+          ) : (
+            <RadioGroup
+              value={selected ?? ""}
+              onValueChange={(value) => setSelected(value as string)}
+              aria-label="Replacement worker"
+              className="max-h-72 overflow-y-auto"
+            >
+              {shown.map((candidate) => {
+                const impossible = candidate.hard.length > 0;
+                const eligible = !impossible && candidate.warnings.length === 0;
+
+                return (
+                  <label
+                    key={candidate.workerId}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 text-sm",
+                      impossible ? "cursor-not-allowed opacity-80" : "cursor-pointer",
+                    )}
+                  >
+                    <RadioGroupItem
+                      value={candidate.workerId}
+                      disabled={impossible}
+                      className="mt-0.5"
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="font-medium">
+                        {candidate.name}{" "}
+                        <span className="font-normal text-muted-foreground">{candidate.employeeId}</span>
+                      </span>
+                      {candidate.positionNames.length > 0 && (
+                        <span className="text-muted-foreground">{candidate.positionNames.join(", ")}</span>
+                      )}
+                      {eligible && (
+                        <span className="text-emerald-700 dark:text-emerald-400">
+                          Eligible: no rule is broken.
+                        </span>
+                      )}
+                      {candidate.hard.map((reason) => (
+                        <span key={reason} className="text-destructive">
+                          Not possible: {reason}
+                        </span>
+                      ))}
+                      {candidate.warnings.map((reason) => (
+                        <span key={reason} className="text-amber-700 dark:text-amber-400">
+                          Warning: {reason}
+                        </span>
+                      ))}
                     </span>
-                  )}
-                  {candidate.hard.map((reason) => (
-                    <span key={reason} className="text-destructive">
-                      Not possible: {reason}
-                    </span>
-                  ))}
-                  {candidate.warnings.map((reason) => (
-                    <span key={reason} className="text-amber-700 dark:text-amber-400">
-                      Warning: {reason}
-                    </span>
-                  ))}
-                </span>
-              </label>
-            );
-          })}
-        </RadioGroup>
+                  </label>
+                );
+              })}
+            </RadioGroup>
+          )}
+        </>
       )}
       {picked && picked.warnings.length > 0 && (
         <p className="text-sm text-amber-700 dark:text-amber-400">

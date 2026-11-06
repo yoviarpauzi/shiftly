@@ -1,6 +1,7 @@
 import { dateInZone } from "@/lib/indonesia-date";
 import type {
   EngineRules,
+  ReplaceOption,
   RosterLineFilters,
   RosterLineOption,
   RosterLineOptions,
@@ -226,6 +227,26 @@ export function targetsTotalMessage(date: string, sum: number, required: number)
 
 // Worker rows on a page of the grid until the viewer picks another size.
 export const GRID_PAGE_SIZE = 20;
+
+// The replacement candidates that match the search in the Replace worker dialog. It looks at the
+// name, the employee ID, and the position names, and keeps the order of the list.
+export function filterReplacementCandidates(
+  candidates: ReplaceOption[],
+  query: string,
+): ReplaceOption[] {
+  const search = query.trim().toLowerCase();
+
+  if (search === "") {
+    return candidates;
+  }
+
+  return candidates.filter(
+    (candidate) =>
+      candidate.name.toLowerCase().includes(search) ||
+      candidate.employeeId.toLowerCase().includes(search) ||
+      candidate.positionNames.some((position) => position.toLowerCase().includes(search)),
+  );
+}
 
 // The lines the grid shows under its filters. Department, sub-department, and position pick whole
 // lines. Search, shift, and needs attention pick workers, and the line follows: a line left with no

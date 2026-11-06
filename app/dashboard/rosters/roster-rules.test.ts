@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  ReplaceOption,
   RosterCell,
   RosterLineFilters,
   RosterLineView,
@@ -22,6 +23,7 @@ import {
   fixedSplit,
   generateAgainDescription,
   filterLines,
+  filterReplacementCandidates,
   isRosterEditable,
   formatRosterTime,
   lineFilterOptions,
@@ -798,5 +800,61 @@ describe("lineSummary", () => {
 
   it("handles no lines shown", () => {
     expect(lineSummary([], 3)).toBe("0 workers in 0 of 3 lines");
+  });
+});
+
+describe("filterReplacementCandidates", () => {
+  const option = (overrides: Partial<ReplaceOption>): ReplaceOption => ({
+    workerId: "w",
+    employeeId: "EMP-000",
+    name: "Name",
+    positionNames: [],
+    hard: [],
+    warnings: [],
+    ...overrides,
+  });
+
+  const candidates = [
+    option({ workerId: "1", employeeId: "EMP-001", name: "Budi Santoso", positionNames: ["Helper"] }),
+    option({
+      workerId: "2",
+      employeeId: "EMP-005",
+      name: "Eko Santoso",
+      positionNames: ["Forklift Driver", "Helper"],
+    }),
+    option({ workerId: "3", employeeId: "EMP-009", name: "Hadi Wijaya", positionNames: ["Checker"] }),
+  ];
+
+  it("returns every candidate for an empty or blank query", () => {
+    expect(filterReplacementCandidates(candidates, "")).toEqual(candidates);
+    expect(filterReplacementCandidates(candidates, "   ")).toEqual(candidates);
+  });
+
+  it("matches the name without regard to case", () => {
+    const ids = filterReplacementCandidates(candidates, "SANTOSO").map((c) => c.workerId);
+
+    expect(ids).toEqual(["1", "2"]);
+  });
+
+  it("matches the employee ID", () => {
+    const ids = filterReplacementCandidates(candidates, "emp-009").map((c) => c.workerId);
+
+    expect(ids).toEqual(["3"]);
+  });
+
+  it("matches a position name", () => {
+    const ids = filterReplacementCandidates(candidates, "forklift").map((c) => c.workerId);
+
+    expect(ids).toEqual(["2"]);
+  });
+
+  it("trims the query and keeps the order", () => {
+    const ids = filterReplacementCandidates(candidates, "  helper ").map((c) => c.workerId);
+
+    expect(ids).toEqual(["1", "2"]);
+  });
+
+  it("returns nothing when no candidate matches", () => {
+    expect(filterReplacementCandidates(candidates, "zzz")).toEqual([]);
   });
 });

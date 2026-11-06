@@ -2,12 +2,31 @@
 
 import { MotionConfig, motion } from "motion/react";
 import Image from "next/image";
+import type { ComponentProps } from "react";
+import CropFrame from "@/components/home/crop-frame";
+import {
+  DASHBOARD_PHONE_CROP,
+  DASHBOARD_RECORDING,
+} from "@/components/home/content";
 import DashboardVideo from "@/components/home/dashboard-video";
 
 const MotionImage = motion.create(Image);
 
+// Starts hidden in the server HTML, so it carries `data-reveal`: globals.css shows it in place in
+// print, and the page's <noscript> does the same without JavaScript.
+function RevealImage(props: ComponentProps<typeof MotionImage>) {
+  return <MotionImage data-reveal="" {...props} />;
+}
+
+// The dashboard in the hero window, whole from md up.
+const DASHBOARD_CROP = { x: 0, y: 0, ...DASHBOARD_RECORDING };
+
 // The window itself stays still. Only its two doodles move: they spring in from the sides the
-// first time they are on screen, and under reduced motion that is a fade.
+// first time they are on screen, and under reduced motion that is a fade. The left doodle sits
+// outside the frame, in the page margin, so it never covers the sidebar of the recording. Below
+// xl there is no margin for it, so it is not drawn. It sits low on the window, so it waits until
+// 60% of it is on screen: with the default of one pixel it would play at load, from the bottom
+// edge of the first screen, before the visitor has scrolled to it.
 export default function ProductWindow() {
   return (
     <MotionConfig reducedMotion="user">
@@ -26,47 +45,52 @@ export default function ProductWindow() {
               Shiftly
             </span>
           </div>
-          <div className="h-60 overflow-hidden md:h-auto">
-            <div className="relative w-[480px] max-w-none min-w-full md:w-full">
-              <Image
-                src="/landing/dashboard-demo.webp"
-                alt="Dashboard with attendance and open conflicts"
-                width={1440}
-                height={780}
-                sizes="(min-width: 1024px) 960px, (min-width: 640px) calc(100vw - 4rem), max(480px, calc(100vw - 2.5rem))"
-                priority
-                className="block h-auto w-full"
-              />
-              <DashboardVideo src="/landing/dashboard-demo.mp4" />
-            </div>
-          </div>
+          {/* Below md the window shows only the "Open conflicts" and "Pending approvals" cards, at a
+              size a phone can read. From md the whole dashboard is shown. */}
+          <CropFrame
+            size={DASHBOARD_RECORDING}
+            crop={DASHBOARD_CROP}
+            phoneCrop={DASHBOARD_PHONE_CROP}
+            breakpoint="md"
+          >
+            <Image
+              src="/landing/dashboard-demo.webp"
+              alt="Dashboard with attendance and open conflicts"
+              width={DASHBOARD_RECORDING.width}
+              height={DASHBOARD_RECORDING.height}
+              sizes="(min-width: 1024px) 960px, (min-width: 768px) calc(100vw - 4rem), 790px"
+              priority
+              className="block h-auto w-full"
+            />
+            <DashboardVideo src="/landing/dashboard-demo.mp4" />
+          </CropFrame>
         </div>
 
-        <MotionImage
+        <RevealImage
           src="/landing/doodle-rosters.webp"
           alt=""
           width={640}
           height={640}
-          sizes="(min-width: 1024px) 240px, (min-width: 768px) 180px, 120px"
+          sizes="(min-width: 1024px) 190px, (min-width: 768px) 150px, 104px"
           aria-hidden="true"
           initial={{ opacity: 0, x: 60, rotate: 8 }}
           whileInView={{ opacity: 1, x: 0, rotate: 0 }}
           viewport={{ once: true }}
           transition={{ type: "spring", stiffness: 130, damping: 16, delay: 0.5 }}
-          className="pointer-events-none absolute top-[-46px] right-[-10px] w-[120px] max-w-none md:top-[-64px] md:right-[-16px] md:w-[180px] lg:top-[-80px] lg:right-[-16px] lg:w-[240px] xl:right-[-40px]"
+          className="pointer-events-none absolute top-[-60px] right-[-6px] w-[104px] max-w-none md:top-[-56px] md:right-[-16px] md:w-[150px] lg:top-[-68px] lg:right-[-16px] lg:w-[190px] xl:right-[-40px]"
         />
-        <MotionImage
+        <RevealImage
           src="/landing/doodle-attendance.webp"
           alt=""
           width={640}
           height={640}
-          sizes="(min-width: 1024px) 260px, (min-width: 768px) 200px, 130px"
+          sizes="220px"
           aria-hidden="true"
           initial={{ opacity: 0, x: -60, rotate: -8 }}
           whileInView={{ opacity: 1, x: 0, rotate: 0 }}
-          viewport={{ once: true }}
-          transition={{ type: "spring", stiffness: 130, damping: 16, delay: 0.65 }}
-          className="pointer-events-none absolute top-[174px] left-0 w-[130px] max-w-none md:top-[230px] md:left-[-24px] md:w-[200px] lg:top-[310px] lg:left-[-24px] lg:w-[260px] xl:left-[-90px]"
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ type: "spring", stiffness: 130, damping: 16, delay: 0.1 }}
+          className="pointer-events-none absolute top-[300px] left-[-170px] hidden w-[220px] max-w-none xl:block 2xl:left-[-200px]"
         />
       </div>
     </MotionConfig>

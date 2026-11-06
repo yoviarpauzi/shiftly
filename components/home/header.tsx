@@ -70,7 +70,7 @@ export default function Header({ action, mobileAction }: HeaderProps) {
       <div className="container relative flex h-full items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2 rounded-sm text-base font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="flex min-h-11 items-center gap-2 rounded-sm text-base font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Image
             src="/logo.webp"
@@ -100,7 +100,7 @@ export default function Header({ action, mobileAction }: HeaderProps) {
                       href={link.href}
                       aria-current={active ? "location" : undefined}
                       className={cn(
-                        "relative isolate block rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "relative isolate block rounded-full px-3 py-1.5 pointer-coarse:py-3 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         active
                           ? "text-secondary-foreground"
                           : "text-foreground/80 hover:text-foreground",

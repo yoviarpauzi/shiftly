@@ -166,3 +166,13 @@
     scroll-behavior: smooth;
   }
 }
+
+/* Reveal-on-scroll starts hidden in the server HTML. A printed page never scrolls, so it shows
+   every revealed element in place. The same rule sits in the page's <noscript> for visitors
+   without JavaScript: a `(scripting: none)` media query was tried instead and did not apply. */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

@@ -1,6 +1,29 @@
 import Image from "next/image";
-import { BAND_COPY } from "@/components/home/content";
+import { Suspense } from "react";
+import AuthButton from "@/components/home/auth-button";
+import { BAND_COPY, BAND_COPY_SIGNED_IN } from "@/components/home/content";
 import Reveal from "@/components/home/reveal";
+import { isSignedIn } from "@/components/home/session";
+import type { BandCopy } from "@/types/home";
+
+function BandText({ copy }: { copy: BandCopy }) {
+  return (
+    <>
+      <h2 className="text-[26px] text-balance leading-8 font-bold tracking-[-0.03em] md:text-[32px] md:leading-10">
+        {copy.title}
+      </h2>
+      <p className="mt-2.5 text-base leading-6 text-muted-foreground">
+        {copy.detail}
+      </p>
+    </>
+  );
+}
+
+// The band's words depend on the visitor, so they wait for the session like the button does. The
+// fallback is what a signed-out visitor reads.
+async function SessionBandText() {
+  return <BandText copy={(await isSignedIn()) ? BAND_COPY_SIGNED_IN : BAND_COPY} />;
+}
 
 export default function SignInBand() {
   return (
@@ -23,12 +46,10 @@ export default function SignInBand() {
             />
           </Reveal>
           <div className="min-w-0 md:flex-1">
-            <h2 className="text-[32px] text-balance leading-[38px] font-bold tracking-[-0.03em] md:text-[36px] md:leading-[44px] lg:text-[44px] lg:leading-[50px]">
-              {BAND_COPY.title}
-            </h2>
-            <p className="mt-2.5 text-base leading-6 text-muted-foreground">
-              {BAND_COPY.detail}
-            </p>
+            <Suspense fallback={<BandText copy={BAND_COPY} />}>
+              <SessionBandText />
+            </Suspense>
+            <AuthButton className="mt-5 h-11 w-full rounded-lg px-6 focus-visible:ring-offset-secondary sm:w-auto" />
           </div>
         </Reveal>
       </div>

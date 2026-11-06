@@ -18,13 +18,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Shiftly",
   description:
-    "Roster and attendance management for outsourced workers across multiple sites.",
+    "Shiftly builds each location's roster from approved requests and records any rule it cannot meet, with the reason.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className={cn(
         "h-full",
         "antialiased",

@@ -6,6 +6,7 @@ import { Bar, BarChart, CartesianGrid, Rectangle, XAxis, YAxis } from "recharts"
 import { axisTicks, formatWeekdayDay } from "@/app/dashboard/(dashboard)/dashboard-rules";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { CHART_DRAW_MS, useChartAnimation } from "@/hooks/use-chart-animation";
 import type { WeekChartProps, WeekChartTone } from "@/types/dashboard";
 
 const TONE_CONFIG: Record<WeekChartTone, ChartConfig> = {
@@ -17,6 +18,7 @@ const CHART_MARGIN = { top: 20, right: 8, bottom: 0, left: 0 };
 
 export function WeekChart({ title, description, points, tone, caption }: WeekChartProps) {
   const captionId = React.useId();
+  const animation = useChartAnimation();
   const ticks = axisTicks(Math.max(...points.map((point) => point.value)), 3);
   const data = points.map((point) => ({ ...point, label: formatWeekdayDay(point.date) }));
 
@@ -58,9 +60,9 @@ export function WeekChart({ title, description, points, tone, caption }: WeekCha
               fill="var(--color-value)"
               radius={[3, 3, 0, 0]}
               maxBarSize={28}
-              isAnimationActive={false}
+              {...animation}
               // Draws the value above the bar. The default label is dropped for a zero-height
-              // bar, and the frames print every 0.
+              // bar, and the frames print every 0. It fades in once the bars have grown.
               shape={(bar) => (
                 <g>
                   <Rectangle {...bar} />
@@ -68,7 +70,8 @@ export function WeekChart({ title, description, points, tone, caption }: WeekCha
                     x={bar.x + bar.width / 2}
                     y={bar.y - 6}
                     textAnchor="middle"
-                    className="fill-foreground text-xs"
+                    className="chart-label-in fill-foreground text-xs"
+                    style={{ animationDelay: `${CHART_DRAW_MS}ms` }}
                   >
                     {bar.value}
                   </text>

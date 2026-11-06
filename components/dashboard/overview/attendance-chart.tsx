@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CHART_DRAW_MS, useChartAnimation } from "@/hooks/use-chart-animation";
 import type {
   AttendanceChartProps,
   AttendanceEndLabelsProps,
@@ -101,7 +102,7 @@ function EndLabels({ last }: AttendanceEndLabelsProps) {
   const x = plot.x + plot.width + 8;
 
   return (
-    <g>
+    <g className="chart-label-in" style={{ animationDelay: `${CHART_DRAW_MS}ms` }}>
       <circle cx={plot.x + plot.width} cy={presentY} r={3} fill="var(--color-present)" />
       <circle cx={plot.x + plot.width} cy={notPresentY} r={3} fill="var(--color-notPresent)" />
       <text x={x} y={labelYs.present} dominantBaseline="central" className="fill-foreground text-xs">
@@ -121,6 +122,7 @@ function EndLabels({ last }: AttendanceEndLabelsProps) {
 
 export function AttendanceChart({ series }: AttendanceChartProps) {
   const gradientId = React.useId().replace(/:/g, "");
+  const animation = useChartAnimation();
   const [range, setRange] = React.useState<SeriesRange>("30d");
   const [view, setView] = React.useState<AttendanceView>("30d");
 
@@ -244,7 +246,7 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
                 fill={`url(#${gradientId}-present)`}
                 dot={false}
                 activeDot={{ r: 3 }}
-                isAnimationActive={false}
+                {...animation}
               />
               <Area
                 dataKey="notPresent"
@@ -255,9 +257,9 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
                 fill={`url(#${gradientId}-notPresent)`}
                 dot={false}
                 activeDot={{ r: 3 }}
-                isAnimationActive={false}
+                {...animation}
               />
-              {last ? <EndLabels last={last} /> : null}
+              {last ? <EndLabels key={range} last={last} /> : null}
               <ChartLegend
                 verticalAlign="bottom"
                 align="left"

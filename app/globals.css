@@ -152,7 +152,17 @@
   animation: fade-rise 300ms ease-out 100ms both;
 }
 
+/* A chart label that sits on the data. It fades in once the chart has drawn, so it never shows
+   before the bar or area reaches it. The delay is set inline from CHART_DRAW_MS. */
+.chart-label-in {
+  animation: fade-in 300ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .chart-label-in {
+    animation: none;
+  }
+
   .rise-in,
   .rise-in-delay {
     animation-name: fade-in;

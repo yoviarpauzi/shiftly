@@ -1,9 +1,6 @@
 "use client";
 
-import { useReducedMotion } from "motion/react";
-import { PauseIcon, PlayIcon } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
 import CropFrame from "@/components/home/crop-frame";
 import DashboardVideo from "@/components/home/dashboard-video";
 import { RECORDING_SIZE, STEP_CROP } from "@/components/home/content";
@@ -21,12 +18,8 @@ function posterSizes(phoneCrop: StepCrop): string {
 // A step's recording in its frame. The poster is the finished state, so a visitor who never plays
 // the recording still sees the result of the step. A phone shows a tighter crop that holds the
 // result of the step, so its text is readable without panning sideways; from sm the frame shows
-// the whole page area. Once the recording is playing the visitor can pause it.
+// the whole page area.
 export default function StepRecording({ step }: StepRecordingProps) {
-  const reduceMotion = useReducedMotion();
-  const [started, setStarted] = useState(false);
-  const [paused, setPaused] = useState(false);
-
   return (
     <div className="relative overflow-hidden rounded-xl border bg-background shadow-[0_24px_64px_-24px] shadow-primary/30">
       <CropFrame
@@ -43,23 +36,8 @@ export default function StepRecording({ step }: StepRecordingProps) {
           sizes={posterSizes(step.phoneCrop)}
           className="block h-auto w-full"
         />
-        <DashboardVideo
-          src={step.video}
-          paused={paused}
-          onStart={() => setStarted(true)}
-        />
+        <DashboardVideo src={step.video} />
       </CropFrame>
-
-      {started && !reduceMotion ? (
-        <button
-          type="button"
-          onClick={() => setPaused((current) => !current)}
-          aria-label={paused ? "Play recording" : "Pause recording"}
-          className="absolute right-3 bottom-3 flex size-11 cursor-pointer items-center justify-center rounded-full border bg-background/90 text-foreground shadow-sm transition-colors duration-150 outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {paused ? <PlayIcon className="size-4" /> : <PauseIcon className="size-4" />}
-        </button>
-      ) : null}
     </div>
   );
 }

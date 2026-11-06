@@ -22,10 +22,6 @@ export type HeroCopy = {
 
 export type DashboardVideoProps = {
   src: string;
-  // The visitor paused it. It stays paused until they play it again.
-  paused?: boolean;
-  // Called once, when the recording has started playing.
-  onStart?: () => void;
 };
 
 export type StepRecordingProps = {

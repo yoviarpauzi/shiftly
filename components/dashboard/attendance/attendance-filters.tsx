@@ -1,7 +1,10 @@
 "use client";
 
 import type { AttendanceFiltersProps } from "@/types/attendance";
-import { ALL_OPTION as ALL, FilterSelect } from "@/components/dashboard/filter-select";
+import {
+  ALL_OPTION as ALL,
+  FilterSelect,
+} from "@/components/dashboard/filter-select";
 import { RequestsSearch } from "@/components/dashboard/requests/requests-search";
 
 const STATUS_OPTIONS = [
@@ -18,22 +21,33 @@ const STATUS_OPTIONS = [
 // site sees neither. The location needs a site first, and the department and shift, which belong to
 // one location, need a location. A new site resets the location, department, and shift, and a new
 // location resets the department and shift.
-export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) {
-  const locations = choices.locations.filter((location) => location.siteId === choices.siteId);
+export function AttendanceFilters({
+  filters,
+  choices,
+}: AttendanceFiltersProps) {
+  const locations = choices.locations.filter(
+    (location) => location.siteId === choices.siteId,
+  );
   const showLocation =
     choices.siteId === null ? choices.sites.length > 1 : locations.length > 1;
   const noLocation = choices.locationId === null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <RequestsSearch placeholder="Search by name or employee ID" label="Search workers" />
+      <RequestsSearch
+        placeholder="Search by name or ID"
+        label="Search workers"
+      />
       {choices.sites.length > 1 && (
         <FilterSelect
           param="site"
           value={choices.siteId ?? ALL}
           options={[
             { value: ALL, label: "All sites" },
-            ...choices.sites.map((site) => ({ value: site.id, label: site.name })),
+            ...choices.sites.map((site) => ({
+              value: site.id,
+              label: site.name,
+            })),
           ]}
           label="Site"
           className="h-9 w-32"
@@ -46,7 +60,10 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
           value={choices.locationId ?? ALL}
           options={[
             { value: ALL, label: "All locations" },
-            ...locations.map((location) => ({ value: location.id, label: location.name })),
+            ...locations.map((location) => ({
+              value: location.id,
+              label: location.name,
+            })),
           ]}
           label="Location"
           className="h-9 w-40"
@@ -59,7 +76,10 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
         value={filters.departmentId ?? ALL}
         options={[
           { value: ALL, label: "All departments" },
-          ...choices.departments.map((entry) => ({ value: entry.id, label: entry.name })),
+          ...choices.departments.map((entry) => ({
+            value: entry.id,
+            label: entry.name,
+          })),
         ]}
         label="Filter by department"
         className="h-9 w-40"
@@ -70,7 +90,10 @@ export function AttendanceFilters({ filters, choices }: AttendanceFiltersProps) 
         value={filters.shiftId ?? ALL}
         options={[
           { value: ALL, label: "All shifts" },
-          ...choices.shifts.map((entry) => ({ value: entry.id, label: entry.name })),
+          ...choices.shifts.map((entry) => ({
+            value: entry.id,
+            label: entry.name,
+          })),
         ]}
         label="Filter by shift"
         className="h-9 w-32"

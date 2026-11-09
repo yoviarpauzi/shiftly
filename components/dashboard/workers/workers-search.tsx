@@ -66,7 +66,7 @@ export function WorkersSearch() {
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Search by name or employee ID"
+          placeholder="Search by name or ID"
           aria-label="Search workers"
           className="h-9 pr-10 pl-8 [&::-webkit-search-cancel-button]:appearance-none"
         />

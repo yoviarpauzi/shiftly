@@ -37,10 +37,10 @@ export default function Hero() {
           {HERO_COPY.claims.map((claim) => (
             <li
               key={claim}
-              className="flex items-center gap-2.5 text-base leading-6 font-semibold text-foreground"
+              className="flex items-center gap-2.5 text-base leading-6 font-semibold text-muted-foreground"
             >
               <span
-                className="flex size-5 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
                 aria-hidden="true"
               >
                 <CheckIcon className="size-3.5" strokeWidth={3} />

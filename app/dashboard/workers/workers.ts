@@ -15,6 +15,8 @@ import {
   sql,
 } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { loadEngineRules } from "@/app/dashboard/rosters/roster-work-rules";
+import { effectiveWorkDays } from "@/app/dashboard/settings/settings-rules";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
 import { site } from "@/database/schema/site-schema";
@@ -24,6 +26,7 @@ import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
 import type { SiteChoice } from "@/types/locations";
 import type { SortCriterion } from "@/types/sort";
+import type { WorkerDetail } from "@/types/worker-history";
 import type {
   WorkerAccess,
   WorkerFormOptions,
@@ -144,38 +147,78 @@ export async function listWorkers(
     .limit(pageSize)
     .offset((currentPage - 1) * pageSize);
 
-  // Positions of the page only, in one query. A deleted position is not shown.
-  const tags = new Map<string, WorkerPositionTag[]>();
-
-  if (rows.length > 0) {
-    const assigned = await db
-      .select({ workerId: workerPosition.workerId, id: position.id, name: position.name })
-      .from(workerPosition)
-      .innerJoin(position, eq(position.id, workerPosition.positionId))
-      .where(
-        and(
-          inArray(
-            workerPosition.workerId,
-            rows.map((row) => row.id),
-          ),
-          isNull(position.deletedAt),
-        ),
-      )
-      .orderBy(asc(position.name), asc(position.id));
-
-    for (const item of assigned) {
-      const list = tags.get(item.workerId) ?? [];
-
-      list.push({ id: item.id, name: item.name });
-      tags.set(item.workerId, list);
-    }
-  }
+  const tags = await positionTagsFor(rows.map((row) => row.id));
 
   return {
     rows: rows.map((row) => ({ ...row, positions: tags.get(row.id) ?? [] })),
     total,
     page: currentPage,
     pageSize,
+  };
+}
+
+// Positions of the given workers, in one query. A deleted position is not shown.
+async function positionTagsFor(workerIds: string[]): Promise<Map<string, WorkerPositionTag[]>> {
+  const tags = new Map<string, WorkerPositionTag[]>();
+
+  if (workerIds.length === 0) {
+    return tags;
+  }
+
+  const assigned = await db
+    .select({ workerId: workerPosition.workerId, id: position.id, name: position.name })
+    .from(workerPosition)
+    .innerJoin(position, eq(position.id, workerPosition.positionId))
+    .where(and(inArray(workerPosition.workerId, workerIds), isNull(position.deletedAt)))
+    .orderBy(asc(position.name), asc(position.id));
+
+  for (const item of assigned) {
+    const list = tags.get(item.workerId) ?? [];
+
+    list.push({ id: item.id, name: item.name });
+    tags.set(item.workerId, list);
+  }
+
+  return tags;
+}
+
+// One worker for the detail page. The scope is part of the query, so a worker outside it gives null,
+// the same as a missing one. A deleted worker is returned: its history outlives the delete. The
+// working days are the worker's own, else the work rule that applies to its location.
+export async function getWorkerDetail(
+  access: WorkerAccess,
+  id: string,
+): Promise<WorkerDetail | null> {
+  const [row] = await db
+    .select({
+      id: worker.id,
+      employeeId: worker.employeeId,
+      name: worker.name,
+      siteId: worker.siteId,
+      siteName: site.name,
+      locationId: worker.locationId,
+      locationName: location.name,
+      timezone: location.timezone,
+      endContract: worker.endContract,
+      workDaysPerWeek: worker.workDaysPerWeek,
+      deletedAt: worker.deletedAt,
+    })
+    .from(worker)
+    .innerJoin(site, eq(site.id, worker.siteId))
+    .innerJoin(location, eq(location.id, worker.locationId))
+    .where(and(eq(worker.id, id), workerScopeFilter(access)));
+
+  if (!row) {
+    return null;
+  }
+
+  const tags = await positionTagsFor([row.id]);
+  const rules = await loadEngineRules(db, { locationId: row.locationId, siteId: row.siteId });
+
+  return {
+    ...row,
+    positions: tags.get(row.id) ?? [],
+    workDays: effectiveWorkDays(row.workDaysPerWeek, rules.workDaysPerWeek),
   };
 }
 

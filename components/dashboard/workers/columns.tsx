@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   columnVisibilityFeature,
   createColumnHelper,
@@ -8,6 +9,7 @@ import {
   BanIcon,
   CircleCheckIcon,
   EllipsisIcon,
+  HistoryIcon,
   PencilIcon,
   RotateCcwIcon,
   Trash2Icon,
@@ -102,7 +104,14 @@ export function createWorkerColumns(
     }),
     columnHelper.accessor("name", {
       header: () => <SortHeader label="Name" column="name" sort={sort} onSort={onSort} />,
-      cell: ({ row }) => row.original.name,
+      cell: ({ row }) => (
+        <Link
+          href={`/dashboard/workers/${row.original.id}`}
+          className="underline-offset-4 hover:underline"
+        >
+          {row.original.name}
+        </Link>
+      ),
     }),
     columnHelper.accessor("siteName", {
       header: () => <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />,
@@ -161,6 +170,10 @@ export function createWorkerColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-auto min-w-48">
               <DropdownMenuGroup>
+                <DropdownMenuItem render={<Link href={`/dashboard/workers/${row.original.id}`} />}>
+                  <HistoryIcon />
+                  View history
+                </DropdownMenuItem>
                 {row.original.deletedAt === null ? (
                   <>
                     <DropdownMenuItem onClick={() => onEdit(row.original)}>

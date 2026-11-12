@@ -21,6 +21,8 @@ const ROSTER_ID = "55555555-5555-4555-8555-555555555555";
 const LINE_ID = "66666666-6666-4666-8666-666666666666";
 const POSITION_ID = "77777777-7777-4777-8777-777777777777";
 const SHIFT_ID = "88888888-8888-4888-8888-888888888888";
+const DEPARTMENT_ID = "55555555-5555-4555-8555-555555555555";
+const SUB_DEPARTMENT_ID = "66666666-6666-4666-8666-666666666666";
 const W1 = "99999999-9999-4999-8999-999999999991";
 const W2 = "99999999-9999-4999-8999-999999999992";
 const W3 = "99999999-9999-4999-8999-999999999993";
@@ -113,8 +115,10 @@ function seedEngineInput() {
       lineId: LINE_ID,
       positionId: POSITION_ID,
       positionName: "Operator",
+      departmentId: DEPARTMENT_ID,
       departmentName: "Packing",
-      subDepartmentName: null,
+      subDepartmentId: SUB_DEPARTMENT_ID,
+      subDepartmentName: "Line A",
     },
   ]);
   fake.rows.set(rosterRequestLineDay, [{ lineId: LINE_ID, headcount: 1 }]);
@@ -158,6 +162,21 @@ describe("loadEngineInput", () => {
     ]);
   });
 
+  it("gives the engine each request line's department and sub-department", async () => {
+    seedEngineInput();
+
+    const { input } = await loadEngineInput(reader, REQUEST_ID);
+
+    expect(input.lines).toEqual([
+      {
+        id: LINE_ID,
+        positionId: POSITION_ID,
+        departmentId: DEPARTMENT_ID,
+        subDepartmentId: SUB_DEPARTMENT_ID,
+      },
+    ]);
+  });
+
   it("selects the worker's own working days from the worker table", async () => {
     seedEngineInput();
 
@@ -180,6 +199,7 @@ describe("loadEngineInput", () => {
       workDaysPerWeek: 7,
       shiftExceptionDays: 2,
       requirePositionMatch: false,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 24,
     });
 
@@ -211,6 +231,7 @@ describe("loadEngineInput", () => {
       workDaysPerWeek: 5,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 26,
     });
   });

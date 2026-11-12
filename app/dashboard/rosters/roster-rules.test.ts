@@ -313,13 +313,20 @@ describe("toEngineRules", () => {
     maxWorkingDaysPerMonth: "default",
   } as const;
 
-  it("maps the four rules the engine reads", () => {
+  it("maps the five rules the engine reads", () => {
     expect(toEngineRules({ values: WORK_RULE_DEFAULTS, sources })).toEqual({
       workDaysPerWeek: 5,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 26,
     });
+  });
+
+  it("carries keepPreviousPlacement when a level turns it on", () => {
+    const values = { ...WORK_RULE_DEFAULTS, keepPreviousPlacement: true };
+
+    expect(toEngineRules({ values, sources }).keepPreviousPlacement).toBe(true);
   });
 
   it("passes non-default values through unchanged and drops the rest", () => {
@@ -336,6 +343,7 @@ describe("toEngineRules", () => {
       workDaysPerWeek: 7,
       shiftExceptionDays: 3,
       requirePositionMatch: false,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 20,
     });
   });

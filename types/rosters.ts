@@ -467,7 +467,12 @@ export type EngineWorker = {
   workDaysPerWeek: number | null;
 };
 
-export type EngineLine = { id: string; positionId: string };
+export type EngineLine = {
+  id: string;
+  positionId: string;
+  departmentId: string;
+  subDepartmentId: string | null;
+};
 
 export type EngineTarget = { lineId: string; date: string; shiftId: string; headcount: number };
 
@@ -475,6 +480,7 @@ export type EngineRules = {
   workDaysPerWeek: number;
   shiftExceptionDays: number;
   requirePositionMatch: boolean;
+  keepPreviousPlacement: boolean;
   maxWorkingDaysPerMonth: number;
 };
 
@@ -486,6 +492,8 @@ export type EngineHistory = {
   lastShiftOrder: number | null;
   consecutiveWorkDays: number;
   monthWorkDays: Record<string, number>;
+  // The department and sub-department of the last work day before the roster, or null.
+  lastPlacement: { departmentId: string; subDepartmentId: string | null } | null;
 };
 
 export type RosterEngineInput = {

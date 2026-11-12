@@ -67,6 +67,7 @@ describe("loadEngineRules", () => {
       workDaysPerWeek: 5,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 26,
     });
   });
@@ -96,6 +97,7 @@ describe("loadEngineRules", () => {
       workDaysPerWeek: 5,
       shiftExceptionDays: 4,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 30,
     });
   });

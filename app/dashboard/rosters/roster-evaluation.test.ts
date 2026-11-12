@@ -45,6 +45,7 @@ const input = (overrides: Partial<EvaluateInput> = {}): EvaluateInput => ({
     workDaysPerWeek: 5,
     shiftExceptionDays: 7,
     requirePositionMatch: true,
+    keepPreviousPlacement: false,
     maxWorkingDaysPerMonth: 26,
   },
   history: [
@@ -54,6 +55,7 @@ const input = (overrides: Partial<EvaluateInput> = {}): EvaluateInput => ({
       lastShiftOrder: null,
       consecutiveWorkDays: 0,
       monthWorkDays: {},
+    lastPlacement: null,
     },
   ],
   ...overrides,
@@ -129,6 +131,7 @@ describe("evaluateRoster", () => {
           lastShiftOrder: 3,
           consecutiveWorkDays: 2,
           monthWorkDays: {},
+        lastPlacement: null,
         },
       ];
 
@@ -167,6 +170,7 @@ describe("evaluateRoster", () => {
         lastShiftOrder: null,
         consecutiveWorkDays: 0,
         monthWorkDays: { "2026-11": 25 },
+      lastPlacement: null,
       },
     ];
 

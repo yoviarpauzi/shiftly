@@ -341,6 +341,7 @@ export function workerHistory(
     lastShiftOrder: last?.shiftOrder ?? null,
     consecutiveWorkDays,
     monthWorkDays,
+    lastPlacement: null,
   };
 }
 
@@ -1017,7 +1018,12 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
   return {
     input: {
       days,
-      lines: lines.map((line) => ({ id: line.lineId, positionId: line.positionId })),
+      lines: lines.map((line) => ({
+        id: line.lineId,
+        positionId: line.positionId,
+        departmentId: line.departmentId,
+        subDepartmentId: line.subDepartmentId,
+      })),
       shifts,
       workers: workers.map((row) => ({
         ...row,

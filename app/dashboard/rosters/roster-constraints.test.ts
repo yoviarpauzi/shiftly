@@ -96,6 +96,7 @@ const NO_HISTORY: EngineHistory = {
   lastShiftOrder: null,
   consecutiveWorkDays: 0,
   monthWorkDays: {},
+lastPlacement: null,
 };
 
 const cell = (date: string, shiftOrder: number | null) => ({ date, shiftOrder });

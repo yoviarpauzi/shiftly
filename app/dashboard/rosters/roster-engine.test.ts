@@ -23,6 +23,7 @@ const RULES: EngineRules = {
   workDaysPerWeek: 5,
   shiftExceptionDays: 7,
   requirePositionMatch: true,
+  keepPreviousPlacement: false,
   maxWorkingDaysPerMonth: 26,
 };
 
@@ -44,7 +45,7 @@ const target = (
 
 const input = (overrides: Partial<RosterEngineInput> = {}): RosterEngineInput => ({
   days: DAYS,
-  lines: [{ id: "l1", positionId: "p1" }],
+  lines: [{ id: "l1", positionId: "p1", departmentId: "dA", subDepartmentId: null }],
   targets: [],
   shifts: SHIFTS,
   workers: [worker(1), worker(2), worker(3)],
@@ -59,6 +60,7 @@ const noHistory = (workerId: string, overrides: Record<string, unknown> = {}) =>
   lastShiftOrder: null,
   consecutiveWorkDays: 0,
   monthWorkDays: {},
+  lastPlacement: null,
   ...overrides,
 });
 
@@ -111,8 +113,8 @@ describe("generateRoster: determinism", () => {
   it("gives the same output for the same input, and when every array is reversed", () => {
     const base = input({
       lines: [
-        { id: "l1", positionId: "p1" },
-        { id: "l2", positionId: "p2" },
+        { id: "l1", positionId: "p1", departmentId: "dA", subDepartmentId: null },
+        { id: "l2", positionId: "p2", departmentId: "dA", subDepartmentId: null },
       ],
       workers: [
         worker(1),
@@ -154,8 +156,8 @@ describe("generateRoster: determinism", () => {
     const output = generateRoster(
       input({
         lines: [
-          { id: "l1", positionId: "p1" },
-          { id: "l2", positionId: "p1" },
+          { id: "l1", positionId: "p1", departmentId: "dA", subDepartmentId: null },
+          { id: "l2", positionId: "p1", departmentId: "dA", subDepartmentId: null },
         ],
         workers: [worker(1), worker(2), worker(3), worker(4)],
         targets: [
@@ -181,8 +183,8 @@ describe("generateRoster: one assignment per day", () => {
     const output = generateRoster(
       input({
         lines: [
-          { id: "l1", positionId: "p1" },
-          { id: "l2", positionId: "p1" },
+          { id: "l1", positionId: "p1", departmentId: "dA", subDepartmentId: null },
+          { id: "l2", positionId: "p1", departmentId: "dA", subDepartmentId: null },
         ],
         workers: [worker(1)],
         targets: [target(FIRST_DAY, "s1", 1, "l1"), target(FIRST_DAY, "s1", 1, "l2")],
@@ -266,8 +268,8 @@ describe("generateRoster: working days per week", () => {
     const output = generateRoster(
       input({
         lines: [
-          { id: "l1", positionId: "p1" },
-          { id: "l2", positionId: "p1" },
+          { id: "l1", positionId: "p1", departmentId: "dA", subDepartmentId: null },
+          { id: "l2", positionId: "p1", departmentId: "dA", subDepartmentId: null },
         ],
         workers: [worker(1), worker(2)],
         targets: [target(DAYS[1], "s1", 1, "l2")],
@@ -519,5 +521,174 @@ describe("generateRoster: shortages", () => {
 
   it("gives no conflicts and no assignments when there are no targets", () => {
     expect(generateRoster(input())).toEqual({ assignments: [], conflicts: [] });
+  });
+});
+
+describe("generateRoster: keeping the previous placement", () => {
+  const ON: EngineRules = { ...RULES, keepPreviousPlacement: true };
+  const dept = (departmentId: string, subDepartmentId: string | null = null) => ({
+    departmentId,
+    subDepartmentId,
+  });
+  const placed = (workerId: string, lastPlacement: ReturnType<typeof dept> | null) =>
+    noHistory(workerId, { lastPlacement });
+  const lineA = { id: "l1", positionId: "p1", ...dept("dA") };
+
+  it("ignores the placement when the rule is off, for any input", () => {
+    const base = {
+      lines: [lineA, { id: "l2", positionId: "p1", ...dept("dB") }],
+      targets: [
+        target(DAYS[0], "s1", 2, "l1"),
+        target(DAYS[0], "s1", 1, "l2"),
+        target(DAYS[1], "s2", 2, "l1"),
+        target(DAYS[2], "s1", 1, "l2"),
+      ],
+    };
+    const withPlacement = generateRoster(
+      input({
+        ...base,
+        history: [placed("w1", dept("dB")), placed("w2", dept("dA")), placed("w3", dept("dB"))],
+      }),
+    );
+    const without = generateRoster(
+      input({ ...base, history: [placed("w1", null), placed("w2", null), placed("w3", null)] }),
+    );
+
+    expect(withPlacement).toEqual(without);
+  });
+
+  it("picks the worker whose placement matches over one with fewer work days", () => {
+    const base = {
+      workers: [worker(1), worker(2)],
+      history: [placed("w1", dept("dB")), placed("w2", dept("dA"))],
+      targets: [target(DAYS[0], "s1", 1), target(DAYS[1], "s1", 1)],
+    };
+
+    expect(works(generateRoster(input({ ...base, rules: ON })))).toEqual([
+      `${DAYS[0]}:w2:s1`,
+      `${DAYS[1]}:w2:s1`,
+    ]);
+    expect(works(generateRoster(input({ ...base })))).toEqual([
+      `${DAYS[0]}:w1:s1`,
+      `${DAYS[1]}:w2:s1`,
+    ]);
+  });
+
+  it("prefers the same sub-department over the same department only", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        lines: [{ id: "l1", positionId: "p1", ...dept("dA", "sA") }],
+        workers: [worker(1), worker(2)],
+        history: [placed("w1", dept("dA", "sB")), placed("w2", dept("dA", "sA"))],
+        targets: [target(DAYS[0], "s1", 1)],
+      }),
+    );
+
+    expect(works(output)).toEqual([`${DAYS[0]}:w2:s1`]);
+  });
+
+  it("fills a shortage with workers from another department and records no conflict", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        workers: [worker(1), worker(2)],
+        history: [placed("w1", dept("dB")), placed("w2", dept("dA"))],
+        targets: [target(DAYS[0], "s1", 2)],
+      }),
+    );
+
+    expect(works(output).sort()).toEqual([`${DAYS[0]}:w1:s1`, `${DAYS[0]}:w2:s1`]);
+    expect(output.conflicts).toEqual([]);
+  });
+
+  describe("a matching worker who fails another rule is still rejected", () => {
+    const history = [placed("w1", dept("dB")), placed("w2", dept("dA"))];
+
+    it("at the working-days limit", () => {
+      const output = generateRoster(
+        input({
+          rules: { ...ON, workDaysPerWeek: 1 },
+          workers: [worker(1), worker(2)],
+          history,
+          targets: [target(DAYS[0], "s1", 1), target(DAYS[1], "s1", 1)],
+        }),
+      );
+
+      expect(works(output)).toEqual([`${DAYS[0]}:w2:s1`, `${DAYS[1]}:w1:s1`]);
+    });
+
+    it("after the end of the contract", () => {
+      const output = generateRoster(
+        input({
+          rules: ON,
+          workers: [worker(1), worker(2, { endContract: DAYS[0] })],
+          history,
+          targets: [target(DAYS[1], "s1", 1)],
+        }),
+      );
+
+      expect(works(output)).toEqual([`${DAYS[1]}:w1:s1`]);
+    });
+
+    it("when the move to a lower shift is blocked", () => {
+      const output = generateRoster(
+        input({
+          rules: ON,
+          workers: [worker(1), worker(2)],
+          history,
+          targets: [target(DAYS[0], "s3", 1), target(DAYS[1], "s1", 1)],
+        }),
+      );
+
+      expect(works(output)).toEqual([`${DAYS[0]}:w2:s3`, `${DAYS[1]}:w1:s1`]);
+      expect(output.conflicts).toEqual([]);
+    });
+  });
+
+  it("treats a placement in a department that is not in the request as no preference", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        workers: [worker(1), worker(2)],
+        history: [placed("w1", dept("dElsewhere")), placed("w2", null)],
+        targets: [target(DAYS[0], "s1", 1)],
+      }),
+    );
+
+    expect(works(output)).toEqual([`${DAYS[0]}:w1:s1`]);
+    expect(output.conflicts).toEqual([]);
+  });
+
+  it("breaks equal tiers by fewest work days, then employee ID", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        workers: [worker(1), worker(2)],
+        history: [placed("w1", dept("dA")), placed("w2", dept("dA"))],
+        targets: [target(DAYS[0], "s1", 1), target(DAYS[1], "s1", 1)],
+      }),
+    );
+
+    expect(works(output)).toEqual([`${DAYS[0]}:w1:s1`, `${DAYS[1]}:w2:s1`]);
+  });
+
+  it("gives the same roster twice, and whatever order the input arrays arrive in", () => {
+    const base = input({
+      rules: ON,
+      lines: [lineA, { id: "l2", positionId: "p1", ...dept("dB") }],
+      workers: [worker(1), worker(2), worker(3)],
+      history: [placed("w1", dept("dB")), placed("w2", dept("dA")), placed("w3", dept("dB"))],
+      targets: [target(DAYS[0], "s1", 1, "l1"), target(DAYS[0], "s1", 1, "l2")],
+    });
+    const shuffled = {
+      ...base,
+      lines: [...base.lines].reverse(),
+      workers: [...base.workers].reverse(),
+      history: [...base.history].reverse(),
+    };
+
+    expect(generateRoster(base)).toEqual(generateRoster(base));
+    expect(generateRoster(shuffled)).toEqual(generateRoster(base));
   });
 });

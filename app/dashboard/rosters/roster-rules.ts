@@ -384,12 +384,13 @@ export function isUniqueViolation(error: unknown): boolean {
   return code(error) === "23505" || code((error as { cause?: unknown } | null)?.cause) === "23505";
 }
 
-// The four resolved work rules the engine and the replacement check read.
+// The resolved work rules the engine and the replacement check read.
 export function toEngineRules({ values }: WorkRulesResolved): EngineRules {
   return {
     workDaysPerWeek: values.workDaysPerWeek,
     shiftExceptionDays: values.shiftExceptionDays,
     requirePositionMatch: values.requirePositionMatch,
+    keepPreviousPlacement: values.keepPreviousPlacement,
     maxWorkingDaysPerMonth: values.maxWorkingDaysPerMonth,
   };
 }

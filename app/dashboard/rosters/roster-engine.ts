@@ -15,6 +15,7 @@ import {
   shiftMoveBlocked,
   shortageMessage,
 } from "./roster-constraints";
+import { placementTier } from "./roster-placement";
 import { addDays, monthKey } from "./roster-rules";
 
 type WorkerState = {
@@ -56,6 +57,8 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
     const key = `${target.date}|${target.lineId}|${target.shiftId}`;
     headcounts.set(key, (headcounts.get(key) ?? 0) + target.headcount);
   }
+
+  const placements = new Map(input.history.map((entry) => [entry.workerId, entry.lastPlacement]));
 
   const states = new Map<string, WorkerState>();
   const dayBeforeFirst = days.length > 0 ? addDays(days[0], -1) : null;
@@ -128,8 +131,16 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
           }
         }
 
+        // With the rule on, a worker whose last placement fits the line comes first. It only reorders
+        // workers who passed every rejection above, so no limit is relaxed.
+        const tierOf = (candidate: EngineWorker) =>
+          rules.keepPreviousPlacement ? placementTier(placements.get(candidate.id) ?? null, line) : 0;
+
         candidates.sort(
-          (a, b) => states.get(a.id)!.workDays - states.get(b.id)!.workDays || byEmployee(a, b),
+          (a, b) =>
+            tierOf(b) - tierOf(a) ||
+            states.get(a.id)!.workDays - states.get(b.id)!.workDays ||
+            byEmployee(a, b),
         );
 
         const chosen = candidates.slice(0, headcount);

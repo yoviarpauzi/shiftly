@@ -520,6 +520,7 @@ describe("workerHistory", () => {
       lastShiftOrder: null,
       consecutiveWorkDays: 0,
       monthWorkDays: {},
+    lastPlacement: null,
     });
   });
 
@@ -537,6 +538,7 @@ describe("workerHistory", () => {
       lastShiftOrder: 3,
       consecutiveWorkDays: 4,
       monthWorkDays: { "2026-11": 5 },
+    lastPlacement: null,
     });
   });
 
@@ -555,6 +557,7 @@ describe("workerHistory", () => {
       lastShiftOrder: 1,
       consecutiveWorkDays: 1,
       monthWorkDays: { "2026-11": 2 },
+    lastPlacement: null,
     });
   });
 

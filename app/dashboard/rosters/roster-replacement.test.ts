@@ -10,6 +10,7 @@ const RULES: EngineRules = {
   workDaysPerWeek: 5,
   shiftExceptionDays: 7,
   requirePositionMatch: true,
+  keepPreviousPlacement: false,
   maxWorkingDaysPerMonth: 26,
 };
 const NO_HISTORY: EngineHistory = {
@@ -18,6 +19,7 @@ const NO_HISTORY: EngineHistory = {
   lastShiftOrder: null,
   consecutiveWorkDays: 0,
   monthWorkDays: {},
+lastPlacement: null,
 };
 
 // A row of seven days: the given shift orders for the first days, off for the rest.

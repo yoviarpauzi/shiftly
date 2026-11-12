@@ -236,7 +236,7 @@ const worker = (id: string, employeeId: string) => ({
 function engineInput(workers = [worker(W1, "E-1"), worker(W2, "E-2"), worker(W3, "E-3")]) {
   return {
     days: [DAY],
-    lines: [{ id: LINE_A, positionId: POSITION_A }],
+    lines: [{ id: LINE_A, positionId: POSITION_A, departmentId: "dA", subDepartmentId: null }],
     shifts: [
       { id: SHIFT_1, order: 1 },
       { id: SHIFT_2, order: 2 },
@@ -246,6 +246,7 @@ function engineInput(workers = [worker(W1, "E-1"), worker(W2, "E-2"), worker(W3,
       workDaysPerWeek: 5,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 26,
     },
     history: [],
@@ -615,6 +616,7 @@ function seedContext(overrides: Partial<ReplacementContextResult & { ok: true }>
         workDaysPerWeek: 5,
         shiftExceptionDays: 7,
         requirePositionMatch: true,
+        keepPreviousPlacement: false,
         maxWorkingDaysPerMonth: 26,
       },
       candidates: [
@@ -633,6 +635,7 @@ function seedContext(overrides: Partial<ReplacementContextResult & { ok: true }>
             lastShiftOrder: null,
             consecutiveWorkDays: 0,
             monthWorkDays: {},
+          lastPlacement: null,
           },
         },
       ],
@@ -959,6 +962,7 @@ function seedCellContext(overrides: Partial<CellContext> = {}) {
         workDaysPerWeek: 5,
         shiftExceptionDays: 7,
         requirePositionMatch: true,
+        keepPreviousPlacement: false,
         maxWorkingDaysPerMonth: 26,
       },
       previousConflicts: [],

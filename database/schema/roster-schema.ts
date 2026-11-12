@@ -96,6 +96,7 @@ export const rosterAssignment = pgTable(
       table.workDate,
     ),
     index("roster_assignment_workDate_idx").on(table.workDate),
+    index("roster_assignment_workerId_workDate_idx").on(table.workerId, table.workDate),
     check("roster_assignment_kind_check", sql`${table.kind} in ('work', 'off', 'break')`),
     check(
       "roster_assignment_shift_check",

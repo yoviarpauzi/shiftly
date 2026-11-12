@@ -40,9 +40,9 @@ function byEmployee(a: EngineWorker, b: EngineWorker): number {
 // Engine v0: one greedy, deterministic pass. Days in date order, lines by id, shifts by order. For
 // each (day, line, shift) it takes the eligible workers with the fewest work days so far, then the
 // lowest employee ID. With the Keep previous placement rule on, a worker whose last department
-// fits the line comes before that, and a worker who belongs to another line of the request comes
-// after it. A shift it cannot fill becomes a conflict that names why the others were left
-// out. It finds a valid roster, not the best one. The arrays of the input are copied and sorted
+// fits the line comes first among workers with the same number of work days, and a worker who
+// belongs to another line of the request comes last of them. A shift it cannot fill becomes a
+// conflict that names why the others were left out. It finds a valid roster, not the best one. The arrays of the input are copied and sorted
 // first, so the order they arrive in never changes the result.
 export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
   const days = [...input.days].sort(compare);
@@ -134,10 +134,12 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
           }
         }
 
-        // With the rule on, a worker whose last placement fits the line comes first. It only reorders
-        // workers who passed every rejection above, so no limit is relaxed. A worker whose last
-        // department is another line's in this request comes last: lines are filled one after the
-        // other, and an earlier line borrowing that worker would leave their own line short.
+        // With the rule on, a worker whose last placement fits the line comes first among workers with
+        // the same number of work days. It only reorders workers who passed every rejection above, so
+        // no limit is relaxed, and the fewest work days still comes first, so the shifts rotate. A
+        // worker whose last department is another line's in this request comes last of those: lines
+        // are filled one after the other, and an earlier line borrowing that worker would leave their
+        // own line short.
         const tierOf = (candidate: EngineWorker): number => {
           if (!rules.keepPreviousPlacement) return 0;
 
@@ -149,8 +151,8 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
 
         candidates.sort(
           (a, b) =>
-            tierOf(b) - tierOf(a) ||
             states.get(a.id)!.workDays - states.get(b.id)!.workDays ||
+            tierOf(b) - tierOf(a) ||
             byEmployee(a, b),
         );
 

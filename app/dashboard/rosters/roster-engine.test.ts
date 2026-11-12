@@ -557,20 +557,48 @@ describe("generateRoster: keeping the previous placement", () => {
     expect(withPlacement).toEqual(without);
   });
 
-  it("picks the worker whose placement matches over one with fewer work days", () => {
+  it("decides between workers with the same number of work days", () => {
     const base = {
       workers: [worker(1), worker(2)],
       history: [placed("w1", dept("dB")), placed("w2", dept("dA"))],
-      targets: [target(DAYS[0], "s1", 1), target(DAYS[1], "s1", 1)],
+      targets: [target(DAYS[0], "s1", 1)],
     };
 
-    expect(works(generateRoster(input({ ...base, rules: ON })))).toEqual([
-      `${DAYS[0]}:w2:s1`,
-      `${DAYS[1]}:w2:s1`,
-    ]);
-    expect(works(generateRoster(input({ ...base })))).toEqual([
+    expect(works(generateRoster(input({ ...base, rules: ON })))).toEqual([`${DAYS[0]}:w2:s1`]);
+    expect(works(generateRoster(input({ ...base })))).toEqual([`${DAYS[0]}:w1:s1`]);
+  });
+
+  it("does not outrank the fewest work days, so a matching worker does not keep every shift", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        workers: [worker(1), worker(2)],
+        history: [placed("w1", dept("dB")), placed("w2", dept("dA"))],
+        targets: [target(DAYS[0], "s1", 1), target(DAYS[1], "s1", 1)],
+      }),
+    );
+
+    expect(works(output)).toEqual([`${DAYS[0]}:w2:s1`, `${DAYS[1]}:w1:s1`]);
+  });
+
+  it("rotates the shifts across a pool where only some workers have a placement", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        workers: [worker(1), worker(2), worker(3)],
+        history: [placed("w1", dept("dA")), placed("w2", dept("dA")), placed("w3", null)],
+        targets: [
+          target(DAYS[0], "s1", 1),
+          target(DAYS[1], "s1", 1),
+          target(DAYS[2], "s1", 1),
+        ],
+      }),
+    );
+
+    expect(works(output)).toEqual([
       `${DAYS[0]}:w1:s1`,
       `${DAYS[1]}:w2:s1`,
+      `${DAYS[2]}:w3:s1`,
     ]);
   });
 
@@ -660,7 +688,7 @@ describe("generateRoster: keeping the previous placement", () => {
     expect(output.conflicts).toEqual([]);
   });
 
-  it("breaks equal tiers by fewest work days, then employee ID", () => {
+  it("gives the fewest work days first, and employee ID when work days and tiers are equal", () => {
     const output = generateRoster(
       input({
         rules: ON,

@@ -122,6 +122,19 @@ describe("reads of other rosters leave out a request that is no longer approved"
     expect(params).toContain(ROSTER);
   });
 
+  it("selects the department and sub-department of the request line, for the last placement", () => {
+    const { sql } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15").toSQL();
+
+    expect(sql).toContain('"roster_request_line"."department_id"');
+    expect(sql).toContain('"roster_request_line"."sub_department_id"');
+  });
+
+  it("still counts only work rows of confirmed rosters of approved requests", () => {
+    const { params } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15").toSQL();
+
+    expect(params).toEqual(expect.arrayContaining(["confirmed", "approved", "work"]));
+  });
+
   it("reads every roster's confirmed work when none is excluded", () => {
     const { sql } = confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15").toSQL();
 
@@ -510,8 +523,14 @@ describe("rosterCounts", () => {
 });
 
 describe("workerHistory", () => {
-  const rows = (...entries: [string, number][]) =>
-    entries.map(([date, shiftOrder]) => ({ date, shiftOrder }));
+  const dA = { departmentId: "dA", subDepartmentId: null };
+  const rows = (...entries: [string, number, string?, (string | null)?][]) =>
+    entries.map(([date, shiftOrder, departmentId = "dA", subDepartmentId = null]) => ({
+      date,
+      shiftOrder,
+      departmentId,
+      subDepartmentId,
+    }));
 
   it("has no history for a worker with no confirmed work", () => {
     expect(workerHistory("w1", [], "2026-11-09", ["2026-11"])).toEqual({
@@ -520,7 +539,7 @@ describe("workerHistory", () => {
       lastShiftOrder: null,
       consecutiveWorkDays: 0,
       monthWorkDays: {},
-    lastPlacement: null,
+      lastPlacement: null,
     });
   });
 
@@ -538,7 +557,7 @@ describe("workerHistory", () => {
       lastShiftOrder: 3,
       consecutiveWorkDays: 4,
       monthWorkDays: { "2026-11": 5 },
-    lastPlacement: null,
+      lastPlacement: dA,
     });
   });
 
@@ -557,7 +576,7 @@ describe("workerHistory", () => {
       lastShiftOrder: 1,
       consecutiveWorkDays: 1,
       monthWorkDays: { "2026-11": 2 },
-    lastPlacement: null,
+      lastPlacement: dA,
     });
   });
 
@@ -581,6 +600,39 @@ describe("workerHistory", () => {
         ["2026-10", "2026-11"],
       ).monthWorkDays,
     ).toEqual({ "2026-10": 2, "2026-11": 1 });
+  });
+
+  describe("last placement", () => {
+    const placement = (...entries: Parameters<typeof rows>) =>
+      workerHistory("w1", rows(...entries), "2026-11-09", ["2026-11"]).lastPlacement;
+
+    it("is the department and sub-department of the last work day before the first day", () => {
+      expect(placement(["2026-11-05", 1, "dA"], ["2026-11-08", 1, "dB", "sB"])).toEqual({
+        departmentId: "dB",
+        subDepartmentId: "sB",
+      });
+    });
+
+    it("ignores work on or after the first day", () => {
+      expect(placement(["2026-11-08", 1, "dA"], ["2026-11-12", 1, "dB"])).toEqual(dA);
+    });
+
+    it("is null when the worker has no work before the first day", () => {
+      expect(placement(["2026-11-12", 1, "dB"])).toBeNull();
+      expect(placement()).toBeNull();
+    });
+
+    it("takes the smallest department id when two rows share the last date", () => {
+      expect(placement(["2026-11-08", 1, "dB"], ["2026-11-08", 2, "dA"])?.departmentId).toBe("dA");
+      expect(placement(["2026-11-08", 2, "dA"], ["2026-11-08", 1, "dB"])?.departmentId).toBe("dA");
+    });
+
+    it("takes the smallest sub-department id on one department, with none first", () => {
+      expect(placement(["2026-11-08", 1, "dA", "sB"], ["2026-11-08", 1, "dA", null])).toEqual(dA);
+      expect(
+        placement(["2026-11-08", 1, "dA", "sB"], ["2026-11-08", 1, "dA", "sA"])?.subDepartmentId,
+      ).toBe("sA");
+    });
   });
 });
 

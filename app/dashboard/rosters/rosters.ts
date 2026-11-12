@@ -309,7 +309,12 @@ export function rosterCounts(
 // cover only the months the roster touches, and include work on or after the first day.
 export function workerHistory(
   workerId: string,
-  rows: { date: string; shiftOrder: number }[],
+  rows: {
+    date: string;
+    shiftOrder: number;
+    departmentId: string;
+    subDepartmentId: string | null;
+  }[],
   firstDay: string,
   months: string[],
 ): EngineHistory {
@@ -341,8 +346,28 @@ export function workerHistory(
     lastShiftOrder: last?.shiftOrder ?? null,
     consecutiveWorkDays,
     monthWorkDays,
-    lastPlacement: null,
+    lastPlacement: lastPlacement(before, last?.date),
   };
+}
+
+// Where the worker worked on the last work day before the roster. When several rows share that
+// date, the smallest department id wins, then the smallest sub-department id with none first, so
+// the answer never depends on the order the rows arrive in.
+function lastPlacement(
+  before: { date: string; departmentId: string; subDepartmentId: string | null }[],
+  lastDate: string | undefined,
+): EngineHistory["lastPlacement"] {
+  const [placed] = before
+    .filter((row) => row.date === lastDate)
+    .sort(
+      (a, b) =>
+        byText(a.departmentId, b.departmentId) ||
+        byText(a.subDepartmentId ?? "", b.subDepartmentId ?? ""),
+    );
+
+  return placed
+    ? { departmentId: placed.departmentId, subDepartmentId: placed.subDepartmentId }
+    : null;
 }
 
 // ---- Queries.
@@ -873,8 +898,9 @@ export function otherRosterWorkQuery(
     );
 }
 
-// The confirmed work rows of the workers between two dates. excludeRosterId leaves a roster out of
-// its own history: a confirmed roster's rows are also its cells, and must not count twice.
+// The confirmed work rows of the workers between two dates, each with the department and
+// sub-department of its request line. excludeRosterId leaves a roster out of its own history: a
+// confirmed roster's rows are also its cells, and must not count twice.
 export function confirmedWorkQuery(
   reader: Reader,
   workerIds: string[],
@@ -887,10 +913,13 @@ export function confirmedWorkQuery(
       workerId: rosterAssignment.workerId,
       date: rosterAssignment.workDate,
       shiftOrder: shift.order,
+      departmentId: rosterRequestLine.departmentId,
+      subDepartmentId: rosterRequestLine.subDepartmentId,
     })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
     .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .innerJoin(rosterRequestLine, eq(rosterRequestLine.id, rosterAssignment.requestLineId))
     .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
     .where(
       and(

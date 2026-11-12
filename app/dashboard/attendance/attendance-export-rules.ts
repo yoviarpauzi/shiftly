@@ -1,12 +1,12 @@
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
 import type {
   ExportAssignmentRow,
-  ExportForm,
+  ExportBand,
+  ExportDay,
   ExportInput,
   ExportModel,
   ExportRequestRow,
   ExportSheet,
-  ExportTargetRow,
 } from "@/types/attendance-export";
 
 const WEEKDAYS_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -80,13 +80,27 @@ function sumOrNull(values: number[]): number | null {
   return sum === 0 ? null : sum;
 }
 
+// The forms of the printed template sit three across, so a day with more shifts than that goes on
+// to the next band.
+const FORMS_PER_BAND = 3;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    out.push(items.slice(index, index + size));
+  }
+
+  return out;
+}
+
 // The sheets of the workbook: one per department that has a worker or a request headcount in the
-// week. A form (a day and a shift) is written only when it has a worker or a headcount, so no empty
-// form is printed. The request table of a form shows the whole day, for every shift column.
+// week. Each day has bands of up to three shift forms side by side, and a form is written only for a
+// shift that has a worker or a headcount, so no empty form is printed. The request table of a band
+// has a column for each of its shifts.
 export function buildExportModel(input: ExportInput): ExportModel {
-  const title = `Absensi Daily Helper ${input.locationName}`;
+  const title = `ABSENSI DAILY HELPER ${input.locationName.toUpperCase()}`;
   const shifts = [...input.shifts].sort((a, b) => a.order - b.order || compare(a.id, b.id));
-  const shiftLabels = shifts.map((shift) => `S${shift.order}`);
   const targets = input.targets.filter((row) => row.headcount > 0);
 
   const departments = new Map<string, string>();
@@ -118,21 +132,26 @@ export function buildExportModel(input: ExportInput): ExportModel {
         positions.set(row.positionId, row.positionName);
       }
 
-      const orderedPositions = [...positions]
-        .sort(([idA, nameA], [idB, nameB]) =>
+      const orderedPositions = [...positions].sort(
+        ([idA, nameA], [idB, nameB]) =>
           compare(nameA.toLowerCase(), nameB.toLowerCase()) || compare(idA, idB),
-        );
+      );
 
       const dates = [...new Set([...workers, ...requests].map((row) => row.date))].sort(compare);
-      const forms: ExportForm[] = [];
 
-      for (const date of dates) {
-        const requestRows = (rowsOf: ExportTargetRow[]): ExportRequestRow[] =>
-          orderedPositions.map(([positionId, position]) => ({
+      const days: ExportDay[] = dates.map((date) => {
+        const withForm = shifts.filter(
+          (shift) =>
+            workers.some((row) => row.date === date && row.shiftId === shift.id) ||
+            requests.some((row) => row.date === date && row.shiftId === shift.id),
+        );
+
+        const bands: ExportBand[] = chunks(withForm, FORMS_PER_BAND).map((group) => {
+          const requestRows: ExportRequestRow[] = orderedPositions.map(([positionId, position]) => ({
             position,
-            counts: shifts.map((shift) =>
+            counts: group.map((shift) =>
               sumOrNull(
-                rowsOf
+                requests
                   .filter(
                     (row) =>
                       row.positionId === positionId && row.shiftId === shift.id && row.date === date,
@@ -141,43 +160,35 @@ export function buildExportModel(input: ExportInput): ExportModel {
               ),
             ),
           }));
-        const dayRequests = requestRows(requests);
-        const total = shifts.map((_, index) =>
-          sumOrNull(dayRequests.map((row) => row.counts[index] ?? 0)),
-        );
 
-        for (const shift of shifts) {
-          const people = workers
-            .filter((row) => row.date === date && row.shiftId === shift.id)
-            .sort(byWorker);
-          const hasRequest = requests.some((row) => row.date === date && row.shiftId === shift.id);
-
-          if (people.length === 0 && !hasRequest) {
-            continue;
-          }
-
-          forms.push({
-            date,
-            weekday: weekdayNameId(date),
-            shiftOrder: shift.order,
-            shiftLabels,
-            workers: people.map((row, index) => ({
-              no: index + 1,
-              employeeId: row.employeeId,
-              name: row.workerName,
-              position: row.positionName,
+          return {
+            shiftLabels: group.map((shift) => `S${shift.order}`),
+            forms: group.map((shift) => ({
+              shiftOrder: shift.order,
+              workers: workers
+                .filter((row) => row.date === date && row.shiftId === shift.id)
+                .sort(byWorker)
+                .map((row) => ({
+                  employeeId: row.employeeId,
+                  name: row.workerName,
+                  position: row.positionName,
+                })),
             })),
-            requestRows: dayRequests,
-            total,
-          });
-        }
-      }
+            requestRows,
+            total: group.map((_, index) =>
+              sumOrNull(requestRows.map((row) => row.counts[index] ?? 0)),
+            ),
+          };
+        });
+
+        return { date, weekday: weekdayNameId(date), bands };
+      });
 
       const name = exportSheetName(department, taken);
 
       taken.add(name);
 
-      return { name, department, forms };
+      return { name, department, days };
     });
 
   return { title, sheets, emptyMessage: null };

@@ -139,10 +139,10 @@ const input = (overrides: Partial<ExportInput> = {}): ExportInput => ({
 });
 
 describe("buildExportModel", () => {
-  it("gives the title, and an empty message when there is nothing", () => {
+  it("gives the title in capitals, and an empty message when there is nothing", () => {
     const model = buildExportModel(input());
 
-    expect(model.title).toBe("Absensi Daily Helper Kejayan");
+    expect(model.title).toBe("ABSENSI DAILY HELPER KEJAYAN");
     expect(model.sheets).toEqual([]);
     expect(model.emptyMessage).toBe("Tidak ada roster confirmed untuk 2026-11-09 sampai 2026-11-15.");
   });
@@ -166,44 +166,83 @@ describe("buildExportModel", () => {
     ]);
   });
 
-  it("orders forms by date, then shift order", () => {
+  it("makes one day per date with rows, in date order, with the Indonesian weekday", () => {
     const [sheet] = buildExportModel(
       input({
+        assignments: [assignment({ date: D2 }), assignment({ date: D1 })],
+      }),
+    ).sheets;
+
+    expect(sheet.days.map((day) => [day.date, day.weekday])).toEqual([
+      [D1, "Senin"],
+      [D2, "Selasa"],
+    ]);
+  });
+
+  it("puts the forms of a day side by side, one per shift that has a worker or a headcount", () => {
+    const [sheet] = buildExportModel(
+      input({
+        shifts: [
+          { id: "s1", order: 1 },
+          { id: "s2", order: 2 },
+          { id: "s3", order: 3 },
+        ],
         assignments: [
-          assignment({ date: D2, shiftId: "s1", shiftOrder: 1 }),
-          assignment({ date: D1, shiftId: "s2", shiftOrder: 2 }),
-          assignment({ date: D1, shiftId: "s1", shiftOrder: 1 }),
+          assignment({ shiftId: "s3", shiftOrder: 3 }),
+          assignment({ employeeId: "EMP-002", shiftId: "s1", shiftOrder: 1 }),
         ],
+        targets: [target({ shiftId: "s2", shiftOrder: 2, headcount: 1 })],
       }),
     ).sheets;
+    const [band] = sheet.days[0].bands;
 
-    expect(sheet.forms.map((form) => [form.date, form.shiftOrder])).toEqual([
-      [D1, 1],
-      [D1, 2],
-      [D2, 1],
-    ]);
-    expect(sheet.forms[0].weekday).toBe("Senin");
-    expect(sheet.forms[0].shiftLabels).toEqual(["S1", "S2"]);
+    expect(sheet.days[0].bands).toHaveLength(1);
+    expect(band.shiftLabels).toEqual(["S1", "S2", "S3"]);
+    expect(band.forms.map((form) => form.shiftOrder)).toEqual([1, 2, 3]);
   });
 
-  it("writes a form for a worker with no request, and for a request with no worker, not for neither", () => {
+  it("writes no form for a shift with neither a worker nor a headcount", () => {
     const [sheet] = buildExportModel(
       input({
-        assignments: [assignment({ date: D1, shiftId: "s1", shiftOrder: 1 })],
-        targets: [
-          target({ date: D2, shiftId: "s2", shiftOrder: 2, headcount: 3 }),
-          target({ date: D2, shiftId: "s1", shiftOrder: 1, headcount: 0 }),
+        shifts: [
+          { id: "s1", order: 1 },
+          { id: "s2", order: 2 },
+          { id: "s3", order: 3 },
         ],
+        assignments: [assignment({ shiftId: "s1", shiftOrder: 1 })],
+        targets: [target({ shiftId: "s3", shiftOrder: 3, headcount: 0 })],
       }),
     ).sheets;
+    const [band] = sheet.days[0].bands;
 
-    expect(sheet.forms.map((form) => [form.date, form.shiftOrder])).toEqual([
-      [D1, 1],
-      [D2, 2],
-    ]);
+    expect(band.shiftLabels).toEqual(["S1"]);
+    expect(band.forms.map((form) => form.shiftOrder)).toEqual([1]);
   });
 
-  it("numbers workers from 1 and orders them by position, then name, then employee ID", () => {
+  it("moves a fourth shift to a second band with its own request columns", () => {
+    const [sheet] = buildExportModel(
+      input({
+        shifts: [
+          { id: "s1", order: 1 },
+          { id: "s2", order: 2 },
+          { id: "s3", order: 3 },
+          { id: "s4", order: 4 },
+        ],
+        assignments: [1, 2, 3, 4].map((order) =>
+          assignment({ employeeId: `EMP-00${order}`, shiftId: `s${order}`, shiftOrder: order }),
+        ),
+        targets: [target({ shiftId: "s4", shiftOrder: 4, headcount: 2 })],
+      }),
+    ).sheets;
+    const [first, second] = sheet.days[0].bands;
+
+    expect(first.shiftLabels).toEqual(["S1", "S2", "S3"]);
+    expect(second.shiftLabels).toEqual(["S4"]);
+    expect(second.forms.map((form) => form.shiftOrder)).toEqual([4]);
+    expect(second.requestRows).toEqual([{ position: "Operator", counts: [2] }]);
+  });
+
+  it("orders workers by position, then name, then employee ID", () => {
     const [sheet] = buildExportModel(
       input({
         assignments: [
@@ -215,15 +254,15 @@ describe("buildExportModel", () => {
       }),
     ).sheets;
 
-    expect(sheet.forms[0].workers).toEqual([
-      { no: 1, employeeId: "EMP-001", name: "Budi", position: "Helper" },
-      { no: 2, employeeId: "EMP-000", name: "Budi", position: "Operator" },
-      { no: 3, employeeId: "EMP-002", name: "Budi", position: "Operator" },
-      { no: 4, employeeId: "EMP-003", name: "Citra", position: "Operator" },
+    expect(sheet.days[0].bands[0].forms[0].workers).toEqual([
+      { employeeId: "EMP-001", name: "Budi", position: "Helper" },
+      { employeeId: "EMP-000", name: "Budi", position: "Operator" },
+      { employeeId: "EMP-002", name: "Budi", position: "Operator" },
+      { employeeId: "EMP-003", name: "Citra", position: "Operator" },
     ]);
   });
 
-  it("builds the request table per position and shift column, the same for every shift of the day", () => {
+  it("builds the request table per position and shift of the band, with totals", () => {
     const [sheet] = buildExportModel(
       input({
         assignments: [assignment({ date: D1, shiftId: "s1", shiftOrder: 1 })],
@@ -235,14 +274,13 @@ describe("buildExportModel", () => {
         ],
       }),
     ).sheets;
-    const [first, second] = sheet.forms.filter((form) => form.date === D1);
+    const [band] = sheet.days.find((day) => day.date === D1)!.bands;
 
-    expect(first.requestRows).toEqual([
+    expect(band.requestRows).toEqual([
       { position: "Helper", counts: [1, null] },
       { position: "Operator", counts: [2, 1] },
     ]);
-    expect(second.requestRows).toEqual(first.requestRows);
-    expect(first.total).toEqual([3, 1]);
+    expect(band.total).toEqual([3, 1]);
   });
 
   it("leaves a total of zero empty", () => {
@@ -252,8 +290,8 @@ describe("buildExportModel", () => {
         targets: [target({ date: D1, shiftId: "s1", shiftOrder: 1, headcount: 2 })],
       }),
     ).sheets;
-    const form = sheet.forms.find((entry) => entry.date === D2)!;
+    const [band] = sheet.days.find((day) => day.date === D2)!.bands;
 
-    expect(form.total).toEqual([null, null]);
+    expect(band.total).toEqual([null]);
   });
 });

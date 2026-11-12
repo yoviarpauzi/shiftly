@@ -5,6 +5,7 @@ import { readOnlyNoteFor, workRuleCardKey } from "@/app/dashboard/settings/setti
 import { AnnualOffCard } from "@/components/dashboard/settings/annual-off-card";
 import { BreakCard } from "@/components/dashboard/settings/break-card";
 import { MaxWorkingDaysCard } from "@/components/dashboard/settings/max-working-days-card";
+import { PlacementCard } from "@/components/dashboard/settings/placement-card";
 import { QualificationCard } from "@/components/dashboard/settings/qualification-card";
 import { ShiftChangeCard } from "@/components/dashboard/settings/shift-change-card";
 import { WorkDaysCard } from "@/components/dashboard/settings/work-days-card";
@@ -97,6 +98,7 @@ export function WorkRules({
         {...cardProps}
         readOnlyNote={null}
       />
+      <PlacementCard key={keyFor("keepPreviousPlacement")} {...cardProps} readOnlyNote={null} />
     </div>
   );
 }

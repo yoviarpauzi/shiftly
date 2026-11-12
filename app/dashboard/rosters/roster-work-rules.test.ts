@@ -20,6 +20,7 @@ const NOTHING_SET: WorkRuleRow = {
   annualOffDays: null,
   shiftExceptionDays: null,
   requirePositionMatch: null,
+  keepPreviousPlacement: null,
   maxWorkingDaysPerMonth: null,
 };
 

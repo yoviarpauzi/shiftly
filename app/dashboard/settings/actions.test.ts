@@ -102,6 +102,7 @@ const {
   updateWorkRuleAnnualOff,
   updateWorkRuleBreak,
   updateWorkRuleMaxWorkingDays,
+  updateWorkRulePlacement,
   updateWorkRuleQualification,
   updateWorkRuleShiftChange,
   updateWorkRuleWorkDays,
@@ -287,6 +288,12 @@ const CARDS: [string, Action, Record<string, unknown>, Record<string, unknown>][
     updateWorkRuleQualification,
     { requirePositionMatch: false },
     { requirePositionMatch: "yes" },
+  ],
+  [
+    "updateWorkRulePlacement",
+    updateWorkRulePlacement,
+    { keepPreviousPlacement: true },
+    { keepPreviousPlacement: "yes" },
   ],
   [
     "updateWorkRuleMaxWorkingDays",

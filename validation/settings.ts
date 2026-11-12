@@ -134,6 +134,12 @@ export const qualificationRuleSchema = z
 
 export type QualificationRuleInput = z.infer<typeof qualificationRuleSchema>;
 
+export const placementRuleSchema = z
+  .object({ target: workRuleTargetSchema, keepPreviousPlacement: onOffField })
+  .superRefine(refuseNullAtGlobal({ keepPreviousPlacement: "Choose on or off" }));
+
+export type PlacementRuleInput = z.infer<typeof placementRuleSchema>;
+
 export const maxWorkingDaysRuleSchema = z
   .object({
     target: workRuleTargetSchema,

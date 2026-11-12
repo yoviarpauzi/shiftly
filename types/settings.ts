@@ -14,6 +14,7 @@ export type WorkRuleValues = {
   annualOffDays: number;
   shiftExceptionDays: number;
   requirePositionMatch: boolean;
+  keepPreviousPlacement: boolean;
   maxWorkingDaysPerMonth: number;
 };
 

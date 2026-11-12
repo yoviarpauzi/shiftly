@@ -24,6 +24,7 @@ export const WORK_RULE_DEFAULTS: WorkRuleValues = {
   annualOffDays: 20,
   shiftExceptionDays: 7,
   requirePositionMatch: true,
+  keepPreviousPlacement: false,
   maxWorkingDaysPerMonth: 26,
 };
 

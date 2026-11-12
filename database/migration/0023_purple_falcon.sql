@@ -1,0 +1,1 @@
+ALTER TABLE "work_rule" ADD COLUMN "keep_previous_placement" boolean;

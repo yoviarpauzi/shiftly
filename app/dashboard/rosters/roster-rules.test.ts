@@ -309,6 +309,7 @@ describe("toEngineRules", () => {
     annualOffDays: "default",
     shiftExceptionDays: "default",
     requirePositionMatch: "default",
+    keepPreviousPlacement: "default",
     maxWorkingDaysPerMonth: "default",
   } as const;
 

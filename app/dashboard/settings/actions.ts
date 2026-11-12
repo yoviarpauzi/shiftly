@@ -24,6 +24,7 @@ import {
   breakRuleSchema,
   changePasswordSchema,
   maxWorkingDaysRuleSchema,
+  placementRuleSchema,
   qualificationRuleSchema,
   shiftChangeRuleSchema,
   workDaysRuleSchema,
@@ -31,6 +32,7 @@ import {
   type BreakRuleInput,
   type ChangePasswordInput,
   type MaxWorkingDaysRuleInput,
+  type PlacementRuleInput,
   type QualificationRuleInput,
   type ShiftChangeRuleInput,
   type WorkDaysRuleInput,
@@ -275,6 +277,21 @@ export async function updateWorkRuleQualification(
   const { target, requirePositionMatch } = parsed.data;
 
   return saveWorkRule(access, target, { requirePositionMatch });
+}
+
+export async function updateWorkRulePlacement(
+  input: PlacementRuleInput,
+): Promise<WorkRulesActionResult> {
+  const access = await requireSettingsAccess();
+  const parsed = placementRuleSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return invalid(parsed.error.issues);
+  }
+
+  const { target, keepPreviousPlacement } = parsed.data;
+
+  return saveWorkRule(access, target, { keepPreviousPlacement });
 }
 
 export async function updateWorkRuleMaxWorkingDays(

@@ -25,6 +25,7 @@ export const ruleColumns = {
   annualOffDays: workRule.annualOffDays,
   shiftExceptionDays: workRule.shiftExceptionDays,
   requirePositionMatch: workRule.requirePositionMatch,
+  keepPreviousPlacement: workRule.keepPreviousPlacement,
   maxWorkingDaysPerMonth: workRule.maxWorkingDaysPerMonth,
 };
 

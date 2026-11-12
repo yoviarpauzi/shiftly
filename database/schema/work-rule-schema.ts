@@ -33,6 +33,7 @@ export const workRule = pgTable(
     annualOffDays: smallint("annual_off_days"),
     shiftExceptionDays: smallint("shift_exception_days"),
     requirePositionMatch: boolean("require_position_match"),
+    keepPreviousPlacement: boolean("keep_previous_placement"),
     maxWorkingDaysPerMonth: smallint("max_working_days_per_month"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

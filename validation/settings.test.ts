@@ -8,6 +8,7 @@ import {
   maxWorkingDaysRuleSchema,
   parseSettingsLocation,
   parseSettingsScope,
+  placementRuleSchema,
   qualificationRuleSchema,
   shiftChangeRuleSchema,
   toWholeNumber,
@@ -294,6 +295,32 @@ describe("qualificationRuleSchema", () => {
   });
 
   it.each(["true", 1])("rejects %j", (value) => {
+    expect(messages("global", value)).toEqual(["Choose on or off"]);
+  });
+
+  it.each(inheritingScopes)("accepts null at %s scope", (scope) => {
+    expect(parse(scope, null).success).toBe(true);
+  });
+
+  it("rejects null at global scope", () => {
+    expect(messages("global", null)).toEqual(["Choose on or off"]);
+  });
+});
+
+describe("placementRuleSchema", () => {
+  const parse = (scope: keyof typeof targets, keepPreviousPlacement: unknown) =>
+    placementRuleSchema.safeParse({ target: targets[scope], keepPreviousPlacement });
+  const messages = (scope: keyof typeof targets, keepPreviousPlacement: unknown) => {
+    const result = parse(scope, keepPreviousPlacement);
+    return result.success ? [] : result.error.issues.map((issue) => issue.message);
+  };
+
+  it.each(allScopes)("accepts true and false at %s scope", (scope) => {
+    expect(parse(scope, true).success).toBe(true);
+    expect(parse(scope, false).success).toBe(true);
+  });
+
+  it.each(["yes", 1])("rejects %j", (value) => {
     expect(messages("global", value)).toEqual(["Choose on or off"]);
   });
 

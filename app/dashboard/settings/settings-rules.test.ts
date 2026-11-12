@@ -37,6 +37,7 @@ const row = (fields: Partial<WorkRuleRow>): WorkRuleRow => ({
   annualOffDays: null,
   shiftExceptionDays: null,
   requirePositionMatch: null,
+  keepPreviousPlacement: null,
   maxWorkingDaysPerMonth: null,
   ...fields,
 });
@@ -50,6 +51,7 @@ describe("WORK_RULE_DEFAULTS", () => {
       annualOffDays: 20,
       shiftExceptionDays: 7,
       requirePositionMatch: true,
+      keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 26,
     });
     expect(DEFAULT_WORK_DAYS).toBe(5);
@@ -73,6 +75,7 @@ describe("resolveWorkRules", () => {
         annualOffDays: 12,
         shiftExceptionDays: 3,
         requirePositionMatch: false,
+        keepPreviousPlacement: true,
         maxWorkingDaysPerMonth: 30,
       }),
       site: null,
@@ -86,6 +89,7 @@ describe("resolveWorkRules", () => {
       annualOffDays: 12,
       shiftExceptionDays: 3,
       requirePositionMatch: false,
+      keepPreviousPlacement: true,
       maxWorkingDaysPerMonth: 30,
     });
     expect(new Set(Object.values(resolved.sources))).toEqual(new Set(["global"]));
@@ -138,6 +142,37 @@ describe("resolveWorkRules", () => {
 
     expect(resolved.values.requirePositionMatch).toBe(false);
     expect(resolved.sources.requirePositionMatch).toBe("location");
+  });
+});
+
+describe("keepPreviousPlacement resolution", () => {
+  it("is off when no level sets it, so existing rows with a null column change nothing", () => {
+    const resolved = resolveWorkRules({ global: row({}), site: row({}), location: row({}) });
+
+    expect(resolved.values.keepPreviousPlacement).toBe(false);
+    expect(resolved.sources.keepPreviousPlacement).toBe("default");
+  });
+
+  it("keeps an explicit false at a location over a true at its site", () => {
+    const resolved = resolveWorkRules({
+      global: null,
+      site: row({ keepPreviousPlacement: true }),
+      location: row({ keepPreviousPlacement: false }),
+    });
+
+    expect(resolved.values.keepPreviousPlacement).toBe(false);
+    expect(resolved.sources.keepPreviousPlacement).toBe("location");
+  });
+
+  it("lets a location with a null column inherit the site's true", () => {
+    const resolved = resolveWorkRules({
+      global: null,
+      site: row({ keepPreviousPlacement: true }),
+      location: row({ keepPreviousPlacement: null }),
+    });
+
+    expect(resolved.values.keepPreviousPlacement).toBe(true);
+    expect(resolved.sources.keepPreviousPlacement).toBe("site");
   });
 });
 
@@ -359,6 +394,7 @@ describe("workRuleCardKey", () => {
     "annualOffDays",
     "shiftExceptionDays",
     "requirePositionMatch",
+    "keepPreviousPlacement",
   ] as const;
   const noneOwn = {
     workDaysPerWeek: false,
@@ -367,6 +403,7 @@ describe("workRuleCardKey", () => {
     annualOffDays: false,
     shiftExceptionDays: false,
     requirePositionMatch: false,
+    keepPreviousPlacement: false,
     maxWorkingDaysPerMonth: false,
   };
   const level = (
@@ -379,7 +416,7 @@ describe("workRuleCardKey", () => {
     ...fields,
   });
 
-  it("gives each of the six cards its own key on the same level", () => {
+  it("gives each card its own key on the same level", () => {
     for (const rules of [level({}), level({ scope: "global", siteId: null, locationId: null })]) {
       const keys = CARDS.map((card) => workRuleCardKey(card, rules));
 

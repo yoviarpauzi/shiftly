@@ -4,11 +4,10 @@ import type {
   HistoryAttendanceFilter,
   HistoryTypeFilter,
   WorkerHistoryFilters,
+  WorkerHistorySearchParams,
 } from "@/types/worker-history";
 
 import { ATTENDANCE_STATUS_VALUES } from "./attendance";
-
-type SearchParams = Record<string, string | string[] | undefined>;
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -43,7 +42,7 @@ function monthOrCurrent(value: string | string[] | undefined, today: string): st
 
 // Reads the worker detail filters from the URL. Anything unknown falls back to its default, so a
 // bad link shows this month and every day instead of an error. Page and sort are read elsewhere.
-export function parseWorkerHistoryParams(params: SearchParams, today: string): WorkerHistoryFilters {
+export function parseWorkerHistoryParams(params: WorkerHistorySearchParams, today: string): WorkerHistoryFilters {
   const type = firstValue(params.type);
   const attendance = firstValue(params.attendance);
 

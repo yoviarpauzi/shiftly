@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { daysText } from "@/app/dashboard/workers/worker-history-rules";
 import type { HistoryPagerProps } from "@/types/worker-history";
 import { TablePagination } from "@/components/dashboard/pagination";
 
@@ -21,7 +22,7 @@ export function HistoryPager({ page, pageSize, total, monthTotal }: HistoryPager
   return (
     <div className="flex items-center justify-between">
       <div className="flex-1 text-sm text-muted-foreground">
-        {total === monthTotal ? `${total} days` : `${total} of ${monthTotal} days`}
+        {daysText(total, monthTotal)}
       </div>
       <TablePagination
         page={page}

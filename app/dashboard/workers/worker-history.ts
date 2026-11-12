@@ -64,9 +64,14 @@ export async function loadWorkerMonth(
   return toHistoryRows(joined);
 }
 
-// Whether the worker has any history at all, in any month. It tells an empty month from a worker
-// who was never in a confirmed roster.
-export async function workerHasHistory(access: WorkerAccess, workerId: string): Promise<boolean> {
+// Whether the worker has any history at all, in any month up to today. It tells an empty month from
+// a worker who was never in a confirmed roster. A roster that starts after today is not history
+// yet, so a new hire does not get "pick an earlier month" for months that were never theirs.
+export async function workerHasHistory(
+  access: WorkerAccess,
+  workerId: string,
+  today: string,
+): Promise<boolean> {
   const rows = await db
     .select({ id: rosterAssignment.id })
     .from(rosterAssignment)
@@ -76,6 +81,7 @@ export async function workerHasHistory(access: WorkerAccess, workerId: string): 
     .where(
       and(
         eq(rosterAssignment.workerId, workerId),
+        lte(rosterAssignment.workDate, today),
         eq(roster.status, "confirmed"),
         eq(rosterRequest.status, "approved"),
         workerScopeFilter(access),

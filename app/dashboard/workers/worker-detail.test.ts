@@ -42,6 +42,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const { getWorkerDetail } = await import("./workers");
+const { loadEngineRules } = await import("@/app/dashboard/rosters/roster-work-rules");
 
 const WORKER = "99999999-9999-4999-8999-999999999999";
 const SITE = "11111111-1111-4111-8111-111111111111";
@@ -68,6 +69,7 @@ function workerRow(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  vi.mocked(loadEngineRules).mockClear();
   fake.queue = [];
   fake.wheres = [];
   fake.selects = 0;
@@ -113,5 +115,21 @@ describe("getWorkerDetail", () => {
     fake.queue = [[workerRow({ workDaysPerWeek: 7 })], []];
 
     expect((await getWorkerDetail(SUPERADMIN, WORKER))?.workDays).toBe(7);
+  });
+
+  it("does not read the work rules when the worker has its own working days", async () => {
+    fake.queue = [[workerRow({ workDaysPerWeek: 5 })], []];
+
+    await getWorkerDetail(SUPERADMIN, WORKER);
+
+    expect(loadEngineRules).not.toHaveBeenCalled();
+  });
+
+  it("reads the work rules once when it follows them", async () => {
+    fake.queue = [[workerRow()], []];
+
+    await getWorkerDetail(SUPERADMIN, WORKER);
+
+    expect(loadEngineRules).toHaveBeenCalledTimes(1);
   });
 });

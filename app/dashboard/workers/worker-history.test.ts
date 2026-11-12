@@ -128,14 +128,33 @@ describe("loadWorkerMonth", () => {
 });
 
 describe("workerHasHistory", () => {
+  const TODAY = "2026-11-12";
+
   it("is true when the worker has a confirmed assignment", async () => {
     fake.rows = [{ id: "a-1" }];
 
-    expect(await workerHasHistory(SUPERADMIN, WORKER)).toBe(true);
+    expect(await workerHasHistory(SUPERADMIN, WORKER, TODAY)).toBe(true);
     expect(whereQuery().params).toEqual(expect.arrayContaining([WORKER, "confirmed", "approved"]));
   });
 
   it("is false when the worker has none, as with a draft roster only", async () => {
-    expect(await workerHasHistory(SUPERADMIN, WORKER)).toBe(false);
+    expect(await workerHasHistory(SUPERADMIN, WORKER, TODAY)).toBe(false);
+  });
+
+  it("only counts days up to today, so a roster that starts later is not history yet", async () => {
+    await workerHasHistory(SUPERADMIN, WORKER, TODAY);
+
+    expect(whereQuery().params).toContain(TODAY);
+    expect(whereQuery().sql).toContain('"roster_assignment"."work_date" <=');
+  });
+
+  it("limits an HO to its site and an admin site to its site and location", async () => {
+    await workerHasHistory(HO, WORKER, TODAY);
+    expect(whereQuery().params).toContain(SITE);
+    expect(whereQuery().params).not.toContain(LOCATION);
+
+    fake.wheres = [];
+    await workerHasHistory(ADMIN_SITE, WORKER, TODAY);
+    expect(whereQuery().params).toEqual(expect.arrayContaining([SITE, LOCATION]));
   });
 });

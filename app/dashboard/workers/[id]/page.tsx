@@ -84,13 +84,10 @@ async function WorkerDetail({
     worker.deletedAt === null ? workerFormOptionsFor(access) : Promise.resolve(null),
   ]);
   const filters = narrowFilters(requested, historyChoices(rows));
-  const view = buildWorkerHistory(rows, filters, {
-    page,
-    pageSize,
-    direction: sort[0]?.direction ?? "desc",
-  });
+  const direction = sort[0]?.direction ?? "desc";
+  const view = buildWorkerHistory(rows, filters, { page, pageSize, direction });
   // An empty month is either a quiet month or a worker who was never in a confirmed roster.
-  const hasHistory = rows.length > 0 || (await workerHasHistory(access, worker.id));
+  const hasHistory = rows.length > 0 || (await workerHasHistory(access, worker.id, today));
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
@@ -144,7 +141,7 @@ async function WorkerDetail({
                 ) : (
                   <>
                     <div className="hidden md:block">
-                      <HistoryTable data={view} sort={sort} />
+                      <HistoryTable data={view} sort={[{ column: "date", direction }]} />
                     </div>
                     <div className="md:hidden">
                       <HistoryCards rows={view.rows} />

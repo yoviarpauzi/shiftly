@@ -7,12 +7,14 @@ import type {
 } from "@/types/worker-history";
 import {
   buildWorkerHistory,
+  daysText,
   filterHistory,
   historyChoices,
   historyHref,
   monthBounds,
   monthLabel,
   narrowFilters,
+  oppositeDirection,
   shiftMonth,
   sortHistory,
   summarizeHistory,
@@ -347,5 +349,24 @@ describe("narrowFilters", () => {
     );
 
     expect(result).toMatchObject({ type: "off", attendance: "sick", month: "2026-11" });
+  });
+});
+
+describe("oppositeDirection", () => {
+  it("flips between ascending and descending, with no third state", () => {
+    expect(oppositeDirection("desc")).toBe("asc");
+    expect(oppositeDirection("asc")).toBe("desc");
+  });
+});
+
+describe("daysText", () => {
+  it("says day for one and days for the rest", () => {
+    expect(daysText(1, 1)).toBe("1 day");
+    expect(daysText(12, 12)).toBe("12 days");
+  });
+
+  it("shows how many of the month's days match a filter", () => {
+    expect(daysText(2, 6)).toBe("2 of 6 days");
+    expect(daysText(1, 6)).toBe("1 of 6 days");
   });
 });

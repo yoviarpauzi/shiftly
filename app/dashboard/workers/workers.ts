@@ -16,7 +16,7 @@ import {
 } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadEngineRules } from "@/app/dashboard/rosters/roster-work-rules";
-import { effectiveWorkDays } from "@/app/dashboard/settings/settings-rules";
+import { DEFAULT_WORK_DAYS } from "@/app/dashboard/settings/settings-rules";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
 import { site } from "@/database/schema/site-schema";
@@ -212,13 +212,21 @@ export async function getWorkerDetail(
     return null;
   }
 
-  const tags = await positionTagsFor([row.id]);
-  const rules = await loadEngineRules(db, { locationId: row.locationId, siteId: row.siteId });
+  // The work rules are only read when the worker has no value of its own, and together with the
+  // positions, so the page waits for one round trip instead of five.
+  const [tags, ruleDays] = await Promise.all([
+    positionTagsFor([row.id]),
+    row.workDaysPerWeek === null
+      ? loadEngineRules(db, { locationId: row.locationId, siteId: row.siteId }).then(
+          (rules) => rules.workDaysPerWeek,
+        )
+      : Promise.resolve(null),
+  ]);
 
   return {
     ...row,
     positions: tags.get(row.id) ?? [],
-    workDays: effectiveWorkDays(row.workDaysPerWeek, rules.workDaysPerWeek),
+    workDays: row.workDaysPerWeek ?? ruleDays ?? DEFAULT_WORK_DAYS,
   };
 }
 

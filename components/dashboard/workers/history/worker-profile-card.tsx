@@ -1,11 +1,10 @@
 import { BanIcon, CircleCheckIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import type { WorkerProfileCardProps } from "@/types/worker-history";
+import type { WorkerProfileCardProps, WorkerProfileFieldProps } from "@/types/worker-history";
 import { Badge } from "@/components/ui/badge";
 
 // Label above the value on a wide screen, side by side on a phone. Every field but the first gets a
 // divider on its left from md up.
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children }: WorkerProfileFieldProps) {
   return (
     <div className="flex items-center justify-between gap-3 md:flex-col md:items-start md:justify-start md:gap-1 md:not-first:border-l md:not-first:pl-8">
       <dt className="text-xs text-muted-foreground">{label}</dt>

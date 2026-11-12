@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTable } from "@tanstack/react-table";
-import { nextSort } from "@/lib/sort";
+import { oppositeDirection } from "@/app/dashboard/workers/worker-history-rules";
 import { serializeSort } from "@/validation/sort";
 import type { HistorySortColumn, HistoryTableProps } from "@/types/worker-history";
 import {
@@ -21,17 +21,14 @@ export function HistoryTable({ data, sort }: HistoryTableProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // A header click changes the URL, so the server sorts the rows. The page goes back to 1.
+  // A header click flips the order in the URL, so the server sorts the rows. Date is the only sort
+  // and newest first is its default, so it is a two-state toggle. The page goes back to 1.
   const sortBy = React.useCallback(
-    (column: HistorySortColumn, shift: boolean) => {
-      const next = nextSort(sort, column, shift);
+    (column: HistorySortColumn) => {
+      const direction = oppositeDirection(sort[0]?.direction ?? "desc");
       const params = new URLSearchParams(searchParams.toString());
 
-      if (next.length > 0) {
-        params.set("sort", serializeSort(next));
-      } else {
-        params.delete("sort");
-      }
+      params.set("sort", serializeSort([{ column, direction }]));
       params.set("page", "1");
       router.push(`${pathname}?${params.toString()}`);
     },

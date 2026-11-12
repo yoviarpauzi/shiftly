@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AttendanceStatus } from "@/types/attendance";
 import type { SortCriterion } from "@/types/sort";
 import type { WorkerFormOptions, WorkerRow } from "@/types/workers";
@@ -93,16 +94,19 @@ export type WorkerHistoryView = {
 // workDays is the effective working days per week: the worker's own value, else the work rule's.
 export type WorkerDetail = WorkerRow & { timezone: string; workDays: number };
 
-type SearchParams = Record<string, string | string[] | undefined>;
+// The URL's search params, as Next.js hands them to a page.
+export type WorkerHistorySearchParams = Record<string, string | string[] | undefined>;
 
 export type WorkerProfileCardProps = { worker: WorkerDetail };
+
+export type WorkerProfileFieldProps = { label: string; children: ReactNode };
 
 export type EditWorkerButtonProps = { worker: WorkerRow; options: WorkerFormOptions };
 
 export type HistoryMonthNavProps = {
   workerId: string;
   // The URL's params, so the other filters survive a change of month.
-  params: SearchParams;
+  params: WorkerHistorySearchParams;
   month: string;
   today: string;
 };
@@ -118,7 +122,7 @@ export type HistoryCellProps = { row: WorkerHistoryRow };
 export type HistoryFiltersProps = {
   // The URL's params, so Clear filters keeps the month and the sort.
   workerId: string;
-  params: SearchParams;
+  params: WorkerHistorySearchParams;
   filters: WorkerHistoryFilters;
   choices: WorkerHistoryChoices;
 };

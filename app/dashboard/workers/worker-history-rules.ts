@@ -267,3 +267,16 @@ export function historyHref(
 
   return query ? `/dashboard/workers/${workerId}?${query}` : `/dashboard/workers/${workerId}`;
 }
+
+// The sort header is a two-state toggle: the default newest-first order is a real sort, so a click
+// always changes the order and there is no third state that looks the same as the default.
+export function oppositeDirection(direction: SortDirection): SortDirection {
+  return direction === "asc" ? "desc" : "asc";
+}
+
+// "12 days", "1 day", or "2 of 6 days" while a filter narrows the month.
+export function daysText(total: number, monthTotal: number): string {
+  const noun = monthTotal === 1 ? "day" : "days";
+
+  return total === monthTotal ? `${total} ${noun}` : `${total} of ${monthTotal} ${noun}`;
+}

@@ -62,6 +62,14 @@ describe("exportSheetName", () => {
     expect(second.endsWith(" 2")).toBe(true);
   });
 
+  it("never ends the name with an apostrophe, which Excel rejects", () => {
+    expect(exportSheetName("Helpers'", new Set())).toBe("Form Absensi Papan Helpers");
+    expect(exportSheetName("Abcdefghijk' xyz", new Set())).toBe("Form Absensi Papan Abcdefghijk");
+    expect(exportSheetName("Helpers'", new Set(["Form Absensi Papan Helpers"]))).toBe(
+      "Form Absensi Papan Helpers 2",
+    );
+  });
+
   it("treats names as equal whatever their case, like Excel", () => {
     const second = exportSheetName("hse", new Set(["Form Absensi Papan HSE"]));
 

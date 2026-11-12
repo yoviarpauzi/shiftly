@@ -68,6 +68,15 @@ describe("buildExportWorkbook", () => {
     expect(cell(rows, 1, 3)).toBe("Area: Produksi");
   });
 
+  it("says which shift the form is for, so the forms of one day can be told apart", async () => {
+    const rows = (await readSheet(
+      await buildExportWorkbook(MODEL),
+      "Form Absensi Papan Produksi",
+    )) as Rows;
+
+    expect(cell(rows, 1, 4)).toBe("Shift 1");
+  });
+
   it("writes the worker table with the ID as text and SIGN empty", async () => {
     const rows = (await readSheet(
       await buildExportWorkbook(MODEL),
@@ -141,6 +150,7 @@ describe("buildExportWorkbook", () => {
     expect(secondTitle).toBeGreaterThan(firstTitle);
     expect(cell(rows, secondTitle + 1, 0)).toBe("Tanggal: 2026-11-10");
     expect(cell(rows, secondTitle + 1, 2)).toBe("Hari: Selasa");
+    expect(cell(rows, secondTitle + 1, 4)).toBe("Shift 2");
     expect(rowWhere(rows, 1, "EMP-9", secondTitle)).toBeGreaterThan(secondTitle);
   });
 

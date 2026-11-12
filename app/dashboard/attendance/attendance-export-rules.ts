@@ -47,7 +47,9 @@ export function exportSheetName(department: string, taken: ReadonlySet<string>):
 
   for (let attempt = 1; ; attempt += 1) {
     const suffix = attempt === 1 ? "" : ` ${attempt}`;
-    const name = `${base.slice(0, SHEET_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`;
+    // The cut can leave a space or an apostrophe at the end, and Excel rejects a name that ends in
+    // an apostrophe.
+    const name = `${base.slice(0, SHEET_MAX_LENGTH - suffix.length).replace(/[\s']+$/, "")}${suffix}`;
 
     if (!used.has(name.toLowerCase())) {
       return name;

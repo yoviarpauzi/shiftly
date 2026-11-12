@@ -45,6 +45,9 @@ function formRows(title: string, department: string, form: ExportForm): SheetDat
     ...spanning({ value: `Tanggal: ${form.date}`, columnSpan: 2 }, 2),
     `Hari: ${form.weekday}`,
     `Area: ${department}`,
+    // Without it the forms of one day look the same on paper, and a signature could go on the wrong
+    // shift's sheet.
+    `Shift ${form.shiftOrder}`,
   ]);
   rows.push([]);
 

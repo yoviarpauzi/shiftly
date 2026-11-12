@@ -123,6 +123,8 @@ export type AttendanceFormProps = {
   summary: ReactNode;
   // Shown in place of the table when there are no rows.
   empty: ReactNode;
+  // The Excel export of the chosen location and week, or null while the location is All.
+  exportHref: string | null;
 };
 
 export type AttendanceDateRowProps = {
@@ -133,6 +135,7 @@ export type AttendanceDateRowProps = {
   onMarkAll: () => void;
   onSave: () => void;
   isSaving: boolean;
+  exportHref: string | null;
 };
 
 export type AttendanceDateButtonProps = {

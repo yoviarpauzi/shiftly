@@ -59,3 +59,6 @@ export type ExportSheet = { name: string; department: string; forms: ExportForm[
 
 // emptyMessage is set when the week has nothing to export, and then sheets is empty.
 export type ExportModel = { title: string; sheets: ExportSheet[]; emptyMessage: string | null };
+
+// href is the export URL for the chosen location and date, or null while no single location is chosen.
+export type AttendanceExportButtonProps = { href: string | null };

@@ -5,6 +5,7 @@ import { CheckCheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
 import type { AttendanceDateRowProps } from "@/types/attendance";
 import { AttendanceDateButton } from "@/components/dashboard/attendance/attendance-date-button";
+import { AttendanceExportButton } from "@/components/dashboard/attendance/export-button";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -18,6 +19,7 @@ export function AttendanceDateRow({
   onMarkAll,
   onSave,
   isSaving,
+  exportHref,
 }: AttendanceDateRowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,6 +59,7 @@ export function AttendanceDateRow({
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <AttendanceExportButton href={exportHref} />
         <Button type="button" variant="outline" disabled={!canMarkAll} onClick={onMarkAll}>
           <CheckCheckIcon data-icon="inline-start" />
           Mark all as present

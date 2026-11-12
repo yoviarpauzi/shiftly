@@ -55,6 +55,7 @@ export function AttendanceForm({
   filters,
   summary,
   empty,
+  exportHref,
 }: AttendanceFormProps) {
   const readOnly = lock !== null;
   const router = useRouter();
@@ -169,6 +170,7 @@ export function AttendanceForm({
               onMarkAll={markAll}
               onSave={() => void form.handleSubmit()}
               isSaving={saving}
+              exportHref={exportHref}
             />
             {filters}
             {summary}

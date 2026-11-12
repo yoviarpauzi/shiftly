@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
@@ -22,6 +23,7 @@ const fake = vi.hoisted(() => ({
     site: [] as unknown[],
     location: [] as unknown[],
     position: [] as unknown[],
+    worker: [] as unknown[],
   },
   access: null as unknown,
 }));
@@ -31,6 +33,7 @@ function result(call: Call): unknown {
     if (call.table === site) return fake.rows.site;
     if (call.table === location) return fake.rows.location;
     if (call.table === position) return fake.rows.position;
+    if (call.table === worker) return fake.rows.worker;
     return [];
   }
 
@@ -86,7 +89,7 @@ vi.mock("@/lib/db", () => ({
   db: { ...tx, transaction: async (run: (t: typeof tx) => unknown) => run(tx) },
 }));
 
-const { createWorker, updateWorker } = await import("./actions");
+const { createWorker, deleteWorker, restoreWorker, updateWorker } = await import("./actions");
 
 const SITE_A = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
@@ -109,11 +112,13 @@ const input = {
 const writes = () => fake.calls.filter((call) => call.op !== "select");
 
 beforeEach(() => {
+  vi.mocked(revalidatePath).mockClear();
   fake.calls = [];
   fake.rows = {
     site: [{ id: SITE_A }],
     location: [{ id: LOCATION_A }],
     position: [{ id: POSITION_A }],
+    worker: [],
   };
   fake.access = superadmin;
 });
@@ -241,5 +246,39 @@ describe.each([
 
     expect(result).toEqual({ ok: false, fieldErrors: { endContract: message } });
     expect(writes()).toEqual([]);
+  });
+});
+
+// The detail page shows a worker's own data, so a change must refresh it as well as the list.
+describe("revalidation of the worker pages", () => {
+  const list = "/dashboard/workers";
+  const detail = ["/dashboard/workers/[id]", "page"] as const;
+
+  it("refreshes the list and the detail page after an update", async () => {
+    await updateWorker(WORKER_ID, input);
+
+    expect(revalidatePath).toHaveBeenCalledWith(list);
+    expect(revalidatePath).toHaveBeenCalledWith(...detail);
+  });
+
+  it("refreshes the list and the detail page after a delete", async () => {
+    const result = await deleteWorker(WORKER_ID);
+
+    expect(result).toEqual({ ok: true });
+    expect(revalidatePath).toHaveBeenCalledWith(list);
+    expect(revalidatePath).toHaveBeenCalledWith(...detail);
+  });
+
+  it("refreshes the list and the detail page after a restore", async () => {
+    // A deleted worker in a live site and location, which is what a restore needs to find.
+    fake.rows.worker = [{ siteId: SITE_A, locationId: LOCATION_A }];
+    fake.rows.site = [{ id: SITE_A, deletedAt: null }];
+    fake.rows.location = [{ id: LOCATION_A, deletedAt: null }];
+
+    const result = await restoreWorker(WORKER_ID);
+
+    expect(result).toEqual({ ok: true });
+    expect(revalidatePath).toHaveBeenCalledWith(list);
+    expect(revalidatePath).toHaveBeenCalledWith(...detail);
   });
 });

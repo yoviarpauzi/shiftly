@@ -36,6 +36,13 @@ import { replacePositions, type Transaction } from "./worker-write";
 import { workerScopeFilter } from "./workers";
 
 const WORKERS_PATH = "/dashboard/workers";
+const WORKER_DETAIL_PATH = "/dashboard/workers/[id]";
+
+// A change to a worker shows on the list and on the worker's own detail page.
+function revalidateWorkerPages(): void {
+  revalidatePath(WORKERS_PATH);
+  revalidatePath(WORKER_DETAIL_PATH, "page");
+}
 
 const FIELD_KEYS: (keyof WorkerFieldErrors)[] = [
   "employeeId",
@@ -188,7 +195,7 @@ export async function createWorker(
     throw error;
   }
 
-  revalidatePath(WORKERS_PATH);
+  revalidateWorkerPages();
 
   return { ok: true };
 }
@@ -257,7 +264,7 @@ export async function updateWorker(
     throw error;
   }
 
-  revalidatePath(WORKERS_PATH);
+  revalidateWorkerPages();
 
   return { ok: true };
 }
@@ -292,7 +299,7 @@ export async function deleteWorker(id: string): Promise<WorkerActionResult> {
   const result = await softDeleteWorker(id, access);
 
   if (result.ok) {
-    revalidatePath(WORKERS_PATH);
+    revalidateWorkerPages();
   }
 
   return result;
@@ -362,7 +369,7 @@ export async function restoreWorker(id: string): Promise<WorkerActionResult> {
   const result = await restoreOne(id, access);
 
   if (result.ok) {
-    revalidatePath(WORKERS_PATH);
+    revalidateWorkerPages();
   }
 
   return result;
@@ -391,7 +398,7 @@ export async function deleteWorkers(
   }
 
   if (deletedIds.length > 0) {
-    revalidatePath(WORKERS_PATH);
+    revalidateWorkerPages();
   }
 
   return { deletedIds, blocked };
@@ -420,7 +427,7 @@ export async function restoreWorkers(
   }
 
   if (restoredIds.length > 0) {
-    revalidatePath(WORKERS_PATH);
+    revalidateWorkerPages();
   }
 
   return { restoredIds, blocked };

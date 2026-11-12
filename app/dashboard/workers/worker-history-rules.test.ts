@@ -59,7 +59,6 @@ const ALL: WorkerHistoryFilters = {
   month: "2026-11",
   departmentId: null,
   shiftId: null,
-  type: "all",
   attendance: "all",
 };
 
@@ -207,10 +206,6 @@ describe("filterHistory", () => {
     expect(filterHistory(rows, { ...ALL, shiftId: SHIFT_1 })).toHaveLength(2);
   });
 
-  it("filters by type", () => {
-    expect(filterHistory(rows, { ...ALL, type: "off" })).toHaveLength(1);
-  });
-
   it("keeps off rows out of an attendance filter", () => {
     expect(filterHistory(rows, { ...ALL, attendance: "present" })).toHaveLength(1);
   });
@@ -295,13 +290,36 @@ describe("buildWorkerHistory", () => {
     const plain = buildWorkerHistory(rows, ALL, { page: 1, pageSize: 10, direction: "desc" });
     const narrowed = buildWorkerHistory(
       rows,
-      { ...ALL, type: "off" },
+      { ...ALL, attendance: "leave" },
       { page: 1, pageSize: 10, direction: "desc" },
     );
 
     expect(narrowed.total).toBe(0);
     expect(narrowed.summary).toEqual(plain.summary);
     expect(narrowed.choices).toEqual(plain.choices);
+  });
+});
+
+describe("buildWorkerHistory days off", () => {
+  const mixed = [
+    row({ date: "2026-11-10" }),
+    off({ date: "2026-11-09", departmentId: DEPT_B, departmentName: "Gudang" }),
+    row({ date: "2026-11-08", kind: "break", shift: null, attendance: null }),
+  ];
+
+  it("lists work days only, while the summary still counts the days off", () => {
+    const view = buildWorkerHistory(mixed, ALL, { page: 1, pageSize: 10, direction: "desc" });
+
+    expect(view.rows.map((entry) => entry.kind)).toEqual(["work"]);
+    expect(view.total).toBe(1);
+    expect(view.summary.offDays).toBe(1);
+    expect(view.summary.breakDays).toBe(1);
+  });
+
+  it("offers only the departments of the listed work days", () => {
+    const view = buildWorkerHistory(mixed, ALL, { page: 1, pageSize: 10, direction: "desc" });
+
+    expect(view.choices.departments).toEqual([{ id: DEPT_A, name: "Produksi" }]);
   });
 });
 
@@ -343,12 +361,9 @@ describe("narrowFilters", () => {
   });
 
   it("leaves the other filters alone", () => {
-    const result = narrowFilters(
-      { ...ALL, departmentId: DEPT_B, type: "off", attendance: "sick" },
-      choices,
-    );
+    const result = narrowFilters({ ...ALL, departmentId: DEPT_B, attendance: "sick" }, choices);
 
-    expect(result).toMatchObject({ type: "off", attendance: "sick", month: "2026-11" });
+    expect(result).toMatchObject({ attendance: "sick", month: "2026-11" });
   });
 });
 

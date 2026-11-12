@@ -63,10 +63,7 @@ export function HistoryTable({ data, sort }: HistoryTableProps) {
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.map((row) => (
-            <TableRow
-              key={row.id}
-              className={row.original.kind === "work" ? undefined : "text-muted-foreground"}
-            >
+            <TableRow key={row.id}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
                   <table.FlexRender cell={cell} />

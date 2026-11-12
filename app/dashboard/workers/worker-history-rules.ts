@@ -148,7 +148,6 @@ export function filterHistory(
     (entry) =>
       (!filters.departmentId || entry.departmentId === filters.departmentId) &&
       (!filters.shiftId || entry.shift?.id === filters.shiftId) &&
-      (filters.type === "all" || entry.kind === filters.type) &&
       (filters.attendance === "all" || entry.attendance === filters.attendance),
   );
 }
@@ -207,14 +206,21 @@ export function narrowFilters(
   };
 }
 
-// The summary and the choices describe the whole month, so they stay put while a filter changes.
-// The rows and the total follow the filters.
+// The days the table lists: the days the worker worked. Days off and break have no shift and no
+// attendance, so they are counted in the summary but not listed.
+export function workDaysOf(rows: WorkerHistoryRow[]): WorkerHistoryRow[] {
+  return rows.filter((entry) => entry.kind === "work");
+}
+
+// The summary describes the whole month, days off included, and the choices come from the listed
+// work days, so both stay put while a filter changes. The rows and the total follow the filters.
 export function buildWorkerHistory(
   rows: WorkerHistoryRow[],
   filters: WorkerHistoryFilters,
   paging: { page: number; pageSize: number; direction: SortDirection },
 ): WorkerHistoryView {
-  const filtered = sortHistory(filterHistory(rows, filters), paging.direction);
+  const worked = workDaysOf(rows);
+  const filtered = sortHistory(filterHistory(worked, filters), paging.direction);
   const page = clampPage(paging.page, filtered.length, paging.pageSize);
 
   return {
@@ -223,7 +229,7 @@ export function buildWorkerHistory(
     page,
     pageSize: paging.pageSize,
     summary: summarizeHistory(rows),
-    choices: historyChoices(rows),
+    choices: historyChoices(worked),
   };
 }
 

@@ -3,18 +3,13 @@ import { ChevronRightIcon } from "lucide-react";
 import { formatShiftRange } from "@/app/dashboard/shifts/shift-rules";
 import type { HistoryCellProps } from "@/types/worker-history";
 import { ShiftChip } from "@/components/dashboard/shift-chip";
-import { Badge } from "@/components/ui/badge";
 
 // Cells the table and the mobile cards share, so a day reads the same on both.
 
-// A work day shows its shift and hours. An off or break day has no shift, so it shows what it is.
+// The shift and its hours. Only work days are listed, and every work day has a shift.
 export function HistoryShiftCell({ row }: HistoryCellProps) {
   if (!row.shift) {
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        {row.kind === "break" ? "Break" : "Off"}
-      </Badge>
-    );
+    return <span className="text-muted-foreground">—</span>;
   }
 
   return (
@@ -41,12 +36,8 @@ export function HistoryDepartmentCell({ row }: HistoryCellProps) {
   );
 }
 
-// The PO opens the roster the day came from. Off and break days only show it.
+// The PO opens the roster the day came from.
 export function HistoryPoCell({ row }: HistoryCellProps) {
-  if (row.kind !== "work") {
-    return <span className="tabular-nums">{row.poNumber}</span>;
-  }
-
   return (
     <Link
       href={`/dashboard/rosters/${row.rosterId}`}

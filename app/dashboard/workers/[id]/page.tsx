@@ -23,6 +23,7 @@ import {
   monthBounds,
   monthLabel,
   narrowFilters,
+  workDaysOf,
   workerToday,
 } from "../worker-history-rules";
 import { getWorkerDetail, workerFormOptionsFor } from "../workers";
@@ -83,7 +84,7 @@ async function WorkerDetail({
     loadWorkerMonth(access, worker.id, monthBounds(requested.month, today)),
     worker.deletedAt === null ? workerFormOptionsFor(access) : Promise.resolve(null),
   ]);
-  const filters = narrowFilters(requested, historyChoices(rows));
+  const filters = narrowFilters(requested, historyChoices(workDaysOf(rows)));
   const direction = sort[0]?.direction ?? "desc";
   const view = buildWorkerHistory(rows, filters, { page, pageSize, direction });
   // An empty month is either a quiet month or a worker who was never in a confirmed roster.
@@ -118,7 +119,7 @@ async function WorkerDetail({
         ) : (
           <>
             <HistorySummary summary={view.summary} />
-            {rows.length === 0 ? (
+            {view.summary.shiftsWorked === 0 ? (
               <HistoryEmpty kind="month" monthLabel={monthLabel(filters.month)} />
             ) : (
               <>
@@ -134,7 +135,6 @@ async function WorkerDetail({
                     clearHref={historyHref(worker.id, query, {
                       department: null,
                       shift: null,
-                      type: null,
                       attendance: null,
                     })}
                   />
@@ -150,7 +150,7 @@ async function WorkerDetail({
                       page={view.page}
                       pageSize={view.pageSize}
                       total={view.total}
-                      monthTotal={rows.length}
+                      monthTotal={view.summary.shiftsWorked}
                     />
                   </>
                 )}

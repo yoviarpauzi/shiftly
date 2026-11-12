@@ -53,8 +53,6 @@ export type WorkerHistoryJoinedRow = {
   attendanceStatus: string | null;
 };
 
-export type HistoryTypeFilter = "all" | HistoryKind;
-
 export type HistoryAttendanceFilter = "all" | HistoryAttendance;
 
 // The filters of the worker detail page, read from the URL. month is YYYY-MM.
@@ -62,7 +60,6 @@ export type WorkerHistoryFilters = {
   month: string;
   departmentId: string | null;
   shiftId: string | null;
-  type: HistoryTypeFilter;
   attendance: HistoryAttendanceFilter;
 };
 

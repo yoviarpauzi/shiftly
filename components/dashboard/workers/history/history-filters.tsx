@@ -6,13 +6,6 @@ import type { HistoryFiltersProps } from "@/types/worker-history";
 import { WorkersSelectFilter } from "@/components/dashboard/workers/workers-select-filter";
 import { Button } from "@/components/ui/button";
 
-const TYPE_OPTIONS: WorkerFilterOption[] = [
-  { value: "all", label: "All types" },
-  { value: "work", label: "Work" },
-  { value: "off", label: "Off" },
-  { value: "break", label: "Break" },
-];
-
 const ATTENDANCE_OPTIONS: WorkerFilterOption[] = [
   { value: "all", label: "All attendance" },
   { value: "present", label: ATTENDANCE_STATUS_LABELS.present },
@@ -22,14 +15,13 @@ const ATTENDANCE_OPTIONS: WorkerFilterOption[] = [
   { value: "not-marked", label: ATTENDANCE_STATUS_LABELS["not-marked"] },
 ];
 
-// Department, shift, type, and attendance. The department and shift choices are the ones the month
+// Department, shift, and attendance. The department and shift choices are the ones the month
 // uses. Every change goes to the URL and drops the page, like the other filters. Clear filters only
 // shows while one is set, and keeps the month and the sort.
 export function HistoryFilters({ workerId, params, filters, choices }: HistoryFiltersProps) {
   const active =
     filters.departmentId !== null ||
     filters.shiftId !== null ||
-    filters.type !== "all" ||
     filters.attendance !== "all";
 
   return (
@@ -58,13 +50,6 @@ export function HistoryFilters({ workerId, params, filters, choices }: HistoryFi
         className="h-9 w-36"
       />
       <WorkersSelectFilter
-        param="type"
-        value={filters.type}
-        options={TYPE_OPTIONS}
-        ariaLabel="Filter days by type"
-        className="h-9 w-32"
-      />
-      <WorkersSelectFilter
         param="attendance"
         value={filters.attendance}
         options={ATTENDANCE_OPTIONS}
@@ -80,7 +65,6 @@ export function HistoryFilters({ workerId, params, filters, choices }: HistoryFi
               href={historyHref(workerId, params, {
                 department: null,
                 shift: null,
-                type: null,
                 attendance: null,
               })}
             />

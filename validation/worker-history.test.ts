@@ -10,7 +10,6 @@ describe("parseWorkerHistoryParams", () => {
       month: "2026-11",
       departmentId: null,
       shiftId: null,
-      type: "all",
       attendance: "all",
     });
   });
@@ -38,11 +37,6 @@ describe("parseWorkerHistoryParams", () => {
 
     expect([kept.departmentId, kept.shiftId]).toEqual([ID, ID]);
     expect([dropped.departmentId, dropped.shiftId]).toEqual([null, null]);
-  });
-
-  it("keeps a known type and falls back to all", () => {
-    expect(parseWorkerHistoryParams({ type: "off" }, TODAY).type).toBe("off");
-    expect(parseWorkerHistoryParams({ type: "rest" }, TODAY).type).toBe("all");
   });
 
   it("keeps a known attendance and falls back to all", () => {

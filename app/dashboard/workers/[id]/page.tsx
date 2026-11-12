@@ -1,8 +1,13 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { EditWorkerButton } from "@/components/dashboard/workers/history/edit-worker-button";
+import { HistoryCards } from "@/components/dashboard/workers/history/history-cards";
+import { HistoryEmpty } from "@/components/dashboard/workers/history/history-empty";
+import { HistoryFilters } from "@/components/dashboard/workers/history/history-filters";
 import { HistoryMonthNav } from "@/components/dashboard/workers/history/history-month-nav";
+import { HistoryPager } from "@/components/dashboard/workers/history/history-pager";
 import { HistorySummary } from "@/components/dashboard/workers/history/history-summary";
+import { HistoryTable } from "@/components/dashboard/workers/history/history-table";
 import { WorkerProfileCard } from "@/components/dashboard/workers/history/worker-profile-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parsePageParams } from "@/validation/pagination";
@@ -13,7 +18,9 @@ import { requireWorkerManager } from "../worker-guard";
 import { loadWorkerMonth, workerHasHistory } from "../worker-history";
 import {
   buildWorkerHistory,
+  historyHref,
   monthBounds,
+  monthLabel,
   workerToday,
 } from "../worker-history-rules";
 import { getWorkerDetail, workerFormOptionsFor } from "../workers";
@@ -106,7 +113,51 @@ async function WorkerDetail({
             />
           ) : null}
         </div>
-        {hasHistory ? <HistorySummary summary={view.summary} /> : null}
+        {!hasHistory ? (
+          <HistoryEmpty kind="none" workerName={worker.name} />
+        ) : (
+          <>
+            <HistorySummary summary={view.summary} />
+            {rows.length === 0 ? (
+              <HistoryEmpty kind="month" monthLabel={monthLabel(filters.month)} />
+            ) : (
+              <>
+                <HistoryFilters
+                  workerId={worker.id}
+                  params={query}
+                  filters={filters}
+                  choices={view.choices}
+                />
+                {view.total === 0 ? (
+                  <HistoryEmpty
+                    kind="filtered"
+                    clearHref={historyHref(worker.id, query, {
+                      department: null,
+                      shift: null,
+                      type: null,
+                      attendance: null,
+                    })}
+                  />
+                ) : (
+                  <>
+                    <div className="hidden md:block">
+                      <HistoryTable data={view} sort={sort} />
+                    </div>
+                    <div className="md:hidden">
+                      <HistoryCards rows={view.rows} />
+                    </div>
+                    <HistoryPager
+                      page={view.page}
+                      pageSize={view.pageSize}
+                      total={view.total}
+                      monthTotal={rows.length}
+                    />
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

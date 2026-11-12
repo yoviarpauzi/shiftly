@@ -1,4 +1,5 @@
 import type { AttendanceStatus } from "@/types/attendance";
+import type { SortCriterion } from "@/types/sort";
 import type { WorkerFormOptions, WorkerRow } from "@/types/workers";
 
 export type HistoryKind = "work" | "off" | "break";
@@ -109,3 +110,36 @@ export type HistoryMonthNavProps = {
 export type HistorySummaryProps = { summary: WorkerHistorySummary };
 
 export type HistoryAttendanceBadgeProps = { attendance: HistoryAttendance | null };
+
+export type HistorySortColumn = "date";
+
+export type HistoryCellProps = { row: WorkerHistoryRow };
+
+export type HistoryFiltersProps = {
+  // The URL's params, so Clear filters keeps the month and the sort.
+  workerId: string;
+  params: SearchParams;
+  filters: WorkerHistoryFilters;
+  choices: WorkerHistoryChoices;
+};
+
+export type HistoryTableProps = {
+  data: WorkerHistoryView;
+  sort: SortCriterion<HistorySortColumn>[];
+};
+
+export type HistoryPagerProps = {
+  page: number;
+  pageSize: number;
+  // Days that match the filters, and every day of the month.
+  total: number;
+  monthTotal: number;
+};
+
+export type HistoryCardsProps = { rows: WorkerHistoryRow[] };
+
+// none: never in a confirmed roster. month: nothing in the chosen month. filtered: the filters match nothing.
+export type HistoryEmptyProps =
+  | { kind: "none"; workerName: string }
+  | { kind: "month"; monthLabel: string }
+  | { kind: "filtered"; clearHref: string };

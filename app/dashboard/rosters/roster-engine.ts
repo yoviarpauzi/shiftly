@@ -39,7 +39,9 @@ function byEmployee(a: EngineWorker, b: EngineWorker): number {
 
 // Engine v0: one greedy, deterministic pass. Days in date order, lines by id, shifts by order. For
 // each (day, line, shift) it takes the eligible workers with the fewest work days so far, then the
-// lowest employee ID. A shift it cannot fill becomes a conflict that names why the others were left
+// lowest employee ID. With the Keep previous placement rule on, a worker whose last department
+// fits the line comes before that, and a worker who belongs to another line of the request comes
+// after it. A shift it cannot fill becomes a conflict that names why the others were left
 // out. It finds a valid roster, not the best one. The arrays of the input are copied and sorted
 // first, so the order they arrive in never changes the result.
 export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
@@ -59,6 +61,7 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
   }
 
   const placements = new Map(input.history.map((entry) => [entry.workerId, entry.lastPlacement]));
+  const requestDepartments = new Set(lines.map((line) => line.departmentId));
 
   const states = new Map<string, WorkerState>();
   const dayBeforeFirst = days.length > 0 ? addDays(days[0], -1) : null;
@@ -132,9 +135,17 @@ export function generateRoster(input: RosterEngineInput): RosterEngineOutput {
         }
 
         // With the rule on, a worker whose last placement fits the line comes first. It only reorders
-        // workers who passed every rejection above, so no limit is relaxed.
-        const tierOf = (candidate: EngineWorker) =>
-          rules.keepPreviousPlacement ? placementTier(placements.get(candidate.id) ?? null, line) : 0;
+        // workers who passed every rejection above, so no limit is relaxed. A worker whose last
+        // department is another line's in this request comes last: lines are filled one after the
+        // other, and an earlier line borrowing that worker would leave their own line short.
+        const tierOf = (candidate: EngineWorker): number => {
+          if (!rules.keepPreviousPlacement) return 0;
+
+          const previous = placements.get(candidate.id) ?? null;
+          const tier = placementTier(previous, line);
+
+          return tier === 0 && previous && requestDepartments.has(previous.departmentId) ? -1 : tier;
+        };
 
         candidates.sort(
           (a, b) =>

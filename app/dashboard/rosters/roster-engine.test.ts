@@ -673,6 +673,30 @@ describe("generateRoster: keeping the previous placement", () => {
     expect(works(output)).toEqual([`${DAYS[0]}:w1:s1`, `${DAYS[1]}:w2:s1`]);
   });
 
+  it("leaves a worker for their own department's line when an earlier line has to borrow", () => {
+    const output = generateRoster(
+      input({
+        rules: ON,
+        lines: [lineA, { id: "l2", positionId: "p1", ...dept("dB") }],
+        workers: [worker(1), worker(2), worker(3), worker(4)],
+        history: [
+          placed("w1", dept("dB")),
+          placed("w2", dept("dB")),
+          placed("w3", dept("dA")),
+          placed("w4", null),
+        ],
+        targets: [target(DAYS[0], "s1", 2, "l1"), target(DAYS[0], "s1", 2, "l2")],
+      }),
+    );
+    const byLine = output.assignments
+      .filter((entry) => entry.kind === "work")
+      .map((entry) => `${entry.lineId}:${entry.workerId}`)
+      .sort();
+
+    expect(byLine).toEqual(["l1:w3", "l1:w4", "l2:w1", "l2:w2"]);
+    expect(output.conflicts).toEqual([]);
+  });
+
   it("gives the same roster twice, and whatever order the input arrays arrive in", () => {
     const base = input({
       rules: ON,

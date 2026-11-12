@@ -12,6 +12,10 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+// PostgreSQL has no year 0000, and Date.UTC reads years 0 to 99 as 1900 to 1999, so an earlier month
+// is not a month anyone has rosters in.
+const FIRST_YEAR = 2000;
+
 const TYPES: readonly string[] = ["work", "off", "break"];
 
 const ATTENDANCE: readonly string[] = ["not-marked", ...ATTENDANCE_STATUS_VALUES];
@@ -26,13 +30,15 @@ function uuidOrNull(value: string | string[] | undefined): string | null {
   return z.string().uuid().safeParse(first).success ? first : null;
 }
 
-// A month that is malformed or after the current one becomes the current month. Dates compare as
-// text because YYYY-MM sorts the same way.
+// A month that is malformed, before FIRST_YEAR, or after the current one becomes the current month.
+// Dates compare as text because YYYY-MM sorts the same way.
 function monthOrCurrent(value: string | string[] | undefined, today: string): string {
   const current = today.slice(0, 7);
   const month = firstValue(value);
 
-  return MONTH_PATTERN.test(month) && month <= current ? month : current;
+  return MONTH_PATTERN.test(month) && Number(month.slice(0, 4)) >= FIRST_YEAR && month <= current
+    ? month
+    : current;
 }
 
 // Reads the worker detail filters from the URL. Anything unknown falls back to its default, so a

@@ -191,6 +191,22 @@ export function historyChoices(rows: WorkerHistoryRow[]): WorkerHistoryChoices {
   };
 }
 
+// A department or shift in the URL that the month's rows do not use is not a choice the filter
+// can show, so it counts as not set. Month navigation keeps the filters, and this keeps a month that
+// never used the department from showing a select with a value it does not list.
+export function narrowFilters(
+  filters: WorkerHistoryFilters,
+  choices: WorkerHistoryChoices,
+): WorkerHistoryFilters {
+  return {
+    ...filters,
+    departmentId: choices.departments.some((entry) => entry.id === filters.departmentId)
+      ? filters.departmentId
+      : null,
+    shiftId: choices.shifts.some((entry) => entry.id === filters.shiftId) ? filters.shiftId : null,
+  };
+}
+
 // The summary and the choices describe the whole month, so they stay put while a filter changes.
 // The rows and the total follow the filters.
 export function buildWorkerHistory(

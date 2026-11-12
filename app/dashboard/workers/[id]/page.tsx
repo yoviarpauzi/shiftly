@@ -18,9 +18,11 @@ import { requireWorkerManager } from "../worker-guard";
 import { loadWorkerMonth, workerHasHistory } from "../worker-history";
 import {
   buildWorkerHistory,
+  historyChoices,
   historyHref,
   monthBounds,
   monthLabel,
+  narrowFilters,
   workerToday,
 } from "../worker-history-rules";
 import { getWorkerDetail, workerFormOptionsFor } from "../workers";
@@ -73,14 +75,15 @@ async function WorkerDetail({
 
   const query = await searchParams;
   const today = workerToday(worker.timezone);
-  const filters = parseWorkerHistoryParams(query, today);
+  const requested = parseWorkerHistoryParams(query, today);
   const sort = parseSortParam(query.sort, HISTORY_SORT_COLUMNS);
   const { page, pageSize } = parsePageParams(query);
 
   const [rows, options] = await Promise.all([
-    loadWorkerMonth(access, worker.id, monthBounds(filters.month, today)),
+    loadWorkerMonth(access, worker.id, monthBounds(requested.month, today)),
     worker.deletedAt === null ? workerFormOptionsFor(access) : Promise.resolve(null),
   ]);
+  const filters = narrowFilters(requested, historyChoices(rows));
   const view = buildWorkerHistory(rows, filters, {
     page,
     pageSize,

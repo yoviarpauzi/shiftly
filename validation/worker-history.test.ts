@@ -19,7 +19,7 @@ describe("parseWorkerHistoryParams", () => {
     expect(parseWorkerHistoryParams({ month: "2026-10" }, TODAY).month).toBe("2026-10");
   });
 
-  it.each(["2026-13", "2026-1", "abc", "2099-01", ""])(
+  it.each(["2026-13", "2026-1", "abc", "2099-01", "", "0000-01", "0001-06", "1999-12"])(
     "turns the month %j into the current month",
     (month) => {
       expect(parseWorkerHistoryParams({ month }, TODAY).month).toBe("2026-11");

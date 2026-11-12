@@ -12,6 +12,7 @@ import {
   historyHref,
   monthBounds,
   monthLabel,
+  narrowFilters,
   shiftMonth,
   sortHistory,
   summarizeHistory,
@@ -317,5 +318,34 @@ describe("historyHref", () => {
     expect(historyHref("w1", { department: "d1" }, { department: null, type: "off" })).toBe(
       "/dashboard/workers/w1?type=off",
     );
+  });
+});
+
+describe("narrowFilters", () => {
+  const choices = {
+    departments: [{ id: DEPT_A, name: "Produksi" }],
+    shifts: [{ id: SHIFT_1, order: 1, name: "Shift 1" }],
+  };
+
+  it("keeps a department and shift that the month uses", () => {
+    const filters = { ...ALL, departmentId: DEPT_A, shiftId: SHIFT_1 };
+
+    expect(narrowFilters(filters, choices)).toEqual(filters);
+  });
+
+  it("drops a department and shift the month does not use, so no select holds a missing value", () => {
+    const result = narrowFilters({ ...ALL, departmentId: DEPT_B, shiftId: SHIFT_2 }, choices);
+
+    expect(result.departmentId).toBeNull();
+    expect(result.shiftId).toBeNull();
+  });
+
+  it("leaves the other filters alone", () => {
+    const result = narrowFilters(
+      { ...ALL, departmentId: DEPT_B, type: "off", attendance: "sick" },
+      choices,
+    );
+
+    expect(result).toMatchObject({ type: "off", attendance: "sick", month: "2026-11" });
   });
 });

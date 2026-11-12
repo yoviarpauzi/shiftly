@@ -11,7 +11,7 @@ import { userScopeIsActive } from "./scope-status";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  baseURL: "http://localhost:3000/",
+  baseURL: process.env.BETTER_AUTH_URL,
   // Accounts are created and changed through the Users menu, never by public sign-up
   // or the admin plugin's own endpoints. Those skip the self, last-superadmin, and session rules.
   disabledPaths: [

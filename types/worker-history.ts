@@ -1,5 +1,5 @@
 import type { AttendanceStatus } from "@/types/attendance";
-import type { WorkerRow } from "@/types/workers";
+import type { WorkerFormOptions, WorkerRow } from "@/types/workers";
 
 export type HistoryKind = "work" | "off" | "break";
 
@@ -91,3 +91,21 @@ export type WorkerHistoryView = {
 
 // workDays is the effective working days per week: the worker's own value, else the work rule's.
 export type WorkerDetail = WorkerRow & { timezone: string; workDays: number };
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export type WorkerProfileCardProps = { worker: WorkerDetail };
+
+export type EditWorkerButtonProps = { worker: WorkerRow; options: WorkerFormOptions };
+
+export type HistoryMonthNavProps = {
+  workerId: string;
+  // The URL's params, so the other filters survive a change of month.
+  params: SearchParams;
+  month: string;
+  today: string;
+};
+
+export type HistorySummaryProps = { summary: WorkerHistorySummary };
+
+export type HistoryAttendanceBadgeProps = { attendance: HistoryAttendance | null };

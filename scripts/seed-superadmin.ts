@@ -29,22 +29,21 @@ try {
       .where(eq(schema.user.id, existing.id));
     console.log(`User ${email} already exists. Role set to superadmin.`);
   } else {
-    const { user } = await auth.api.signUpEmail({
-      body: { email, password, name },
+    // createUser sets the role directly and starts no session. signUpEmail would sign the new
+    // user in as admin_site, which has no location yet, so the session hook would refuse it.
+    // Called without headers, it runs as the server and needs no admin session.
+    await auth.api.createUser({
+      body: { email, password, name, role: "superadmin" },
     });
-
-    await db
-      .update(schema.user)
-      .set({ role: "superadmin" })
-      .where(eq(schema.user.id, user.id));
-
-    // signUpEmail signs the new user in. The seed does not need that session.
-    await db.delete(schema.session).where(eq(schema.session.userId, user.id));
 
     console.log(`Superadmin ${email} created.`);
   }
+} catch (error) {
+  // Exiting from finally would otherwise swallow the error and report success.
+  console.error(error);
+  process.exitCode = 1;
 } finally {
   await pool.end();
   // lib/auth.ts keeps its own pool open, so exit explicitly.
-  process.exit(0);
+  process.exit();
 }

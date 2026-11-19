@@ -6,7 +6,8 @@ import {
   formatBillingIssuedAt,
   formatBillingPeriod,
   groupBillableDays,
-  isUniqueViolation,
+  isClaimCollision,
+  isNumberCollision,
 } from "./billing-rules";
 
 type Day = Omit<BillableDay, "attendanceId">;
@@ -117,17 +118,40 @@ describe("formatBillingIssuedAt", () => {
   });
 });
 
-describe("isUniqueViolation", () => {
-  it("is true for a unique violation code, directly or on cause", () => {
-    expect(isUniqueViolation({ code: "23505" })).toBe(true);
-    expect(isUniqueViolation({ cause: { code: "23505" } })).toBe(true);
+describe("isClaimCollision", () => {
+  it("is true for a unique violation on the billed-day key, directly or on cause", () => {
+    expect(isClaimCollision({ code: "23505", constraint: "billing_attendance_pkey" })).toBe(true);
+    expect(
+      isClaimCollision({ cause: { code: "23505", constraint: "billing_attendance_pkey" } }),
+    ).toBe(true);
+  });
+
+  it("is false for a unique violation on another constraint or with none", () => {
+    expect(isClaimCollision({ code: "23505", constraint: "billing_number_unique" })).toBe(false);
+    expect(isClaimCollision({ code: "23505" })).toBe(false);
   });
 
   it("is false for other errors and non-objects", () => {
-    expect(isUniqueViolation({ code: "23503" })).toBe(false);
-    expect(isUniqueViolation(new Error("x"))).toBe(false);
-    expect(isUniqueViolation(null)).toBe(false);
-    expect(isUniqueViolation("23505")).toBe(false);
+    expect(isClaimCollision({ code: "23503", constraint: "billing_attendance_pkey" })).toBe(false);
+    expect(isClaimCollision(new Error("x"))).toBe(false);
+    expect(isClaimCollision(null)).toBe(false);
+    expect(isClaimCollision("23505")).toBe(false);
+  });
+});
+
+describe("isNumberCollision", () => {
+  it("is true for a unique violation on the billing number, directly or on cause", () => {
+    expect(isNumberCollision({ code: "23505", constraint: "billing_number_unique" })).toBe(true);
+    expect(
+      isNumberCollision({ cause: { code: "23505", constraint: "billing_number_unique" } }),
+    ).toBe(true);
+  });
+
+  it("is false for another constraint, no constraint, or another code", () => {
+    expect(isNumberCollision({ code: "23505", constraint: "billing_attendance_pkey" })).toBe(false);
+    expect(isNumberCollision({ code: "23505" })).toBe(false);
+    expect(isNumberCollision({ code: "23503", constraint: "billing_number_unique" })).toBe(false);
+    expect(isNumberCollision(null)).toBe(false);
   });
 });
 

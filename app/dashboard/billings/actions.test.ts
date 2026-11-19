@@ -18,6 +18,7 @@ import {
   NOT_DRAFT_MESSAGE,
   NOT_ISSUED_MESSAGE,
   NOTHING_TO_BILL_MESSAGE,
+  NUMBER_IN_USE_MESSAGE,
   STALE_BILLING_MESSAGE,
 } from "./billing-rules";
 
@@ -47,6 +48,8 @@ const fake = vi.hoisted(() => ({
   // An insert into this table rejects with this error, as a unique violation would.
   // With `nth`, only that insert into the table rejects (1 is the first).
   failInsert: null as { table: unknown; error: unknown; nth?: number } | null,
+  // An update of this table rejects with this error.
+  failUpdate: null as { table: unknown; error: unknown } | null,
   rolledBack: false,
 }));
 
@@ -101,6 +104,10 @@ function builder(call: Call) {
         if (fake.failInsert.nth === undefined || fake.failInsert.nth === nth) {
           return Promise.reject(fake.failInsert.error).then(resolve, reject);
         }
+      }
+
+      if (call.op === "update" && fake.failUpdate && fake.failUpdate.table === call.table) {
+        return Promise.reject(fake.failUpdate.error).then(resolve, reject);
       }
 
       const rows =
@@ -237,6 +244,7 @@ beforeEach(() => {
   };
   fake.session = superadmin;
   fake.failInsert = null;
+  fake.failUpdate = null;
   fake.rolledBack = false;
   vi.mocked(revalidatePath).mockClear();
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -443,7 +451,7 @@ describe("issueBilling", () => {
     expect(locationLock.table).toBe(location);
     expect(locationLock.lock?.strength).toBe("share");
     expect(daySelect.table).toBe(attendance);
-    expect(daySelect.lock).toMatchObject({ strength: "update" });
+    expect(daySelect.lock).toMatchObject({ strength: "update", of: attendance });
 
     expect(counterCalls()).toHaveLength(1);
 
@@ -498,8 +506,8 @@ describe("issueBilling", () => {
   });
 
   it.each([
-    ["at the top", { code: "23505" }],
-    ["under cause", { cause: { code: "23505" } }],
+    ["at the top", { code: "23505", constraint: "billing_attendance_pkey" }],
+    ["under cause", { cause: { code: "23505", constraint: "billing_attendance_pkey" } }],
   ])("maps a claim collision %s to its message and rolls back", async (_shape, error) => {
     fake.failInsert = { table: billingAttendance, error };
 
@@ -541,7 +549,9 @@ describe("issueBilling", () => {
 
     it("maps a collision on the second chunk to its message and does not set the billing issued", async () => {
       fake.rows.attendance = manyDays(12_001);
-      fake.failInsert = { table: billingAttendance, error: { code: "23505" }, nth: 2 };
+      fake.failInsert = { table: billingAttendance, error: { code: "23505", constraint: "billing_attendance_pkey" },
+        nth: 2,
+      };
 
       const res = await issueBilling(input());
 
@@ -561,6 +571,29 @@ describe("issueBilling", () => {
       expect(claims).toHaveLength(1);
       expect((claims[0].values as unknown[]).length).toBe(5000);
     });
+  });
+
+  it.each([
+    ["at the top", { code: "23505", constraint: "billing_number_unique" }],
+    ["under cause", { cause: { code: "23505", constraint: "billing_number_unique" } }],
+  ])("maps a number collision %s to its own message and rolls back", async (_shape, error) => {
+    fake.failUpdate = { table: billing, error };
+
+    const res = await issueBilling(input());
+
+    expect(res).toEqual({ ok: false, formError: NUMBER_IN_USE_MESSAGE });
+    expect(fake.rolledBack).toBe(true);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another constraint", { code: "23505", constraint: "something_else" }],
+    ["no constraint name", { code: "23505" }],
+  ])("rethrows a unique violation with %s", async (_name, error) => {
+    fake.failInsert = { table: billingAttendance, error };
+
+    await expect(issueBilling(input())).rejects.toBe(error);
+    expect(fake.rolledBack).toBe(true);
   });
 
   it("rethrows an error that is not a claim collision", async () => {

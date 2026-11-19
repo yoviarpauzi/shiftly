@@ -16,6 +16,8 @@ export const STALE_BILLING_MESSAGE = "This billing changed since you opened it. 
 export const NOTHING_TO_BILL_MESSAGE = "Nothing to bill in this period";
 export const CLAIM_COLLISION_MESSAGE =
   "Some days were billed by another billing. Reload and try again";
+export const NUMBER_IN_USE_MESSAGE =
+  "This billing number is already in use. Ask an administrator to check the site code";
 export const BILLED_ATTENDANCE_MESSAGE =
   "This day is part of an issued billing. Void the billing to change it";
 
@@ -26,6 +28,8 @@ export const BILLING_MODE_LABELS: Record<BillingMode, string> = {
 };
 
 const UNIQUE_VIOLATION_CODE = "23505";
+const CLAIM_CONSTRAINT = "billing_attendance_pkey";
+const NUMBER_CONSTRAINT = "billing_number_unique";
 
 const MONTH_NAMES = [
   "Jan",
@@ -120,15 +124,33 @@ export function formatBillingIssuedAt(iso: string | null): string {
   return formatDate(date);
 }
 
-// Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`.
-export function isUniqueViolation(error: unknown): boolean {
+// Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`. True only for a unique
+// violation (23505) on the named constraint, so one collision is never reported as another.
+function isUniqueViolationOn(error: unknown, constraintName: string): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
   }
 
-  const { code, cause } = error as { code?: unknown; cause?: unknown };
+  const { code, constraint, cause } = error as {
+    code?: unknown;
+    constraint?: unknown;
+    cause?: unknown;
+  };
 
-  return code === UNIQUE_VIOLATION_CODE || isUniqueViolation(cause);
+  return (
+    (code === UNIQUE_VIOLATION_CODE && constraint === constraintName) ||
+    isUniqueViolationOn(cause, constraintName)
+  );
+}
+
+// Another billing already holds one of the days (the primary key on billing_attendance).
+export function isClaimCollision(error: unknown): boolean {
+  return isUniqueViolationOn(error, CLAIM_CONSTRAINT);
+}
+
+// Another billing already has this number (the unique index on billing.number).
+export function isNumberCollision(error: unknown): boolean {
+  return isUniqueViolationOn(error, NUMBER_CONSTRAINT);
 }
 
 // Keeps the first message for each field, so the form shows one error per field.

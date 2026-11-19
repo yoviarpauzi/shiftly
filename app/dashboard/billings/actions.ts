@@ -37,10 +37,12 @@ import {
   BILLING_NOT_FOUND_MESSAGE,
   CLAIM_COLLISION_MESSAGE,
   groupBillableDays,
-  isUniqueViolation,
+  isClaimCollision,
+  isNumberCollision,
   NOT_DRAFT_MESSAGE,
   NOT_ISSUED_MESSAGE,
   NOTHING_TO_BILL_MESSAGE,
+  NUMBER_IN_USE_MESSAGE,
   STALE_BILLING_MESSAGE,
 } from "./billing-rules";
 import { billingScopeFilter, loadBillableDays } from "./billings";
@@ -316,8 +318,12 @@ export async function issueBilling(input: IssueBillingInput): Promise<BillingAct
     });
   } catch (error) {
     // Caught outside the callback, so the transaction has already rolled back, number included.
-    if (isUniqueViolation(error)) {
+    if (isClaimCollision(error)) {
       return { ok: false, formError: CLAIM_COLLISION_MESSAGE };
+    }
+
+    if (isNumberCollision(error)) {
+      return { ok: false, formError: NUMBER_IN_USE_MESSAGE };
     }
 
     throw error;

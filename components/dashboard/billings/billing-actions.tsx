@@ -5,23 +5,21 @@ import { useState } from "react";
 import { formatBillingPeriod } from "@/app/dashboard/billings/billing-rules";
 import { periodInputFor } from "@/app/dashboard/billings/billing-period";
 import { Button, buttonVariants } from "@/components/ui/button";
-import type { BillingActionsProps } from "@/types/billings";
+import type { BillingActionsProps, BillingDialogName } from "@/types/billings";
 import { DeleteBillingDialog } from "./delete-billing-dialog";
 import { EditPeriodDialog } from "./edit-period-dialog";
 import { IssueBillingDialog } from "./issue-billing-dialog";
 import { VoidBillingDialog } from "./void-billing-dialog";
 
-type DialogName = "edit" | "issue" | "delete" | "void";
-
 // The actions of one billing. A Draft can be edited, deleted or issued, an Issued billing can be
 // exported or voided, and a Void billing has none. The server checks every action again.
 export function BillingActions({ billing }: BillingActionsProps) {
-  const [dialog, setDialog] = useState<DialogName | null>(null);
+  const [dialog, setDialog] = useState<BillingDialogName | null>(null);
   // A new key remounts a dialog on each open, so it starts from the loaded billing, not from what
   // the last open left in it.
   const [openCount, setOpenCount] = useState(0);
 
-  function show(name: DialogName) {
+  function show(name: BillingDialogName) {
     setOpenCount((count) => count + 1);
     setDialog(name);
   }
@@ -32,7 +30,7 @@ export function BillingActions({ billing }: BillingActionsProps) {
     }
   }
 
-  const dialogProps = (name: DialogName) => ({
+  const dialogProps = (name: BillingDialogName) => ({
     billingId: billing.id,
     open: dialog === name,
     onOpenChange: handleOpenChange,
@@ -48,7 +46,6 @@ export function BillingActions({ billing }: BillingActionsProps) {
         <div className="flex flex-wrap gap-2">
           <a
             href={`/dashboard/billings/${billing.id}/export`}
-            download
             className={buttonVariants({ variant: "outline" })}
           >
             <DownloadIcon data-icon="inline-start" />

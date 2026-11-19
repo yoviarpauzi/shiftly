@@ -7,6 +7,7 @@ import { useState } from "react";
 import { createBilling } from "@/app/dashboard/billings/actions";
 import { defaultPeriodInput } from "@/app/dashboard/billings/billing-period";
 import { billingFormErrors } from "@/app/dashboard/billings/billing-rules";
+import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
 import { BillingPeriodFields } from "@/components/dashboard/billings/billing-period-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import type {
+  BillingActionResult,
   BillingFormErrors,
   BillingFormProps,
   BillingLocationChoice,
@@ -70,8 +72,16 @@ export function BillingForm({ locations, today }: BillingFormProps) {
     onSubmit: async ({ value, formApi }) => {
       setFormError(null);
 
-      // The validator above has passed, so this parse only narrows the type.
-      const result = await createBilling(createBillingSchema.parse(value));
+      let result: BillingActionResult;
+
+      try {
+        // The validator above has passed, so this parse only narrows the type.
+        result = await createBilling(createBillingSchema.parse(value));
+      } catch {
+        setFormError(ACTION_FAILED_MESSAGE);
+        formApi.setErrorMap({ onSubmit: { form: ACTION_FAILED_MESSAGE } });
+        return;
+      }
 
       if (!result.ok) {
         setFormError(result.formError);

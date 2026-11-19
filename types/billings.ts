@@ -98,6 +98,7 @@ export type BillingSummaryProps = {
 export type BillingPoTableProps = { group: BillingPoGroup };
 
 export type BillingActionsProps = { billing: BillingDetail };
+export type BillingDialogName = "edit" | "issue" | "delete" | "void";
 
 // Shared by the four action dialogs. They are controlled by BillingActions.
 export type BillingDialogProps = {

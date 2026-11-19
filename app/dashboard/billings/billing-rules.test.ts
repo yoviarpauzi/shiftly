@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BillableDay } from "@/types/billings";
 import {
+  billingFormErrors,
+  billingLocationChoices,
   formatBillingIssuedAt,
   formatBillingPeriod,
   groupBillableDays,
@@ -126,5 +128,45 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(new Error("x"))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
     expect(isUniqueViolation("23505")).toBe(false);
+  });
+});
+
+describe("billingFormErrors", () => {
+  it("keeps the first message for each field", () => {
+    expect(
+      billingFormErrors([
+        { path: ["locationId"], message: "Choose a location" },
+        { path: ["period"], message: "Choose a valid period" },
+        { path: ["period", "from"], message: "Other" },
+      ]),
+    ).toEqual({ locationId: "Choose a location", period: "Choose a valid period" });
+  });
+
+  it("returns nothing for no issues", () => {
+    expect(billingFormErrors([])).toEqual({});
+  });
+});
+
+describe("billingLocationChoices", () => {
+  const sites = [
+    { id: "s1", name: "Site A" },
+    { id: "s2", name: "Site B" },
+  ];
+  const locations = [
+    { id: "l1", name: "Plant 1", siteId: "s1" },
+    { id: "l2", name: "Plant 2", siteId: "s2" },
+  ];
+
+  it("names the site when locations come from several sites", () => {
+    expect(billingLocationChoices(sites, locations)).toEqual([
+      { id: "l1", name: "Plant 1", siteName: "Site A" },
+      { id: "l2", name: "Plant 2", siteName: "Site B" },
+    ]);
+  });
+
+  it("leaves the site out when there is one site", () => {
+    expect(billingLocationChoices([sites[0]], [locations[0]])).toEqual([
+      { id: "l1", name: "Plant 1", siteName: null },
+    ]);
   });
 });

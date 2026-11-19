@@ -69,3 +69,21 @@ export type BillingsDataTableProps = {
   // The locations the location filter offers, already narrowed to the chosen site.
   locations: RequestLocationOption[];
 };
+
+export type BillingPeriodFieldsProps = {
+  value: BillingPeriodInput;
+  onChange: (next: BillingPeriodInput) => void;
+  disabled?: boolean;
+};
+
+// One location a billing can be created for. siteName is set only when the form lists locations of
+// more than one site, so the label can tell them apart.
+export type BillingLocationChoice = { id: string; name: string; siteName: string | null };
+
+export type BillingFormProps = {
+  locations: BillingLocationChoice[];
+  // Today in the default zone, read on the server so the first render is the same in the browser.
+  today: string;
+};
+
+export type BillingFormErrors = Partial<Record<"locationId" | "period", string>>;

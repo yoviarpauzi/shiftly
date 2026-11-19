@@ -1,6 +1,6 @@
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
 import { isCalendarDate } from "@/validation/calendar-date";
-import type { BillingPeriod, BillingPeriodInput } from "@/types/billings";
+import type { BillingMode, BillingPeriod, BillingPeriodInput } from "@/types/billings";
 
 export const MAX_CUSTOM_DAYS = 366;
 
@@ -43,4 +43,12 @@ export function periodFor(input: BillingPeriodInput): BillingPeriod | null {
   if (inclusiveDays(input.from, input.to) > MAX_CUSTOM_DAYS) return null;
 
   return { from: input.from, to: input.to };
+}
+
+// The period a mode starts with: the month of the day, the week of the day, or that one day.
+export function defaultPeriodInput(mode: BillingMode, today: string): BillingPeriodInput {
+  if (mode === "monthly") return { mode, month: today.slice(0, 7) };
+  if (mode === "weekly") return { mode, date: today };
+
+  return { mode, from: today, to: today };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { inclusiveDays, MAX_CUSTOM_DAYS, periodFor } from "./billing-period";
+import { defaultPeriodInput, inclusiveDays, MAX_CUSTOM_DAYS, periodFor } from "./billing-period";
 
 describe("periodFor monthly", () => {
   it("covers the whole month", () => {
@@ -86,4 +86,26 @@ describe("inclusiveDays", () => {
 
 it("limits a custom period to 366 days", () => {
   expect(MAX_CUSTOM_DAYS).toBe(366);
+});
+
+describe("defaultPeriodInput", () => {
+  it("starts monthly on the month of the given day", () => {
+    expect(defaultPeriodInput("monthly", "2026-11-19")).toEqual({ mode: "monthly", month: "2026-11" });
+  });
+
+  it("starts weekly on the given day", () => {
+    expect(defaultPeriodInput("weekly", "2026-11-19")).toEqual({ mode: "weekly", date: "2026-11-19" });
+  });
+
+  it("starts custom as that one day", () => {
+    expect(defaultPeriodInput("custom", "2026-11-19")).toEqual({
+      mode: "custom",
+      from: "2026-11-19",
+      to: "2026-11-19",
+    });
+  });
+
+  it.each(["monthly", "weekly", "custom"] as const)("gives a valid %s period", (mode) => {
+    expect(periodFor(defaultPeriodInput(mode, "2028-02-29"))).not.toBeNull();
+  });
 });

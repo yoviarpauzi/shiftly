@@ -1,7 +1,9 @@
 import { dateInZone } from "@/lib/indonesia-date";
 import type {
   BillableDay,
+  BillingFormErrors,
   BillingGroups,
+  BillingLocationChoice,
   BillingLineView,
   BillingPoGroup,
 } from "@/types/billings";
@@ -120,4 +122,35 @@ export function isUniqueViolation(error: unknown): boolean {
   const { code, cause } = error as { code?: unknown; cause?: unknown };
 
   return code === UNIQUE_VIOLATION_CODE || isUniqueViolation(cause);
+}
+
+// Keeps the first message for each field, so the form shows one error per field.
+export function billingFormErrors(
+  issues: { path: PropertyKey[]; message: string }[],
+): BillingFormErrors {
+  const errors: BillingFormErrors = {};
+
+  for (const issue of issues) {
+    const field = String(issue.path[0]);
+
+    if (field === "locationId" || field === "period") {
+      errors[field] ??= issue.message;
+    }
+  }
+
+  return errors;
+}
+
+// The locations the form lists. The site name is added only when more than one site is possible.
+export function billingLocationChoices(
+  sites: { id: string; name: string }[],
+  locations: { id: string; name: string; siteId: string }[],
+): BillingLocationChoice[] {
+  const siteNames = new Map(sites.map((row) => [row.id, row.name]));
+
+  return locations.map((row) => ({
+    id: row.id,
+    name: row.name,
+    siteName: sites.length > 1 ? (siteNames.get(row.siteId) ?? null) : null,
+  }));
 }

@@ -63,7 +63,7 @@ export const billing = pgTable(
     check("billing_void_reason_check", sql`char_length(${table.voidReason}) <= 200`),
     check(
       "billing_state_check",
-      sql`(${table.status} = 'draft' and ${table.number} is null and ${table.issuedAt} is null and ${table.voidedAt} is null) or (${table.status} = 'issued' and ${table.number} is not null and ${table.issuedAt} is not null and ${table.voidedAt} is null) or (${table.status} = 'void' and ${table.number} is not null and ${table.issuedAt} is not null and ${table.voidedAt} is not null and ${table.voidReason} is not null)`,
+      sql`(${table.status} = 'draft' and ${table.number} is null and ${table.issuedAt} is null and ${table.issuedBy} is null and ${table.voidedAt} is null and ${table.voidedBy} is null and ${table.voidReason} is null) or (${table.status} = 'issued' and ${table.number} is not null and ${table.issuedAt} is not null and ${table.voidedAt} is null and ${table.voidedBy} is null and ${table.voidReason} is null) or (${table.status} = 'void' and ${table.number} is not null and ${table.issuedAt} is not null and ${table.voidedAt} is not null and ${table.voidReason} is not null)`,
     ),
   ],
 );

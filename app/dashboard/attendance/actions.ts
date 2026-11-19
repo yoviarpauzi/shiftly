@@ -2,8 +2,9 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { attendance } from "@/database/schema/attendance-schema";
+import { billingAttendance } from "@/database/schema/billing-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment } from "@/database/schema/roster-schema";
@@ -12,6 +13,7 @@ import { dateInZone } from "@/lib/indonesia-date";
 import type { AttendanceActionResult } from "@/types/attendance";
 import { locationTimezoneSchema } from "@/validation/location";
 import { saveAttendanceSchema, type SaveAttendanceInput } from "@/validation/attendance";
+import { BILLED_ATTENDANCE_MESSAGE } from "../billings/billing-rules";
 import { INVALID_TIMEZONE_MESSAGE } from "../requests/request-rules";
 import { canAccessAttendanceLocation } from "./attendance-access";
 import { requireAttendanceAccess } from "./attendance-guard";
@@ -114,6 +116,44 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
 
     if (firstError) {
       return { ok: false, formError: firstError, entryErrors };
+    }
+
+    // A day held by an issued billing cannot be marked, changed, or cleared until the billing is
+    // voided. The lock waits for an Issue that is claiming these rows to commit, and takes them in
+    // attendance id order, the same order Issue does, so the two cannot deadlock.
+    const stored = await tx
+      .select({ id: attendance.id, rosterAssignmentId: attendance.rosterAssignmentId })
+      .from(attendance)
+      .where(inArray(attendance.rosterAssignmentId, ids))
+      .orderBy(asc(attendance.id))
+      .for("update");
+
+    if (stored.length > 0) {
+      // A separate statement on purpose: in READ COMMITTED it takes a fresh snapshot, so it sees a
+      // claim committed while the lock above waited. A join in the locking statement could miss it.
+      const claimed = await tx
+        .select({ attendanceId: billingAttendance.attendanceId })
+        .from(billingAttendance)
+        .where(
+          inArray(
+            billingAttendance.attendanceId,
+            stored.map((row) => row.id),
+          ),
+        );
+      const claimedIds = new Set(claimed.map((row) => row.attendanceId));
+      const billedAssignments = new Set(
+        stored.filter((row) => claimedIds.has(row.id)).map((row) => row.rosterAssignmentId),
+      );
+
+      entries.forEach((entry, index) => {
+        if (billedAssignments.has(entry.assignmentId)) {
+          entryErrors[index] = BILLED_ATTENDANCE_MESSAGE;
+        }
+      });
+
+      if (billedAssignments.size > 0) {
+        return { ok: false, formError: BILLED_ATTENDANCE_MESSAGE, entryErrors };
+      }
     }
 
     // In assignment id order, so two saves that overlap lock the same rows in the same order and

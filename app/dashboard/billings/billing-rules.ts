@@ -1,0 +1,110 @@
+import type {
+  BillableDay,
+  BillingGroups,
+  BillingLineView,
+  BillingPoGroup,
+} from "@/types/billings";
+
+export const BILLING_NOT_FOUND_MESSAGE = "Billing not found";
+export const NOT_DRAFT_MESSAGE = "Only a draft billing can be changed";
+export const NOT_ISSUED_MESSAGE = "Only an issued billing can be voided";
+export const STALE_BILLING_MESSAGE = "This billing changed since you opened it. Reload and try again";
+export const NOTHING_TO_BILL_MESSAGE = "Nothing to bill in this period";
+export const CLAIM_COLLISION_MESSAGE =
+  "Some days were billed by another billing. Reload and try again";
+export const BILLED_ATTENDANCE_MESSAGE =
+  "This day is part of an issued billing. Void the billing to change it";
+
+const UNIQUE_VIOLATION_CODE = "23505";
+
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function byText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function byLine(a: BillingLineView, b: BillingLineView): number {
+  return (
+    byText(a.departmentName.toLowerCase(), b.departmentName.toLowerCase()) ||
+    byText(a.subDepartmentName?.toLowerCase() ?? "", b.subDepartmentName?.toLowerCase() ?? "") ||
+    byText(a.positionName.toLowerCase(), b.positionName.toLowerCase())
+  );
+}
+
+// One line per request, department, sub-department and position, with the number of worker-days.
+// Lines are ordered by department, then sub-department (none first), then position, ignoring case.
+export function groupBillableDays(
+  days: Pick<BillableDay, Exclude<keyof BillableDay, "attendanceId">>[],
+): BillingGroups {
+  const lines = new Map<string, BillingLineView>();
+
+  for (const day of days) {
+    const key = [day.requestId, day.departmentId, day.subDepartmentId ?? "", day.positionId].join("|");
+    const line = lines.get(key);
+
+    if (line) {
+      line.days += 1;
+    } else {
+      lines.set(key, { ...day, days: 1 });
+    }
+  }
+
+  const pos = new Map<string, BillingPoGroup>();
+
+  for (const line of [...lines.values()].sort(byLine)) {
+    const group = pos.get(line.requestId);
+
+    if (group) {
+      group.lines.push(line);
+      group.subtotal += line.days;
+    } else {
+      pos.set(line.requestId, {
+        requestId: line.requestId,
+        poNumber: line.poNumber,
+        lines: [line],
+        subtotal: line.days,
+      });
+    }
+  }
+
+  return {
+    pos: [...pos.values()].sort((a, b) => byText(a.poNumber, b.poNumber)),
+    totalDays: days.length,
+  };
+}
+
+function formatDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+
+  return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+// "2026-11-01" and "2026-11-30" as "1 Nov 2026 to 30 Nov 2026". Fixed English names, so the text
+// does not change with the browser's locale.
+export function formatBillingPeriod(from: string, to: string): string {
+  return from === to ? formatDate(from) : `${formatDate(from)} to ${formatDate(to)}`;
+}
+
+// Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`.
+export function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const { code, cause } = error as { code?: unknown; cause?: unknown };
+
+  return code === UNIQUE_VIOLATION_CODE || isUniqueViolation(cause);
+}

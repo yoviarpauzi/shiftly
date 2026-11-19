@@ -34,6 +34,7 @@ const joined = (overrides: Record<string, unknown> = {}) => ({
   endTime: "15:00:00",
   status: null,
   reason: null,
+  billed: false,
   ...overrides,
 });
 

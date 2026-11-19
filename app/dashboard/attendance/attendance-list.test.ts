@@ -129,4 +129,34 @@ describe("listAttendance", () => {
     expect(chosen.today).toBe("2026-11-10");
     expect(all.today).toBe("2026-11-09");
   });
+
+  it("passes billed through from the joined rows, true or false", async () => {
+    const joinedRow = (assignmentId: string, billed: boolean) => ({
+      assignmentId,
+      employeeId: assignmentId,
+      workerName: assignmentId,
+      departmentId: "d1",
+      departmentName: "Produksi",
+      positionName: "Operator",
+      locationName: "A",
+      siteName: "S",
+      shiftId: "s1",
+      shiftOrder: 1,
+      shiftName: "Pagi",
+      startTime: "07:00:00",
+      endTime: "15:00:00",
+      status: billed ? "present" : null,
+      reason: null,
+      billed,
+    });
+
+    fake.rows = [joinedRow("a-billed", true), joinedRow("b-open", false)];
+
+    const result = await listAttendance(HO, filters, choicesFor([jakarta(LOCATION_A, SITE_1)]));
+
+    expect(result.rows.map((row) => [row.assignmentId, row.billed])).toEqual([
+      ["a-billed", true],
+      ["b-open", false],
+    ]);
+  });
 });

@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { toHourMinute } from "@/app/dashboard/shifts/shift-rules";
 import { attendance } from "@/database/schema/attendance-schema";
+import { billingAttendance } from "@/database/schema/billing-schema";
 import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
@@ -199,6 +200,7 @@ export async function listAttendance(
       endTime: shift.endTime,
       status: attendance.status,
       reason: attendance.reason,
+      billed: sql<boolean>`${billingAttendance.attendanceId} is not null`,
     })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
@@ -211,6 +213,7 @@ export async function listAttendance(
     .innerJoin(position, eq(position.id, rosterRequestLine.positionId))
     .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
     .leftJoin(attendance, eq(attendance.rosterAssignmentId, rosterAssignment.id))
+    .leftJoin(billingAttendance, eq(billingAttendance.attendanceId, attendance.id))
     .where(
       and(
         eq(rosterAssignment.workDate, filters.date),

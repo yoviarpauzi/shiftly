@@ -64,6 +64,8 @@ export type AttendanceRow = {
   endTime: string;
   status: AttendanceStatus | null;
   reason: string | null;
+  // True when an issued billing holds the day. The row is read-only until that billing is voided.
+  billed: boolean;
 };
 
 // A row as the query returns it: the times are still HH:mm:ss, and the ids the filters need are

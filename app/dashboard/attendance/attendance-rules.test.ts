@@ -35,6 +35,7 @@ const formRow = (overrides: Partial<AttendanceFormRow> = {}): AttendanceFormRow 
   endTime: "15:00",
   status: null,
   reason: null,
+  billed: false,
   draftStatus: null,
   draftReason: "",
   ...overrides,

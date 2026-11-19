@@ -61,13 +61,16 @@ export function createAttendanceColumns({
       id: "status",
       header: () => <span>Status</span>,
       cell: ({ row }) => (
-        <StatusSelect
-          value={row.original.draftStatus}
-          onChange={(status) => onStatusChange(row.original.assignmentId, status)}
-          label={`Status of ${row.original.workerName}`}
-          disabled={disabled}
-          invalid={errorIds.has(row.original.assignmentId)}
-        />
+        <span className="flex items-center gap-2">
+          <StatusSelect
+            value={row.original.draftStatus}
+            onChange={(status) => onStatusChange(row.original.assignmentId, status)}
+            label={`Status of ${row.original.workerName}`}
+            disabled={disabled || row.original.billed}
+            invalid={errorIds.has(row.original.assignmentId)}
+          />
+          {row.original.billed && <span className="text-sm text-muted-foreground">Billed</span>}
+        </span>
       ),
       enableHiding: false,
     }),
@@ -82,7 +85,7 @@ export function createAttendanceColumns({
             row.original.draftStatus === null ? "Mark a status first" : "Add a reason (optional)"
           }
           maxLength={REASON_MAX_LENGTH}
-          disabled={disabled || row.original.draftStatus === null}
+          disabled={disabled || row.original.billed || row.original.draftStatus === null}
           aria-label={`Reason for ${row.original.workerName}`}
           className="h-9 min-w-56 disabled:bg-transparent"
         />

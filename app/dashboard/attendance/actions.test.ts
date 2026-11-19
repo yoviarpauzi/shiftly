@@ -19,7 +19,9 @@ import {
 // save asked for, already joined to their roster, request, and location. The recorder cannot run a
 // WHERE clause, so scope is simulated by which rows the test seeds. A select from `attendance`
 // returns `fake.rows.attendance`, the stored rows of those assignments, and a select from
-// `billingAttendance` returns `fake.rows.billed`, the claims an issued billing holds on them.
+// `billingAttendance` returns `fake.rows.billed`, the claims an issued billing holds on them. The
+// upsert's returning resolves to `fake.rows.upserted` (by default one row per marked entry), and a
+// claim select after it returns `fake.rows.billedAfter`, a claim committed while the save ran.
 type Call = {
   op: "select" | "insert" | "delete";
   table?: unknown;
@@ -27,6 +29,7 @@ type Call = {
   conflict?: { target: unknown; set: Record<string, unknown> };
   lock?: { strength: string; of?: unknown };
   orderBy?: unknown[];
+  returning?: unknown;
   where?: SQL;
   inTransaction: boolean;
 };
@@ -37,7 +40,10 @@ const fake = vi.hoisted(() => ({
     assignments: Record<string, unknown>[];
     attendance?: Record<string, unknown>[];
     billed?: Record<string, unknown>[];
+    upserted?: Record<string, unknown>[];
+    billedAfter?: Record<string, unknown>[];
   },
+  rolledBack: false,
   access: null as unknown,
 }));
 
@@ -77,17 +83,32 @@ function builder(call: Call) {
       call.conflict = config;
       return chain;
     },
+    returning(fields: unknown) {
+      call.returning = fields;
+      return chain;
+    },
     then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
       // The assignment select asks by id, so only those come back, as the database would.
       const asked = whereParams(call.where);
+      const afterWrite = fake.calls.some((other) => other.op === "insert");
       const rows =
-        call.op !== "select"
-          ? []
-          : call.table === attendance
-            ? (fake.rows.attendance ?? [])
-            : call.table === billingAttendance
-              ? (fake.rows.billed ?? [])
-              : fake.rows.assignments.filter((row) => asked.includes(row.id));
+        call.op === "insert"
+          ? call.returning
+            ? (fake.rows.upserted ??
+              (call.values as { rosterAssignmentId: string }[]).map((row) => ({
+                id: `att-${row.rosterAssignmentId}`,
+                rosterAssignmentId: row.rosterAssignmentId,
+              })))
+            : []
+          : call.op !== "select"
+            ? []
+            : call.table === attendance
+              ? (fake.rows.attendance ?? [])
+              : call.table === billingAttendance
+                ? afterWrite
+                  ? (fake.rows.billedAfter ?? [])
+                  : (fake.rows.billed ?? [])
+                : fake.rows.assignments.filter((row) => asked.includes(row.id));
 
       return new Promise((done) => done(rows)).then(resolve, reject);
     },
@@ -112,7 +133,15 @@ vi.mock("./attendance-guard", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     ...queries(false),
-    transaction: async (run: (tx: unknown) => unknown) => run(queries(true)),
+    // A rejection from the callback is what rolls a real transaction back, so it is recorded here.
+    transaction: async (run: (tx: unknown) => unknown) => {
+      try {
+        return await run(queries(true));
+      } catch (error) {
+        fake.rolledBack = true;
+        throw error;
+      }
+    },
   },
 }));
 
@@ -178,6 +207,7 @@ beforeEach(() => {
   fake.calls = [];
   fake.rows = { assignments: [stored(ASSIGNMENT_1), stored(ASSIGNMENT_2)] };
   fake.access = superadmin;
+  fake.rolledBack = false;
   vi.mocked(revalidatePath).mockClear();
   // Noon in Jakarta on the saved date, so the date is today and never in the future.
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -484,6 +514,56 @@ describe("saveAttendance", () => {
     });
   });
 
+  describe("a claim committed after the pre-write check", () => {
+    const claimSelects = () =>
+      fake.calls.filter((call) => call.op === "select" && call.table === billingAttendance);
+
+    it("rolls the save back and names the claimed entry when the upserted row is billed", async () => {
+      fake.rows.billedAfter = [{ attendanceId: `att-${ASSIGNMENT_2}` }];
+
+      const res = await saveAttendance(
+        input([entry(ASSIGNMENT_1, "present"), entry(ASSIGNMENT_2, "absent")]),
+      );
+
+      expect(res).toEqual({
+        ok: false,
+        formError: BILLED_ATTENDANCE_MESSAGE,
+        entryErrors: { 1: BILLED_ATTENDANCE_MESSAGE },
+      });
+      expect(fake.rolledBack).toBe(true);
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("rechecks the upserted ids once, after the upsert, and saves as before when none is claimed", async () => {
+      const res = await saveAttendance(
+        input([entry(ASSIGNMENT_1, "present"), entry(ASSIGNMENT_2, null)]),
+      );
+
+      expect(res).toEqual({ ok: true, saved: 1, cleared: 1 });
+      expect(fake.rolledBack).toBe(false);
+
+      const insertIndex = fake.calls.findIndex((call) => call.op === "insert");
+      const recheck = claimSelects();
+
+      expect(fake.calls[insertIndex].returning).toEqual({
+        id: attendance.id,
+        rosterAssignmentId: attendance.rosterAssignmentId,
+      });
+      expect(recheck).toHaveLength(1);
+      expect(fake.calls.indexOf(recheck[0])).toBeGreaterThan(insertIndex);
+      expect(recheck[0].inTransaction).toBe(true);
+      expect(whereParams(recheck[0].where)).toEqual([`att-${ASSIGNMENT_1}`]);
+      expect(revalidatePath).toHaveBeenCalledWith("/dashboard/attendance");
+    });
+
+    it("runs no recheck for a save that only clears", async () => {
+      const res = await saveAttendance(input([entry(ASSIGNMENT_1, null)]));
+
+      expect(res).toEqual({ ok: true, saved: 0, cleared: 1 });
+      expect(claimSelects()).toEqual([]);
+    });
+  });
+
   it("locks the attendance rows for update and skips the claim read when none exist", async () => {
     const res = await saveAttendance(input([entry(ASSIGNMENT_1, "present")]));
 
@@ -493,7 +573,11 @@ describe("saveAttendance", () => {
 
     expect(lock?.lock?.strength).toBe("update");
     expect(lock?.inTransaction).toBe(true);
-    expect(fake.calls.some((call) => call.table === billingAttendance)).toBe(false);
+    const insertIndex = fake.calls.findIndex((call) => call.op === "insert");
+
+    expect(
+      fake.calls.slice(0, insertIndex).some((call) => call.table === billingAttendance),
+    ).toBe(false);
   });
 
   describe("access", () => {

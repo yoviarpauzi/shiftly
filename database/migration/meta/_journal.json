@@ -169,6 +169,13 @@
       "when": 1794452789962,
       "tag": "0023_purple_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795052590334,
+      "tag": "0024_handy_stryfe",
+      "breakpoints": true
     }
   ]
 }

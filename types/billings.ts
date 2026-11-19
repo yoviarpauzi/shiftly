@@ -1,5 +1,6 @@
 import type { PageParams } from "@/types/pagination";
-import type { RequestAccess } from "@/types/requests";
+import type { SiteOption } from "@/types/locations";
+import type { RequestAccess, RequestLocationOption } from "@/types/requests";
 
 export type BillingMode = "monthly" | "weekly" | "custom";
 export type BillingStatus = "draft" | "issued" | "void";
@@ -51,4 +52,20 @@ export type BillingDetail = {
 export type BillingActionResult = { ok: true; id: string } | { ok: false; formError: string };
 export type BillingExportModel = {
   number: string; locationName: string; siteName: string; periodLabel: string; groups: BillingGroups;
+};
+
+export type BillingStatusBadgeProps = { status: BillingStatus };
+
+export type BillingsDataTableProps = {
+  data: BillingPage;
+  status: BillingStatusFilter;
+  // True for a superadmin with more than one site. HO and admin site get no site filter.
+  pickSite: boolean;
+  siteId: string | null;
+  sites: SiteOption[];
+  // False for admin site, which has one location and so nothing to filter by.
+  pickLocation: boolean;
+  locationId: string | null;
+  // The locations the location filter offers, already narrowed to the chosen site.
+  locations: RequestLocationOption[];
 };

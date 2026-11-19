@@ -1,3 +1,4 @@
+import { dateInZone } from "@/lib/indonesia-date";
 import type {
   BillableDay,
   BillingGroups,
@@ -96,6 +97,18 @@ function formatDate(date: string): string {
 // does not change with the browser's locale.
 export function formatBillingPeriod(from: string, to: string): string {
   return from === to ? formatDate(from) : `${formatDate(from)} to ${formatDate(to)}`;
+}
+
+// The day a billing was issued, as "19 Nov 2026" in Jakarta time. The zone is fixed, so the server
+// and the browser print the same text. A billing that was never issued shows a dash.
+export function formatBillingIssuedAt(iso: string | null): string {
+  if (iso === null) {
+    return "-";
+  }
+
+  const date = dateInZone("Asia/Jakarta", new Date(iso));
+
+  return formatDate(date);
 }
 
 // Drizzle wraps driver errors, so the PostgreSQL error can sit on `cause`.

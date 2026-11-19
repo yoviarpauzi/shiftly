@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { BillableDay } from "@/types/billings";
-import { formatBillingPeriod, groupBillableDays, isUniqueViolation } from "./billing-rules";
+import {
+  formatBillingIssuedAt,
+  formatBillingPeriod,
+  groupBillableDays,
+  isUniqueViolation,
+} from "./billing-rules";
 
 type Day = Omit<BillableDay, "attendanceId">;
 
@@ -97,6 +102,16 @@ describe("formatBillingPeriod", () => {
 
   it("writes one date when the period is a single day", () => {
     expect(formatBillingPeriod("2026-11-09", "2026-11-09")).toBe("9 Nov 2026");
+  });
+});
+
+describe("formatBillingIssuedAt", () => {
+  it("writes the date in Jakarta time, not UTC", () => {
+    expect(formatBillingIssuedAt("2026-11-18T18:30:00.000Z")).toBe("19 Nov 2026");
+  });
+
+  it("writes a dash when the billing was never issued", () => {
+    expect(formatBillingIssuedAt(null)).toBe("-");
   });
 });
 

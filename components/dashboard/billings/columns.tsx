@@ -5,10 +5,11 @@ import {
 } from "@tanstack/react-table";
 import Link from "next/link";
 import {
+  BILLING_MODE_LABELS,
   formatBillingIssuedAt,
   formatBillingPeriod,
 } from "@/app/dashboard/billings/billing-rules";
-import type { BillingMode, BillingRow } from "@/types/billings";
+import type { BillingRow } from "@/types/billings";
 import { BillingStatusBadge } from "@/components/dashboard/billings/billing-status-badge";
 
 export const features = tableFeatures({
@@ -16,12 +17,6 @@ export const features = tableFeatures({
 });
 
 const columnHelper = createColumnHelper<typeof features, BillingRow>();
-
-const MODE_LABELS: Record<BillingMode, string> = {
-  monthly: "Monthly",
-  weekly: "Weekly",
-  custom: "Custom",
-};
 
 export function createBillingColumns() {
   return columnHelper.columns([
@@ -55,7 +50,7 @@ export function createBillingColumns() {
     }),
     columnHelper.accessor("mode", {
       header: () => <span>Mode</span>,
-      cell: ({ row }) => MODE_LABELS[row.original.mode],
+      cell: ({ row }) => BILLING_MODE_LABELS[row.original.mode],
     }),
     columnHelper.accessor("status", {
       header: () => <span>Status</span>,

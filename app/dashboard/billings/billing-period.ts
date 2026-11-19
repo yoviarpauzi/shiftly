@@ -52,3 +52,11 @@ export function defaultPeriodInput(mode: BillingMode, today: string): BillingPer
 
   return { mode, from: today, to: today };
 }
+
+// The form value that shows a stored billing period again, for the Edit period dialog.
+export function periodInputFor(mode: BillingMode, period: BillingPeriod): BillingPeriodInput {
+  if (mode === "monthly") return { mode, month: period.from.slice(0, 7) };
+  if (mode === "weekly") return { mode, date: period.from };
+
+  return { mode, from: period.from, to: period.to };
+}

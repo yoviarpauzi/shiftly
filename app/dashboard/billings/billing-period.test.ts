@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultPeriodInput, inclusiveDays, MAX_CUSTOM_DAYS, periodFor } from "./billing-period";
+import {
+  defaultPeriodInput,
+  inclusiveDays,
+  MAX_CUSTOM_DAYS,
+  periodFor,
+  periodInputFor,
+} from "./billing-period";
 
 describe("periodFor monthly", () => {
   it("covers the whole month", () => {
@@ -107,5 +113,37 @@ describe("defaultPeriodInput", () => {
 
   it.each(["monthly", "weekly", "custom"] as const)("gives a valid %s period", (mode) => {
     expect(periodFor(defaultPeriodInput(mode, "2028-02-29"))).not.toBeNull();
+  });
+});
+
+describe("periodInputFor", () => {
+  it("reads a monthly billing as its month", () => {
+    expect(periodInputFor("monthly", { from: "2026-11-01", to: "2026-11-30" })).toEqual({
+      mode: "monthly",
+      month: "2026-11",
+    });
+  });
+
+  it("reads a weekly billing as its Monday", () => {
+    expect(periodInputFor("weekly", { from: "2026-11-16", to: "2026-11-22" })).toEqual({
+      mode: "weekly",
+      date: "2026-11-16",
+    });
+  });
+
+  it("reads a custom billing as its two ends", () => {
+    expect(periodInputFor("custom", { from: "2026-11-03", to: "2026-12-10" })).toEqual({
+      mode: "custom",
+      from: "2026-11-03",
+      to: "2026-12-10",
+    });
+  });
+
+  it.each([
+    ["monthly", { from: "2028-02-01", to: "2028-02-29" }],
+    ["weekly", { from: "2026-12-28", to: "2027-01-03" }],
+    ["custom", { from: "2026-11-03", to: "2026-11-03" }],
+  ] as const)("gives back the stored period for %s", (mode, period) => {
+    expect(periodFor(periodInputFor(mode, period))).toEqual(period);
   });
 });

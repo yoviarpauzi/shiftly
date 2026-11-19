@@ -87,3 +87,35 @@ export type BillingFormProps = {
 };
 
 export type BillingFormErrors = Partial<Record<"locationId" | "period", string>>;
+
+export type BillingSummaryProps = {
+  totalDays: number;
+  poCount: number;
+  // Draft only: present days held by another billing. Null hides the card.
+  excludedDays: number | null;
+};
+
+export type BillingPoTableProps = { group: BillingPoGroup };
+
+export type BillingActionsProps = { billing: BillingDetail };
+
+// Shared by the four action dialogs. They are controlled by BillingActions.
+export type BillingDialogProps = {
+  billingId: string;
+  // The version of the loaded billing, passed back unchanged so a stale page is refused.
+  version: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export type IssueBillingDialogProps = BillingDialogProps & {
+  locationName: string;
+  periodLabel: string;
+  groups: BillingGroups;
+};
+
+export type VoidBillingDialogProps = BillingDialogProps & { number: string | null };
+
+export type DeleteBillingDialogProps = Omit<BillingDialogProps, "version">;
+
+export type EditPeriodDialogProps = BillingDialogProps & { initialPeriod: BillingPeriodInput };

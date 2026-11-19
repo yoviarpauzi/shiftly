@@ -5,6 +5,7 @@ import type {
   BillingGroups,
   BillingLocationChoice,
   BillingLineView,
+  BillingMode,
   BillingPoGroup,
 } from "@/types/billings";
 
@@ -17,6 +18,12 @@ export const CLAIM_COLLISION_MESSAGE =
   "Some days were billed by another billing. Reload and try again";
 export const BILLED_ATTENDANCE_MESSAGE =
   "This day is part of an issued billing. Void the billing to change it";
+
+export const BILLING_MODE_LABELS: Record<BillingMode, string> = {
+  monthly: "Monthly",
+  weekly: "Weekly",
+  custom: "Custom",
+};
 
 const UNIQUE_VIOLATION_CODE = "23505";
 

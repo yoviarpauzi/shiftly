@@ -48,6 +48,9 @@ import { billingScopeFilter, loadBillableDays } from "./billings";
 const BILLINGS_PATH = "/dashboard/billings";
 const ATTENDANCE_PATH = "/dashboard/attendance";
 
+// Each billed-day row takes 2 parameters, and Postgres allows 65,535 per statement.
+const CLAIM_CHUNK_SIZE = 5000;
+
 function invalid(issues: { message: string }[]): BillingActionResult {
   return { ok: false, formError: issues[0].message };
 }
@@ -293,10 +296,16 @@ export async function issueBilling(input: IssueBillingInput): Promise<BillingAct
 
       await tx.insert(billingLine).values(lines);
 
-      // The primary key on attendance_id is the last guard against billing a day twice.
-      await tx
-        .insert(billingAttendance)
-        .values(days.map((day) => ({ billingId: current.id, attendanceId: day.attendanceId })));
+      // The primary key on attendance_id is the last guard against billing a day twice. Chunked,
+      // so a long period stays under the Postgres limit on parameters per statement.
+      for (let start = 0; start < days.length; start += CLAIM_CHUNK_SIZE) {
+        await tx.insert(billingAttendance).values(
+          days.slice(start, start + CLAIM_CHUNK_SIZE).map((day) => ({
+            billingId: current.id,
+            attendanceId: day.attendanceId,
+          })),
+        );
+      }
 
       await tx
         .update(billing)

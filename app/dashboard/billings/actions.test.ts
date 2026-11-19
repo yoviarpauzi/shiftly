@@ -45,7 +45,8 @@ const fake = vi.hoisted(() => ({
   },
   session: null as unknown,
   // An insert into this table rejects with this error, as a unique violation would.
-  failInsert: null as { table: unknown; error: unknown } | null,
+  // With `nth`, only that insert into the table rejects (1 is the first).
+  failInsert: null as { table: unknown; error: unknown; nth?: number } | null,
   rolledBack: false,
 }));
 
@@ -93,7 +94,13 @@ function builder(call: Call) {
     returning: () => chain,
     then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
       if (call.op === "insert" && fake.failInsert && fake.failInsert.table === call.table) {
-        return Promise.reject(fake.failInsert.error).then(resolve, reject);
+        const nth = fake.calls.filter(
+          (other) => other.op === "insert" && other.table === call.table,
+        ).length;
+
+        if (fake.failInsert.nth === undefined || fake.failInsert.nth === nth) {
+          return Promise.reject(fake.failInsert.error).then(resolve, reject);
+        }
       }
 
       const rows =
@@ -503,6 +510,57 @@ describe("issueBilling", () => {
     expect(fake.rolledBack).toBe(true);
     expect(fake.calls.some((call) => call.op === "update")).toBe(false);
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  describe("billed days in chunks", () => {
+    // Postgres takes at most 65,535 parameters, so the claims go in chunks of 5,000 rows.
+    const manyDays = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        day(`f0000000-0000-4000-8000-${String(index).padStart(12, "0")}`, POSITION_1, "Picker"),
+      );
+
+    it("inserts 12,001 days as 5,000, 5,000 and 2,001 rows, in order, in the transaction", async () => {
+      fake.rows.attendance = manyDays(12_001);
+
+      const res = await issueBilling(input());
+
+      expect(res).toEqual({ ok: true, id: BILLING_1 });
+
+      const claims = inserts(billingAttendance);
+
+      expect(claims.map((call) => (call.values as unknown[]).length)).toEqual([5000, 5000, 2001]);
+      expect(claims.every((call) => call.inTransaction)).toBe(true);
+
+      const ids = claims.flatMap((call) =>
+        (call.values as { attendanceId: string }[]).map((row) => row.attendanceId),
+      );
+
+      expect(ids).toEqual(fake.rows.attendance.map((row) => row.attendanceId));
+      expect(new Set(ids).size).toBe(12_001);
+    });
+
+    it("maps a collision on the second chunk to its message and does not set the billing issued", async () => {
+      fake.rows.attendance = manyDays(12_001);
+      fake.failInsert = { table: billingAttendance, error: { code: "23505" }, nth: 2 };
+
+      const res = await issueBilling(input());
+
+      expect(res).toEqual({ ok: false, formError: CLAIM_COLLISION_MESSAGE });
+      expect(inserts(billingAttendance)).toHaveLength(2);
+      expect(fake.rolledBack).toBe(true);
+      expect(fake.calls.some((call) => call.op === "update")).toBe(false);
+    });
+
+    it("inserts exactly 5,000 days in one call", async () => {
+      fake.rows.attendance = manyDays(5000);
+
+      await issueBilling(input());
+
+      const claims = inserts(billingAttendance);
+
+      expect(claims).toHaveLength(1);
+      expect((claims[0].values as unknown[]).length).toBe(5000);
+    });
   });
 
   it("rethrows an error that is not a claim collision", async () => {

@@ -1,1 +1,0 @@
-CREATE INDEX "roster_assignment_workerId_workDate_idx" ON "roster_assignment" USING btree ("worker_id","work_date");

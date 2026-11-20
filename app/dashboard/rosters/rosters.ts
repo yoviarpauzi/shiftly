@@ -15,6 +15,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { coverRowsQuery } from "@/app/dashboard/attendance/attendance-cover";
 import { toHourMinute } from "@/app/dashboard/shifts/shift-rules";
 import { user } from "@/database/schema/auth-schema";
 import { department, subDepartment } from "@/database/schema/department-schema";
@@ -922,8 +923,10 @@ export function confirmedWorkQuery(
     );
 }
 
-// The confirmed work rows of the workers in the window around a roster, grouped into histories.
-// A caller reading an existing roster passes its id so the roster is not part of its own history.
+// The confirmed work rows of the workers in the window around a roster, plus the days they covered
+// for an absent worker, grouped into histories. A caller reading an existing roster passes its id
+// so the roster is not part of its own history. A cover is not a cell of any roster, so that id
+// never leaves one out.
 export async function loadHistories(
   reader: Reader,
   workerIds: string[],
@@ -937,13 +940,24 @@ export async function loadHistories(
   const firstDay = days[0];
   const months = [...new Set(days.map(monthKey))];
 
-  const rows = await confirmedWorkQuery(
-    reader,
-    workerIds,
-    addDays(firstDay, -HISTORY_LOOKBACK_DAYS),
-    addDays(days[days.length - 1], 31),
-    excludeRosterId,
-  );
+  const from = addDays(firstDay, -HISTORY_LOOKBACK_DAYS);
+  const to = addDays(days[days.length - 1], 31);
+
+  const [work, covers] = await Promise.all([
+    confirmedWorkQuery(reader, workerIds, from, to, excludeRosterId),
+    coverRowsQuery(reader, workerIds, from, to),
+  ]);
+
+  const rows = [
+    ...work,
+    ...covers.map((cover) => ({
+      workerId: cover.workerId,
+      date: cover.date,
+      shiftOrder: cover.shiftOrder,
+      departmentId: cover.departmentId,
+      subDepartmentId: cover.subDepartmentId,
+    })),
+  ];
 
   return workerIds.map((workerId) =>
     workerHistory(

@@ -1,6 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { roster, rosterAssignment } from "@/database/schema/roster-schema";
 import { rosterRequest, rosterRequestLine, rosterRequestLineDay } from "@/database/schema/request-schema";
 import { shift } from "@/database/schema/shift-schema";
@@ -21,9 +22,8 @@ vi.mock("./roster-work-rules", () => ({
   },
 }));
 
-const { getRoster, loadCellContext, loadEngineInput, loadReplacementContext } = await import(
-  "./rosters"
-);
+const { getRoster, loadCellContext, loadEngineInput, loadHistories, loadReplacementContext } =
+  await import("./rosters");
 
 const LOCATION_ID = "33333333-3333-4333-8333-333333333333";
 const REQUEST_ID = "44444444-4444-4444-8444-444444444444";
@@ -315,6 +315,108 @@ describe("getRoster scope", () => {
   it("reads nothing for an id that is not a uuid", async () => {
     expect(await getRoster({ locationId: null }, "nope")).toBeNull();
 
+    expect(fake.calls).toEqual([]);
+  });
+});
+
+// A replacement's covered day is work the worker did, so the rules read it like a work row. It is
+// not a cell of any roster, so the roster being read never leaves it out.
+describe("loadHistories covers", () => {
+  const DAYS = ["2026-11-09", "2026-11-10", "2026-11-11"];
+  const OTHER_DEPARTMENT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  // The first read of rosterAssignment answers with the seeded rows (see answer above), which is
+  // the confirmed work query here.
+  function work(date: string, shiftOrder = 1) {
+    return {
+      workerId: W1,
+      date,
+      shiftOrder,
+      departmentId: DEPARTMENT_ID,
+      subDepartmentId: SUB_DEPARTMENT_ID,
+    };
+  }
+
+  function cover(date: string, shiftOrder = 2) {
+    return {
+      id: "cover-1",
+      workerId: W1,
+      date,
+      shiftOrder,
+      departmentId: OTHER_DEPARTMENT_ID,
+      subDepartmentId: null,
+    };
+  }
+
+  it("adds a covered day to the month count of the worker's own work days", async () => {
+    fake.rows.set(rosterAssignment, [work("2026-11-02"), work("2026-11-03")]);
+    fake.rows.set(attendanceSubstitute, [cover("2026-11-04")]);
+
+    const [history] = await loadHistories(reader, [W1], DAYS);
+
+    expect(history.monthWorkDays).toEqual({ "2026-11": 3 });
+  });
+
+  it("continues the run and the last shift from a cover the day before the first day", async () => {
+    fake.rows.set(rosterAssignment, [work("2026-11-07", 1)]);
+    fake.rows.set(attendanceSubstitute, [cover("2026-11-08", 2)]);
+
+    const [history] = await loadHistories(reader, [W1], DAYS);
+
+    expect(history).toMatchObject({
+      workerId: W1,
+      lastWorkDate: "2026-11-08",
+      lastShiftOrder: 2,
+      consecutiveWorkDays: 2,
+      lastPlacement: { departmentId: OTHER_DEPARTMENT_ID, subDepartmentId: null },
+    });
+  });
+
+  it("starts the history of a worker who only covered", async () => {
+    fake.rows.set(attendanceSubstitute, [cover("2026-11-08", 3)]);
+
+    const [history] = await loadHistories(reader, [W1], DAYS);
+
+    expect(history).toMatchObject({
+      lastWorkDate: "2026-11-08",
+      lastShiftOrder: 3,
+      consecutiveWorkDays: 1,
+      monthWorkDays: { "2026-11": 1 },
+    });
+  });
+
+  it("still counts a cover when a roster is left out of its own history", async () => {
+    fake.rows.set(rosterAssignment, [work("2026-11-07")]);
+    fake.rows.set(attendanceSubstitute, [cover("2026-11-08")]);
+
+    const [history] = await loadHistories(reader, [W1], DAYS, ROSTER_ID);
+
+    expect(history.consecutiveWorkDays).toBe(2);
+    expect(history.monthWorkDays).toEqual({ "2026-11": 2 });
+
+    const workRead = fake.calls.find((call) => call.table === rosterAssignment);
+    const coverRead = fake.calls.find((call) => call.table === attendanceSubstitute);
+
+    expect(dialect.sqlToQuery(workRead?.where as SQL).params).toContain(ROSTER_ID);
+    expect(dialect.sqlToQuery(coverRead?.where as SQL).params).not.toContain(ROSTER_ID);
+  });
+
+  it("reads covers over the same window and workers as the confirmed work", async () => {
+    await loadHistories(reader, [W1, W2], DAYS);
+
+    const workRead = fake.calls.find((call) => call.table === rosterAssignment);
+    const coverRead = fake.calls.find((call) => call.table === attendanceSubstitute);
+    const workParams = dialect.sqlToQuery(workRead?.where as SQL).params;
+    const coverParams = dialect.sqlToQuery(coverRead?.where as SQL).params;
+
+    // 60 days before 2026-11-09 and 31 days after 2026-11-11.
+    expect(coverParams).toEqual(expect.arrayContaining([W1, W2, "2026-09-10", "2026-12-12"]));
+    expect(workParams).toEqual(expect.arrayContaining([W1, W2, "2026-09-10", "2026-12-12"]));
+  });
+
+  it("queries nothing without workers or without days", async () => {
+    expect(await loadHistories(reader, [], DAYS)).toEqual([]);
+    expect(await loadHistories(reader, [W1], [])).toEqual([]);
     expect(fake.calls).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Scope } from "@/types/users";
 
-const roleSchema = z.enum(["superadmin", "ho", "admin_site"], { error: "Choose a role" });
+const roleSchema = z.enum(["ho", "admin_site"], { error: "Choose a role" });
 
 const passwordSchema = z
   .string({ error: "Password must be at least 8 characters" })
@@ -20,21 +20,13 @@ const baseFields = z.object({
     .toLowerCase()
     .pipe(z.email("Enter a valid email address")),
   role: roleSchema,
-  siteId: z.string({ error: "Choose a site" }).uuid("Choose a site").nullable(),
   locationId: z.string({ error: "Choose a location" }).uuid("Choose a location").nullable(),
 });
 
-// ho needs a site and no location, admin_site the reverse, superadmin neither.
-const checkScope = ({ role, siteId, locationId }: Scope, ctx: z.RefinementCtx) => {
-  const needsSite = role === "ho";
+// admin_site needs a location, ho has none.
+const checkScope = ({ role, locationId }: Scope, ctx: z.RefinementCtx) => {
   const needsLocation = role === "admin_site";
 
-  if (needsSite && !siteId) {
-    ctx.addIssue({ code: "custom", path: ["siteId"], message: "Choose a site" });
-  }
-  if (!needsSite && siteId) {
-    ctx.addIssue({ code: "custom", path: ["siteId"], message: "This role has no site" });
-  }
   if (needsLocation && !locationId) {
     ctx.addIssue({ code: "custom", path: ["locationId"], message: "Choose a location" });
   }

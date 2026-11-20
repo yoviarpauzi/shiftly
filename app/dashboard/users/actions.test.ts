@@ -3,10 +3,8 @@ import { verifyPassword } from "better-auth/crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { account, session, user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
-import { site } from "@/database/schema/site-schema";
 import {
-  LAST_SUPERADMIN_MESSAGE,
-  LOCATION_OUT_OF_SCOPE_MESSAGE,
+  LAST_HO_MESSAGE,
   SELF_DEACTIVATE_MESSAGE,
   USER_NOT_FOUND_MESSAGE,
 } from "./user-rules";
@@ -27,9 +25,8 @@ const fake = vi.hoisted(() => ({
   calls: [] as Call[],
   rows: {
     target: [] as unknown[],
-    superadmins: [] as unknown[],
+    hos: [] as unknown[],
     location: [] as unknown[],
-    site: [] as unknown[],
   },
   insertError: null as unknown,
   access: null as unknown,
@@ -37,12 +34,11 @@ const fake = vi.hoisted(() => ({
 
 function result(call: Call): unknown {
   if (call.op === "select") {
-    if (call.table === user && call.fields && "locationSiteId" in call.fields) {
+    if (call.table === user && call.fields && "banned" in call.fields) {
       return fake.rows.target;
     }
-    if (call.table === user) return fake.rows.superadmins;
+    if (call.table === user) return fake.rows.hos;
     if (call.table === location) return fake.rows.location;
-    if (call.table === site) return fake.rows.site;
     return [];
   }
 
@@ -112,30 +108,40 @@ vi.mock("@/lib/db", () => ({
 
 const { createUser, updateUser, deactivateUser, reactivateUser } = await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
-const LOCATION_B = "44444444-4444-4444-8444-444444444444";
 
-const superadmin: UserAccess = { id: "super-1", role: "superadmin", siteId: null };
-const ho: UserAccess = { id: "ho-1", role: "ho", siteId: SITE_A };
+const ho: UserAccess = { id: "ho-1", role: "ho" };
 
 const adminSiteInput = {
   name: "Ana",
   email: "ana@example.com",
   password: "secret-pass",
   role: "admin_site" as const,
-  siteId: null,
   locationId: LOCATION_A,
 };
+
+const hoInput = {
+  name: "Hana",
+  email: "hana@example.com",
+  password: "secret-pass",
+  role: "ho" as const,
+  locationId: null,
+};
+
+const targetRow = (fields: Record<string, unknown>) => ({
+  id: "user-7",
+  role: "admin_site",
+  banned: false,
+  ...fields,
+});
 
 const writes = () => fake.calls.filter((call) => call.op !== "select");
 
 beforeEach(() => {
   fake.calls = [];
-  fake.rows = { target: [], superadmins: [], location: [], site: [] };
+  fake.rows = { target: [], hos: [], location: [] };
   fake.insertError = null;
-  fake.access = superadmin;
+  fake.access = ho;
 });
 
 describe("user actions module", () => {
@@ -147,32 +153,40 @@ describe("user actions module", () => {
 });
 
 describe("createUser", () => {
-  it("refuses an HO location outside HO's site and writes nothing", async () => {
-    fake.access = ho;
-    fake.rows.location = [{ siteId: SITE_B }];
+  it("refuses an admin site whose location is missing or deleted and writes nothing", async () => {
+    fake.rows.location = [];
 
-    const res = await createUser({ ...adminSiteInput, locationId: LOCATION_B });
+    const res = await createUser(adminSiteInput);
 
-    expect(res).toEqual({ ok: false, fieldErrors: { locationId: LOCATION_OUT_OF_SCOPE_MESSAGE } });
+    expect(res).toEqual({ ok: false, fieldErrors: { locationId: "Choose a location" } });
     expect(writes()).toEqual([]);
   });
 
-  it("refuses a role HO cannot assign", async () => {
-    fake.access = ho;
+  it("refuses an admin site without a location before touching the database", async () => {
+    const res = await createUser({ ...adminSiteInput, locationId: null });
 
-    const res = await createUser({
-      ...adminSiteInput,
-      role: "ho",
-      siteId: SITE_A,
-      locationId: null,
-    });
+    expect(res).toEqual({ ok: false, fieldErrors: { locationId: "Choose a location" } });
+    expect(fake.calls).toEqual([]);
+  });
 
-    expect(res).toEqual({ ok: false, fieldErrors: { role: "Choose a role" } });
-    expect(writes()).toEqual([]);
+  it("refuses an HO that has a location", async () => {
+    const res = await createUser({ ...hoInput, locationId: LOCATION_A });
+
+    expect(res).toEqual({ ok: false, fieldErrors: { locationId: "This role has no location" } });
+    expect(fake.calls).toEqual([]);
+  });
+
+  it("creates an HO with no location and no location lookup", async () => {
+    const res = await createUser(hoInput);
+
+    expect(res).toEqual({ ok: true });
+    const userInsert = fake.calls.find((c) => c.op === "insert" && c.table === user);
+    expect(userInsert?.values).toMatchObject({ role: "ho", locationId: null });
+    expect(fake.calls.some((c) => c.op === "select" && c.table === location)).toBe(false);
   });
 
   it("maps a duplicate email to the email field", async () => {
-    fake.rows.location = [{ siteId: SITE_A }];
+    fake.rows.location = [{ id: LOCATION_A }];
     fake.insertError = { code: "23505" };
 
     const res = await createUser(adminSiteInput);
@@ -184,8 +198,7 @@ describe("createUser", () => {
   });
 
   it("writes the user, then a credential account whose hash verifies", async () => {
-    fake.access = ho;
-    fake.rows.location = [{ siteId: SITE_A }];
+    fake.rows.location = [{ id: LOCATION_A }];
 
     const res = await createUser(adminSiteInput);
     expect(res).toEqual({ ok: true });
@@ -196,7 +209,6 @@ describe("createUser", () => {
     expect(userInsert?.values).toMatchObject({
       email: "ana@example.com",
       role: "admin_site",
-      siteId: null,
       locationId: LOCATION_A,
       emailVerified: false,
       banned: false,
@@ -213,17 +225,11 @@ describe("createUser", () => {
 });
 
 describe("updateUser", () => {
-  const target = {
-    id: "user-9",
-    role: "admin_site",
-    siteId: null,
-    locationSiteId: SITE_A,
-    banned: false,
-  };
+  const target = targetRow({ id: "user-9" });
 
   it("keeps the password and the sessions when the password is empty", async () => {
     fake.rows.target = [target];
-    fake.rows.location = [{ siteId: SITE_A }];
+    fake.rows.location = [{ id: LOCATION_A }];
 
     const res = await updateUser("user-9", { ...adminSiteInput, password: "" });
 
@@ -234,7 +240,7 @@ describe("updateUser", () => {
 
   it("replaces the password and deletes the user's sessions", async () => {
     fake.rows.target = [target];
-    fake.rows.location = [{ siteId: SITE_A }];
+    fake.rows.location = [{ id: LOCATION_A }];
 
     const res = await updateUser("user-9", { ...adminSiteInput, password: "new-secret-pass" });
 
@@ -247,7 +253,7 @@ describe("updateUser", () => {
 
   it("maps a duplicate email to the email field", async () => {
     fake.rows.target = [target];
-    fake.rows.location = [{ siteId: SITE_A }];
+    fake.rows.location = [{ id: LOCATION_A }];
     fake.insertError = { cause: { code: "23505" } };
 
     const res = await updateUser("user-9", { ...adminSiteInput, password: "" });
@@ -258,23 +264,49 @@ describe("updateUser", () => {
     });
   });
 
-  it("hides an admin site user in another site from HO", async () => {
-    fake.access = ho;
-    fake.rows.target = [{ ...target, locationSiteId: SITE_B }];
-    fake.rows.location = [{ siteId: SITE_A }];
+  it("returns not found for an unknown user", async () => {
+    fake.rows.target = [];
 
     const res = await updateUser("user-9", { ...adminSiteInput, password: "" });
 
     expect(res).toEqual({ ok: false, formError: USER_NOT_FOUND_MESSAGE });
     expect(writes()).toEqual([]);
   });
+
+  it("refuses to demote the only active HO, counting under a lock", async () => {
+    fake.rows.target = [targetRow({ id: "ho-2", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-2" }];
+
+    const res = await updateUser("ho-2", { ...adminSiteInput, password: "" });
+
+    expect(res).toEqual({ ok: false, formError: LAST_HO_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+
+  it("demotes an HO when another remains", async () => {
+    fake.rows.target = [targetRow({ id: "ho-2", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-1" }, { id: "ho-2" }];
+    fake.rows.location = [{ id: LOCATION_A }];
+
+    const res = await updateUser("ho-2", { ...adminSiteInput, password: "" });
+
+    expect(res).toEqual({ ok: true });
+  });
+
+  it("refuses to change the caller's own role", async () => {
+    fake.rows.target = [targetRow({ id: "ho-1", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-1" }, { id: "ho-2" }];
+
+    const res = await updateUser("ho-1", { ...adminSiteInput, password: "" });
+
+    expect(res).toEqual({ ok: false, formError: "You cannot change your own role" });
+    expect(writes()).toEqual([]);
+  });
 });
 
 describe("reactivateUser", () => {
   it("lifts the ban and its details without restoring sessions", async () => {
-    fake.rows.target = [
-      { id: "user-7", role: "admin_site", siteId: null, locationSiteId: SITE_A, banned: true },
-    ];
+    fake.rows.target = [targetRow({ banned: true })];
 
     const res = await reactivateUser("user-7");
 
@@ -290,52 +322,43 @@ describe("reactivateUser", () => {
 });
 
 describe("deactivateUser", () => {
-  it("refuses to deactivate the caller", async () => {
-    fake.rows.target = [
-      { id: "super-1", role: "superadmin", siteId: null, locationSiteId: null, banned: false },
-    ];
-    fake.rows.superadmins = [{ id: "super-1" }, { id: "super-2" }];
+  const lockedCount = () =>
+    fake.calls.find(
+      (c) => c.op === "select" && c.table === user && !(c.fields && "banned" in c.fields),
+    );
 
-    const res = await deactivateUser("super-1");
+  it("refuses to deactivate the caller", async () => {
+    fake.rows.target = [targetRow({ id: "ho-1", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-1" }, { id: "ho-2" }];
+
+    const res = await deactivateUser("ho-1");
 
     expect(res).toEqual({ ok: false, formError: SELF_DEACTIVATE_MESSAGE });
     expect(writes()).toEqual([]);
   });
 
-  it("refuses to deactivate the last active superadmin, counting under a lock", async () => {
-    fake.rows.target = [
-      { id: "super-2", role: "superadmin", siteId: null, locationSiteId: null, banned: false },
-    ];
-    fake.rows.superadmins = [{ id: "super-2" }];
+  it("refuses to deactivate the only active HO, counting under a lock that spares sign-ins", async () => {
+    fake.rows.target = [targetRow({ id: "ho-2", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-2" }];
 
-    const res = await deactivateUser("super-2");
+    const res = await deactivateUser("ho-2");
 
-    expect(res).toEqual({ ok: false, formError: LAST_SUPERADMIN_MESSAGE });
+    expect(res).toEqual({ ok: false, formError: LAST_HO_MESSAGE });
     expect(writes()).toEqual([]);
-    const lockedCount = fake.calls.find(
-      (c) => c.op === "select" && c.table === user && !(c.fields && "locationSiteId" in c.fields),
-    );
-    expect(lockedCount?.lock).toBe("no key update");
+    expect(lockedCount()?.lock).toBe("no key update");
   });
 
-  it("hides a superadmin from HO before any guard runs", async () => {
-    fake.access = ho;
-    fake.rows.target = [
-      { id: "super-2", role: "superadmin", siteId: null, locationSiteId: null, banned: false },
-    ];
-    fake.rows.superadmins = [{ id: "super-2" }];
+  it("deactivates an HO when another active HO remains", async () => {
+    fake.rows.target = [targetRow({ id: "ho-2", role: "ho" })];
+    fake.rows.hos = [{ id: "ho-1" }, { id: "ho-2" }];
 
-    const res = await deactivateUser("super-2");
+    const res = await deactivateUser("ho-2");
 
-    expect(res).toEqual({ ok: false, formError: USER_NOT_FOUND_MESSAGE });
-    expect(writes()).toEqual([]);
+    expect(res).toEqual({ ok: true });
   });
 
-  it("hides an admin site user in another site from HO", async () => {
-    fake.access = ho;
-    fake.rows.target = [
-      { id: "user-7", role: "admin_site", siteId: null, locationSiteId: SITE_B, banned: false },
-    ];
+  it("returns not found for an unknown user", async () => {
+    fake.rows.target = [];
 
     const res = await deactivateUser("user-7");
 
@@ -344,10 +367,8 @@ describe("deactivateUser", () => {
   });
 
   it("bans the user and deletes its sessions", async () => {
-    fake.rows.target = [
-      { id: "user-7", role: "admin_site", siteId: null, locationSiteId: SITE_A, banned: false },
-    ];
-    fake.rows.superadmins = [{ id: "super-1" }];
+    fake.rows.target = [targetRow({})];
+    fake.rows.hos = [{ id: "ho-1" }];
 
     const res = await deactivateUser("user-7");
 

@@ -7,16 +7,16 @@ describe("parseUserRole", () => {
   });
 
   it("reads each supported role", () => {
-    expect(parseUserRole("superadmin")).toBe("superadmin");
     expect(parseUserRole("ho")).toBe("ho");
     expect(parseUserRole("admin_site")).toBe("admin_site");
   });
 
-  it("falls back to all for an unknown value", () => {
+  it("falls back to all for an unknown or removed role", () => {
     expect(parseUserRole("owner")).toBe("all");
+    expect(parseUserRole("superadmin")).toBe("all");
   });
 
   it("uses the first value when the parameter is repeated", () => {
-    expect(parseUserRole(["ho", "superadmin"])).toBe("ho");
+    expect(parseUserRole(["ho", "admin_site"])).toBe("ho");
   });
 });

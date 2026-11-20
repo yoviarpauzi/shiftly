@@ -72,10 +72,6 @@ export function createUserColumns(
         </Badge>
       ),
     }),
-    columnHelper.accessor("siteName", {
-      header: "Site",
-      cell: ({ row }) => row.original.siteName ?? "—",
-    }),
     columnHelper.accessor("locationName", {
       header: "Location",
       cell: ({ row }) => row.original.locationName ?? "—",
@@ -102,8 +98,6 @@ export function createUserColumns(
         !canManageUser(access, {
           id: row.original.id,
           role: row.original.role,
-          siteId: null,
-          locationSiteId: row.original.siteId,
           banned: row.original.banned ?? false,
         }) ? (
           <div className="size-8" />

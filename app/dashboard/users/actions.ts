@@ -7,15 +7,13 @@ import { revalidatePath } from "next/cache";
 import type { ZodError } from "zod";
 import { account, session, user } from "@/database/schema/auth-schema";
 import { location } from "@/database/schema/location-schema";
-import { site } from "@/database/schema/site-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
 import { requireUserManager } from "./user-guard";
-import { assignableRoles, canAssign, canManageUser } from "./user-access";
+import { assignableRoles, canManageUser } from "./user-access";
 import {
   guardDeactivation,
   guardRoleChange,
-  LOCATION_OUT_OF_SCOPE_MESSAGE,
   USER_NOT_FOUND_MESSAGE,
 } from "./user-rules";
 import type {
@@ -35,7 +33,7 @@ import {
 
 const USERS_PATH = "/dashboard/users";
 const EMAIL_TAKEN_MESSAGE = "This email is already used by another account";
-const USER_FIELDS: readonly string[] = ["name", "email", "password", "role", "siteId", "locationId"];
+const USER_FIELDS: readonly string[] = ["name", "email", "password", "role", "locationId"];
 
 const userNotFound: UserActionResult = { ok: false, formError: USER_NOT_FOUND_MESSAGE };
 const emailTaken: UserActionResult = { ok: false, fieldErrors: { email: EMAIL_TAKEN_MESSAGE } };
@@ -51,43 +49,35 @@ function invalidInput(error: ZodError): UserActionResult {
   return { ok: false, formError: issue.message };
 }
 
-// Locks every active superadmin row in id order and returns how many there are. Actions take this
-// lock before loadTarget, so two superadmins removing each other queue here instead of both
-// seeing a count of two. Postgres does not allow count() with a row lock, so rows are counted here.
+// Locks every active HO row in id order and returns how many there are. Actions take this lock
+// before loadTarget, so two HOs removing each other queue here instead of both seeing a count of
+// two. Postgres does not allow count() with a row lock, so rows are counted here.
 // NO KEY UPDATE, not UPDATE: it still conflicts with itself, but not with the KEY SHARE lock that
 // session and account inserts take on the user row through their foreign key, so sign-ins do not wait.
-async function lockActiveSuperadmins(tx: Tx): Promise<number> {
+async function lockActiveHos(tx: Tx): Promise<number> {
   const rows = await tx
     .select({ id: user.id })
     .from(user)
-    .where(and(eq(user.role, "superadmin"), or(isNull(user.banned), eq(user.banned, false))))
+    .where(and(eq(user.role, "ho"), or(isNull(user.banned), eq(user.banned, false))))
     .orderBy(asc(user.id))
     .for("no key update");
 
   return rows.length;
 }
 
-// locationSiteId comes from the target's location, never from its own site_id. The lock mode
-// matches lockActiveSuperadmins, so sign-ins of the target are not blocked.
+// The lock mode matches lockActiveHos, so sign-ins of the target are not blocked.
 async function loadTarget(tx: Tx, id: string): Promise<ManagedTarget | null> {
   const [row] = await tx
-    .select({
-      id: user.id,
-      role: user.role,
-      siteId: user.siteId,
-      locationSiteId: location.siteId,
-      banned: user.banned,
-    })
+    .select({ id: user.id, role: user.role, banned: user.banned })
     .from(user)
-    .leftJoin(location, eq(user.locationId, location.id))
     .where(eq(user.id, id))
-    .for("no key update", { of: user });
+    .for("no key update");
 
   return row ? { ...row, banned: row.banned ?? false } : null;
 }
 
-// Checks the chosen role, site, and location against the caller's scope and returns the columns to
-// write. The site or location row is share-locked so it cannot be deleted before the write commits.
+// Checks the chosen role and location and returns the columns to write. An admin site location is
+// share-locked so it cannot be deleted before the write commits. An HO has no location.
 async function resolveScope(
   tx: Tx,
   access: UserAccess,
@@ -99,49 +89,22 @@ async function resolveScope(
     return { ok: false, result: { ok: false, fieldErrors: { role: "Choose a role" } } };
   }
 
-  if (role === "admin_site") {
-    const locationId = input.locationId ?? "";
-    const [chosen] = await tx
-      .select({ siteId: location.siteId })
-      .from(location)
-      .where(and(eq(location.id, locationId), isNull(location.deletedAt)))
-      .for("share");
-
-    if (!canAssign(access, { role }, chosen?.siteId ?? null)) {
-      return {
-        ok: false,
-        result: { ok: false, fieldErrors: { locationId: LOCATION_OUT_OF_SCOPE_MESSAGE } },
-      };
-    }
-
-    if (!chosen) {
-      return { ok: false, result: { ok: false, fieldErrors: { locationId: "Choose a location" } } };
-    }
-
-    // An admin site user takes its site from its location, so site_id is always written as null.
-    return { ok: true, scope: { role, siteId: null, locationId } };
-  }
-
-  if (!canAssign(access, { role }, null)) {
-    return { ok: false, result: { ok: false, fieldErrors: { role: "Choose a role" } } };
-  }
-
   if (role === "ho") {
-    const siteId = input.siteId ?? "";
-    const [chosen] = await tx
-      .select({ id: site.id })
-      .from(site)
-      .where(and(eq(site.id, siteId), isNull(site.deletedAt)))
-      .for("share");
-
-    if (!chosen) {
-      return { ok: false, result: { ok: false, fieldErrors: { siteId: "Choose a site" } } };
-    }
-
-    return { ok: true, scope: { role, siteId, locationId: null } };
+    return { ok: true, scope: { role, locationId: null } };
   }
 
-  return { ok: true, scope: { role, siteId: null, locationId: null } };
+  const locationId = input.locationId ?? "";
+  const [chosen] = await tx
+    .select({ id: location.id })
+    .from(location)
+    .where(and(eq(location.id, locationId), isNull(location.deletedAt)))
+    .for("share");
+
+  if (!chosen) {
+    return { ok: false, result: { ok: false, fieldErrors: { locationId: "Choose a location" } } };
+  }
+
+  return { ok: true, scope: { role, locationId } };
 }
 
 export async function createUser(input: CreateUserInput): Promise<UserActionResult> {
@@ -220,14 +183,14 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
 
   try {
     result = await db.transaction(async (tx) => {
-      const activeSuperadmins = await lockActiveSuperadmins(tx);
+      const activeHos = await lockActiveHos(tx);
       const target = await loadTarget(tx, id);
 
       if (!target || !canManageUser(access, target)) {
         return userNotFound;
       }
 
-      const refusal = guardRoleChange(access, target, parsed.data.role, activeSuperadmins);
+      const refusal = guardRoleChange(access, target, parsed.data.role, activeHos);
 
       if (refusal) {
         return { ok: false, formError: refusal };
@@ -286,14 +249,14 @@ export async function deactivateUser(id: string): Promise<UserActionResult> {
   const access = await requireUserManager();
 
   const result = await db.transaction(async (tx): Promise<UserActionResult> => {
-    const activeSuperadmins = await lockActiveSuperadmins(tx);
+    const activeHos = await lockActiveHos(tx);
     const target = await loadTarget(tx, id);
 
     if (!target || !canManageUser(access, target)) {
       return userNotFound;
     }
 
-    const refusal = guardDeactivation(access, target, activeSuperadmins);
+    const refusal = guardDeactivation(access, target, activeHos);
 
     if (refusal) {
       return { ok: false, formError: refusal };

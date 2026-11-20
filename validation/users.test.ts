@@ -1,15 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createUserSchema, updateUserSchema } from "./users";
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_ID = "22222222-2222-4222-8222-222222222222";
 
 const base = {
   name: "Ani",
   email: "ani@example.com",
   password: "password123",
-  role: "superadmin",
-  siteId: null,
+  role: "ho",
   locationId: null,
 };
 
@@ -101,41 +99,31 @@ describe("role", () => {
   it("rejects an unknown role", () => {
     expect(createMessages({ role: "owner" })).toEqual(["Choose a role"]);
   });
+
+  it("rejects the removed superadmin role", () => {
+    expect(createMessages({ role: "superadmin" })).toEqual(["Choose a role"]);
+  });
 });
 
 describe.each([
   ["create", (input: Record<string, unknown>) => createUserSchema.safeParse({ ...base, ...input }).success],
   ["update", (input: Record<string, unknown>) => updateResult(input).success],
 ])("scope shape on %s", (_name, ok) => {
-  it("rejects ho without a site", () => {
-    expect(ok({ role: "ho" })).toBe(false);
-  });
-
   it("rejects ho with a location", () => {
-    expect(ok({ role: "ho", siteId: SITE_ID, locationId: LOCATION_ID })).toBe(false);
+    expect(ok({ role: "ho", locationId: LOCATION_ID })).toBe(false);
   });
 
   it("rejects admin_site without a location", () => {
     expect(ok({ role: "admin_site" })).toBe(false);
-  });
-
-  it("rejects admin_site with a site", () => {
-    expect(ok({ role: "admin_site", siteId: SITE_ID, locationId: LOCATION_ID })).toBe(false);
-  });
-
-  it("rejects superadmin with a site or a location", () => {
-    expect(ok({ role: "superadmin", siteId: SITE_ID })).toBe(false);
-    expect(ok({ role: "superadmin", locationId: LOCATION_ID })).toBe(false);
+    expect(ok({ role: "admin_site", locationId: null })).toBe(false);
   });
 
   it("accepts each valid combination", () => {
-    expect(ok({ role: "superadmin" })).toBe(true);
-    expect(ok({ role: "ho", siteId: SITE_ID })).toBe(true);
+    expect(ok({ role: "ho" })).toBe(true);
     expect(ok({ role: "admin_site", locationId: LOCATION_ID })).toBe(true);
   });
 
-  it("rejects a non-uuid site or location", () => {
-    expect(ok({ role: "ho", siteId: "x" })).toBe(false);
+  it("rejects a non-uuid location", () => {
     expect(ok({ role: "admin_site", locationId: "x" })).toBe(false);
   });
 });

@@ -4,7 +4,6 @@ import { listUserChoices, listVisibleUsers } from "./users";
 import { parsePageParams } from "@/validation/pagination";
 import { parseUserLocation } from "@/validation/user-location";
 import { parseUserRole } from "@/validation/user-role";
-import { parseUserSite } from "@/validation/user-site";
 import { parseUserStatus } from "@/validation/user-status";
 
 export default async function Page({
@@ -17,24 +16,12 @@ export default async function Page({
   const params = await searchParams;
   const status = parseUserStatus(params.status);
   const role = parseUserRole(params.role);
-  const choices = await listUserChoices(access);
-  // Only superadmin picks a site, so HO gets no site filter.
-  const siteId = parseUserSite(
-    params.site,
-    access.siteId === null ? choices.sites : [],
-  );
-  // Superadmin picks a site first, so until then there are no locations to filter by. HO has one site,
-  // so its locations are listed as they are.
-  const locations =
-    access.siteId === null && !siteId
-      ? []
-      : choices.locations.filter((location) => !siteId || location.siteId === siteId);
-  const locationId = parseUserLocation(params.location, locations);
+  const choices = await listUserChoices();
+  const locationId = parseUserLocation(params.location, choices.locations);
   const users = await listVisibleUsers(access, {
     ...parsePageParams(params),
     status,
     role,
-    siteId,
     locationId,
   });
 
@@ -52,8 +39,6 @@ export default async function Page({
         choices={choices}
         status={status}
         role={role}
-        siteId={siteId}
-        locations={locations}
         locationId={locationId}
       />
     </div>

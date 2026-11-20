@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type {
-  LocationOption,
   ManagedUser,
   UserAccess,
   UserChoices,
@@ -37,7 +36,6 @@ const STATUS_OPTIONS: (FilterOption & { value: UserStatusFilter })[] = [
 
 const ROLE_OPTIONS: (FilterOption & { value: UserRoleFilter })[] = [
   { value: "all", label: "All roles" },
-  { value: "superadmin", label: "Superadmin" },
   { value: "ho", label: "HO" },
   { value: "admin_site", label: "Admin site" },
 ]
@@ -48,8 +46,6 @@ export function UsersDataTable({
   choices,
   status,
   role,
-  siteId,
-  locations,
   locationId,
 }: {
   data: UserPage
@@ -57,8 +53,6 @@ export function UsersDataTable({
   choices: UserChoices
   status: UserStatusFilter
   role: UserRoleFilter
-  siteId: string | null
-  locations: LocationOption[]
   locationId: string | null
 }) {
   const router = useRouter()
@@ -135,34 +129,19 @@ export function UsersDataTable({
             ariaLabel="Filter users by role"
             className="h-9 w-36"
           />
-          {access.siteId === null && (
-            <SelectFilter
-              param="site"
-              value={siteId ?? "all"}
-              options={[
-                { value: "all", label: "All sites" },
-                ...choices.sites.map((site) => ({ value: site.id, label: site.name })),
-              ]}
-              ariaLabel="Filter users by site"
-              className="h-9 w-48"
-              resets={["location"]}
-            />
-          )}
-          {(access.siteId !== null || siteId !== null) && (
-            <SelectFilter
-              param="location"
-              value={locationId ?? "all"}
-              options={[
-                { value: "all", label: "All locations" },
-                ...locations.map((location) => ({
-                  value: location.id,
-                  label: location.name,
-                })),
-              ]}
-              ariaLabel="Filter users by location"
-              className="h-9 w-48"
-            />
-          )}
+          <SelectFilter
+            param="location"
+            value={locationId ?? "all"}
+            options={[
+              { value: "all", label: "All locations" },
+              ...choices.locations.map((location) => ({
+                value: location.id,
+                label: location.name,
+              })),
+            ]}
+            ariaLabel="Filter users by location"
+            className="h-9 w-48"
+          />
         </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />

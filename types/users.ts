@@ -1,6 +1,5 @@
 import type { db } from "@/lib/db";
 import type { PageParams } from "@/types/pagination";
-import type { SiteOption } from "@/types/locations";
 import type { AppRole } from "@/types/roles";
 
 export type UserScope = {
@@ -20,8 +19,6 @@ export type ManagedUser = {
   email: string;
   role: string | null;
   banned: boolean | null;
-  siteId: string | null;
-  siteName: string | null;
   locationId: string | null;
   locationName: string | null;
 };
@@ -33,9 +30,7 @@ export type UserRoleFilter = "all" | AppRole;
 export type UserListParams = PageParams & {
   status: UserStatusFilter;
   role: UserRoleFilter;
-  // null means every site the actor can see.
-  siteId: string | null;
-  // null means every location the actor can see.
+  // null means every location.
   locationId: string | null;
 };
 
@@ -46,21 +41,18 @@ export type UserPage = {
   pageSize: number;
 };
 
-// siteId is the target's own site_id. locationSiteId is the site_id of the target's location.
 export type ManagedTarget = {
   id: string;
   role: string | null;
-  siteId: string | null;
-  locationSiteId: string | null;
   banned: boolean;
 };
 
-export type LocationOption = { id: string; name: string; siteId: string; siteName: string };
+export type LocationOption = { id: string; name: string };
 
-// For HO, sites holds only HO's own site and locations holds only locations in it.
-export type UserChoices = { sites: SiteOption[]; locations: LocationOption[] };
+// Every active location.
+export type UserChoices = { locations: LocationOption[] };
 
-export type UserField = "name" | "email" | "password" | "role" | "siteId" | "locationId";
+export type UserField = "name" | "email" | "password" | "role" | "locationId";
 
 export type UserActionResult =
   | { ok: true }
@@ -81,7 +73,7 @@ export type DeactivateUserDialogProps = {
 };
 
 // The role and place a user is assigned to.
-export type Scope = { role: AppRole; siteId: string | null; locationId: string | null };
+export type Scope = { role: AppRole; locationId: string | null };
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

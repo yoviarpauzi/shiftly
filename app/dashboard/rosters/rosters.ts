@@ -150,6 +150,7 @@ type ConflictRow = {
   lineId: string;
   date: string;
   shiftOrder: number | null;
+  shiftName: string | null;
   shortfall: number;
   message: string;
 };
@@ -282,6 +283,7 @@ export function buildConflictViews(lines: LineHead[], conflicts: ConflictRow[]):
       lineTitle: titles.get(conflict.lineId) ?? "",
       date: conflict.date,
       shiftOrder: conflict.shiftOrder,
+      shiftName: conflict.shiftName,
       shortfall: conflict.shortfall,
       message: conflict.message,
     }));
@@ -456,7 +458,7 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
       subDepartmentId: subDepartment.id,
       subDepartmentName: subDepartment.name,
       shiftId: rosterRequestLine.shiftId,
-      shiftOrder: shift.order,
+      shiftName: shift.name,
     })
     .from(rosterRequestLine)
     .innerJoin(department, eq(department.id, rosterRequestLine.departmentId))
@@ -490,7 +492,7 @@ export async function loadRequestLines(reader: Reader, requestId: string): Promi
     subDepartmentName: row.subDepartmentName,
     title: lineTitle(row.departmentName, row.subDepartmentName, row.positionName),
     shiftId: row.shiftId,
-    shiftLabel: shiftLabel(row.shiftId === null ? null : (row.shiftOrder ?? null)),
+    shiftLabel: shiftLabel(row.shiftId === null ? null : (row.shiftName ?? null)),
     perDay: perLine.get(row.lineId) ?? [],
   }));
 }
@@ -574,13 +576,18 @@ export async function getRoster(
         lineId: rosterConflict.requestLineId,
         date: rosterConflict.workDate,
         shiftOrder: shift.order,
+        shiftName: shift.name,
         shortfall: rosterConflict.shortfall,
         message: rosterConflict.message,
       })
       .from(rosterConflict)
       .leftJoin(shift, eq(shift.id, rosterConflict.shiftId))
       .where(eq(rosterConflict.rosterId, rosterId))
-  ).map((row) => ({ ...row, shiftOrder: row.shiftOrder ?? null }));
+  ).map((row) => ({
+    ...row,
+    shiftOrder: row.shiftOrder ?? null,
+    shiftName: row.shiftName ?? null,
+  }));
 
   const edits = await db
     .select({ lineId: rosterEdit.requestLineId, workerId: rosterEdit.toWorkerId })
@@ -686,7 +693,7 @@ export async function getRoster(
   };
 }
 
-// The roster's per-shift targets, each with its shift's order.
+// The roster's per-shift targets, each with its shift's order and name.
 async function loadTargets(reader: Reader, rosterId: string) {
   return reader
     .select({
@@ -694,6 +701,7 @@ async function loadTargets(reader: Reader, rosterId: string) {
       date: rosterShiftTarget.workDate,
       shiftId: rosterShiftTarget.shiftId,
       shiftOrder: shift.order,
+      shiftName: shift.name,
       headcount: rosterShiftTarget.headcount,
     })
     .from(rosterShiftTarget)

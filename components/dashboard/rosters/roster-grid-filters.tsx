@@ -1,7 +1,6 @@
 "use client";
 
 import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
-import { shiftLabel } from "@/app/dashboard/rosters/roster-rules";
 import type { AddWorkerTarget, RosterGridFiltersProps } from "@/types/rosters";
 import { ALL_OPTION as ALL } from "@/components/dashboard/filter-select";
 import { Button } from "@/components/ui/button";
@@ -188,7 +187,7 @@ export function RosterGridFilters({
         value={filters.shiftOrder === null ? null : String(filters.shiftOrder)}
         options={[
           { value: ALL, label: "Shift" },
-          ...shifts.map((shift) => ({ value: String(shift.order), label: shiftLabel(shift.order) })),
+          ...shifts.map((shift) => ({ value: String(shift.order), label: shift.name })),
         ]}
         label="Filter by shift"
         className="w-26"

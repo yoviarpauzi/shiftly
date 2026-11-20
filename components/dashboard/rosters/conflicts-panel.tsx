@@ -17,7 +17,7 @@ export function ConflictsPanel({ conflicts }: ConflictsPanelProps) {
           <li key={index} className="flex flex-col gap-0.5 text-sm">
             <span className="font-medium">
               {shortDate(conflict.date)}
-              {conflict.shiftOrder !== null && ` · Shift ${conflict.shiftOrder}`} · short by{" "}
+              {conflict.shiftName !== null && ` · ${conflict.shiftName}`} · short by{" "}
               {conflict.shortfall}
             </span>
             <span className="text-muted-foreground">{conflict.lineTitle}</span>

@@ -948,8 +948,8 @@ function seedCellContext(overrides: Partial<CellContext> = {}) {
       workers: [cellWorker(W1, "E-1")],
       cells: [cell(W1, DAY, "work", SHIFT_1), cell(W2, DAY, "work", SHIFT_2)],
       targets: [
-        { lineId: LINE_A, date: DAY, shiftId: SHIFT_1, shiftOrder: 1, headcount: 1 },
-        { lineId: LINE_A, date: DAY, shiftId: SHIFT_2, shiftOrder: 2, headcount: 1 },
+        { lineId: LINE_A, date: DAY, shiftId: SHIFT_1, shiftOrder: 1, shiftName: "Pagi", headcount: 1 },
+        { lineId: LINE_A, date: DAY, shiftId: SHIFT_2, shiftOrder: 2, shiftName: "Siang", headcount: 1 },
       ],
       busy: [],
       history: [],
@@ -1063,7 +1063,7 @@ describe("editRosterCell", () => {
   it("changes the shift of a work cell, stores the shortage it leaves, and returns the warning", async () => {
     const res = await editRosterCell(editInput({ to: { kind: "work", shiftId: SHIFT_2 } }));
 
-    expect(res).toEqual({ ok: true, warnings: ["Mon 9 Nov · Shift 2: 2 assigned, 1 needed."] });
+    expect(res).toEqual({ ok: true, warnings: ["Mon 9 Nov · Siang: 2 assigned, 1 needed."] });
     expect(writes().map((call) => [call.op, call.table])).toEqual([
       ["update", rosterAssignment],
       ["insert", rosterCellEdit],

@@ -248,7 +248,7 @@ describe("evaluateRoster", () => {
       workDaysPerWeek: null,
     }));
     const target = (headcount: number) => [
-      { lineId: "l1", date: DAYS[1], shiftOrder: 1, headcount },
+      { lineId: "l1", date: DAYS[1], shiftOrder: 1, shiftName: "Pagi", headcount },
     ];
 
     it("warns when more workers are assigned than the target", () => {
@@ -259,7 +259,7 @@ describe("evaluateRoster", () => {
           workerId: null,
           date: "2026-11-10",
           shiftOrder: 1,
-          message: "Tue 10 Nov · Shift 1: 3 assigned, 2 needed.",
+          message: "Tue 10 Nov · Pagi: 3 assigned, 2 needed.",
         },
       ]);
     });
@@ -326,7 +326,7 @@ describe("evaluateRoster", () => {
         work(DAYS[0], 1, { lineId: "l1", workerId: "w2" }),
         work(DAYS[0], 1, { lineId: "l1", workerId: "w1" }),
       ],
-      targets: [{ lineId: "l1", date: DAYS[0], shiftOrder: 1, headcount: 1 }],
+      targets: [{ lineId: "l1", date: DAYS[0], shiftOrder: 1, shiftName: "Pagi", headcount: 1 }],
       history: [],
     });
 

@@ -104,7 +104,7 @@ export type RosterLineKeys = {
 export type RosterLineView = RosterLineKeys & {
   lineId: string;
   title: string;
-  // "Any shift" or "Shift N", shown after the title in the line's header.
+  // "Any shift" or the shift name, shown after the title in the line's header.
   shiftLabel: string;
   // What the request asks for on each day.
   perDay: number[];
@@ -147,6 +147,7 @@ export type RosterConflictView = {
   lineTitle: string;
   date: string;
   shiftOrder: number | null;
+  shiftName: string | null;
   shortfall: number;
   message: string;
 };
@@ -207,7 +208,7 @@ export type GenerateShift = {
 export type GenerateLine = {
   lineId: string;
   title: string;
-  // "Any shift" or "Shift N", shown after the title in the line's header.
+  // "Any shift" or the shift name, shown after the title in the line's header.
   shiftLabel: string;
   // The shift the request fixed this line to, or null when the line may be split.
   fixedShiftId: string | null;
@@ -575,7 +576,7 @@ export type EvaluateInput = {
   // workDaysPerWeek is the worker's own limit, or null to follow the rule.
   workers: { id: string; endContract: string; positionIds: string[]; workDaysPerWeek: number | null }[];
   cells: EvalCell[];
-  targets: { lineId: string; date: string; shiftOrder: number; headcount: number }[];
+  targets: { lineId: string; date: string; shiftOrder: number; shiftName: string; headcount: number }[];
   rules: EngineRules;
   history: EngineHistory[];
 };
@@ -609,7 +610,14 @@ export type CellContext = {
     active: boolean;
   }[];
   cells: EvalCell[];
-  targets: { lineId: string; date: string; shiftId: string; shiftOrder: number; headcount: number }[];
+  targets: {
+    lineId: string;
+    date: string;
+    shiftId: string;
+    shiftOrder: number;
+    shiftName: string;
+    headcount: number;
+  }[];
   busy: { workerId: string; date: string }[];
   history: EngineHistory[];
   rules: EngineRules;

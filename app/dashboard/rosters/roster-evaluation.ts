@@ -105,7 +105,7 @@ export function evaluateRoster(input: EvaluateInput): RosterWarning[] {
         workerId: null,
         date: target.date,
         shiftOrder: target.shiftOrder,
-        message: `${shortDate(target.date)} · Shift ${target.shiftOrder}: ${count} assigned, ${target.headcount} needed.`,
+        message: `${shortDate(target.date)} · ${target.shiftName}: ${count} assigned, ${target.headcount} needed.`,
       });
     }
   }

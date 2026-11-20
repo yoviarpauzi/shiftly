@@ -177,9 +177,9 @@ describe("shiftsFor", () => {
 });
 
 describe("shiftOptionLabel", () => {
-  it("formats the order and the times", () => {
-    expect(shiftOptionLabel({ order: 1, startTime: "06:00", endTime: "14:00" })).toBe(
-      "Shift 1 · 06:00 - 14:00",
+  it("formats the name and the times", () => {
+    expect(shiftOptionLabel({ name: "Pagi", startTime: "06:00", endTime: "14:00" })).toBe(
+      "Pagi · 06:00 - 14:00",
     );
   });
 });

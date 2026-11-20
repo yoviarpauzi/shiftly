@@ -87,9 +87,9 @@ export function shiftsForRequest(
 }
 
 export function shiftOptionLabel(
-  shift: Pick<RequestShiftChoice, "order" | "startTime" | "endTime">,
+  shift: Pick<RequestShiftChoice, "name" | "startTime" | "endTime">,
 ): string {
-  return `Shift ${shift.order} · ${shift.startTime} - ${shift.endTime}`;
+  return `${shift.name} · ${shift.startTime} - ${shift.endTime}`;
 }
 
 export function blankLine(): RequestFormLine {

@@ -366,9 +366,9 @@ describe("shiftLabel", () => {
     expect(shiftLabel(null)).toBe("Any shift");
   });
 
-  it("names the order of a shift", () => {
-    expect(shiftLabel(1)).toBe("Shift 1");
-    expect(shiftLabel(3)).toBe("Shift 3");
+  it("names the shift by its name", () => {
+    expect(shiftLabel("Pagi")).toBe("Pagi");
+    expect(shiftLabel("Malam")).toBe("Malam");
   });
 });
 

@@ -358,9 +358,9 @@ describe("buildLineViews", () => {
       lines: LINES,
       assignments: [],
       conflicts: [
-        { lineId: "l1", date: "2026-11-10", shiftOrder: 2, shortfall: 1, message: "Short by 1." },
-        { lineId: "l1", date: "2026-11-09", shiftOrder: 1, shortfall: 2, message: "Short by 2." },
-        { lineId: "l1", date: "2026-11-09", shiftOrder: null, shortfall: 5, message: "Short." },
+        { lineId: "l1", date: "2026-11-10", shiftOrder: 2, shiftName: "S2", shortfall: 1, message: "Short by 1." },
+        { lineId: "l1", date: "2026-11-09", shiftOrder: 1, shiftName: "S1", shortfall: 2, message: "Short by 2." },
+        { lineId: "l1", date: "2026-11-09", shiftOrder: null, shiftName: null, shortfall: 5, message: "Short." },
       ],
       replacedIn: [],
       ...NO_KEYS,
@@ -474,10 +474,10 @@ describe("buildConflictViews", () => {
   it("names the line and orders by date, then line, then shift", () => {
     expect(
       buildConflictViews(LINES, [
-        { lineId: "l2", date: "2026-11-09", shiftOrder: 1, shortfall: 1, message: "b" },
-        { lineId: "l1", date: "2026-11-10", shiftOrder: 1, shortfall: 1, message: "c" },
-        { lineId: "l1", date: "2026-11-09", shiftOrder: 3, shortfall: 2, message: "a2" },
-        { lineId: "l1", date: "2026-11-09", shiftOrder: 1, shortfall: 1, message: "a1" },
+        { lineId: "l2", date: "2026-11-09", shiftOrder: 1, shiftName: "S1", shortfall: 1, message: "b" },
+        { lineId: "l1", date: "2026-11-10", shiftOrder: 1, shiftName: "S1", shortfall: 1, message: "c" },
+        { lineId: "l1", date: "2026-11-09", shiftOrder: 3, shiftName: "S3", shortfall: 2, message: "a2" },
+        { lineId: "l1", date: "2026-11-09", shiftOrder: 1, shiftName: "S1", shortfall: 1, message: "a1" },
       ]).map((conflict) => [conflict.lineTitle, conflict.date, conflict.shiftOrder, conflict.message]),
     ).toEqual([
       ["Produksi / Packing / Operator", "2026-11-09", 1, "a1"],

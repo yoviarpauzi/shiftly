@@ -135,10 +135,10 @@ export function evenSplit(total: number, shiftIds: string[]): number[] {
   return shiftIds.map((_, index) => base + (index < remainder ? 1 : 0));
 }
 
-// "Any shift" for a line the roster may split, or "Shift N" for a line fixed to the shift of that
-// order. It follows the line's title in the headers of the roster and the Generate screen.
-export function shiftLabel(order: number | null): string {
-  return order === null ? "Any shift" : `Shift ${order}`;
+// "Any shift" for a line the roster may split, or the name of the shift a line is fixed to. It
+// follows the line's title in the headers of the roster and the Generate screen.
+export function shiftLabel(name: string | null): string {
+  return name === null ? "Any shift" : name;
 }
 
 // The split of a line fixed to one shift: each day's whole headcount on that shift, 0 on the rest.

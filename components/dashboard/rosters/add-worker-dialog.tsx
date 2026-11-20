@@ -3,6 +3,7 @@
 import { useForm } from "@tanstack/react-form";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { shiftOptionLabel } from "@/app/dashboard/requests/request-form-options";
 import { ACTION_FAILED_MESSAGE } from "@/app/dashboard/requests/request-rules";
 import {
   editRosterCell,
@@ -156,7 +157,7 @@ function AddWorkerBody({ roster, line, onOpenChange }: BodyProps) {
   const choices = [
     ...roster.shifts.map((entry) => ({
       value: entry.id,
-      label: `Shift ${entry.order} · ${entry.startTime} - ${entry.endTime}`,
+      label: shiftOptionLabel(entry),
     })),
     { value: "off", label: "Day off" },
     { value: "break", label: "Break" },

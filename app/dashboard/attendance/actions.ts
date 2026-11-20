@@ -2,9 +2,8 @@
 
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { attendance } from "@/database/schema/attendance-schema";
-import { billingAttendance } from "@/database/schema/billing-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment } from "@/database/schema/roster-schema";
@@ -13,7 +12,6 @@ import { dateInZone } from "@/lib/indonesia-date";
 import type { AttendanceActionResult } from "@/types/attendance";
 import { locationTimezoneSchema } from "@/validation/location";
 import { saveAttendanceSchema, type SaveAttendanceInput } from "@/validation/attendance";
-import { BILLED_ATTENDANCE_MESSAGE } from "../billings/billing-rules";
 import { INVALID_TIMEZONE_MESSAGE } from "../requests/request-rules";
 import { canAccessAttendanceLocation } from "./attendance-access";
 import { requireAttendanceAccess } from "./attendance-guard";
@@ -25,13 +23,6 @@ import {
 } from "./attendance-rules";
 
 const ATTENDANCE_PATH = "/dashboard/attendance";
-
-// Thrown from the transaction so the upsert rolls back, then turned into the refusal outside it.
-class BilledAfterWriteError extends Error {
-  constructor(readonly entryErrors: Record<number, string>) {
-    super(BILLED_ATTENDANCE_MESSAGE);
-  }
-}
 
 // Marks, changes, and clears attendance for one day. An entry with a status is saved, and one with
 // no status deletes the row, which puts the worker back to Not marked. Every entry is checked
@@ -61,8 +52,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
   const { date, entries } = parsed.data;
   const ids = entries.map((entry) => entry.assignmentId);
 
-  const result = await db
-    .transaction(async (tx): Promise<AttendanceActionResult> => {
+  const result = await db.transaction(async (tx): Promise<AttendanceActionResult> => {
     // The share lock on the rosters and their requests keeps either from changing between this read
     // and the write: a confirmed roster is fixed, but a request can still be cancelled, and that
     // waits until this save commits.
@@ -126,44 +116,6 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
       return { ok: false, formError: firstError, entryErrors };
     }
 
-    // A day held by an issued billing cannot be marked, changed, or cleared until the billing is
-    // voided. The lock waits for an Issue that is claiming these rows to commit, and takes them in
-    // attendance id order, the same order Issue does, so the two cannot deadlock.
-    const stored = await tx
-      .select({ id: attendance.id, rosterAssignmentId: attendance.rosterAssignmentId })
-      .from(attendance)
-      .where(inArray(attendance.rosterAssignmentId, ids))
-      .orderBy(asc(attendance.id))
-      .for("update");
-
-    if (stored.length > 0) {
-      // A separate statement on purpose: in READ COMMITTED it takes a fresh snapshot, so it sees a
-      // claim committed while the lock above waited. A join in the locking statement could miss it.
-      const claimed = await tx
-        .select({ attendanceId: billingAttendance.attendanceId })
-        .from(billingAttendance)
-        .where(
-          inArray(
-            billingAttendance.attendanceId,
-            stored.map((row) => row.id),
-          ),
-        );
-      const claimedIds = new Set(claimed.map((row) => row.attendanceId));
-      const billedAssignments = new Set(
-        stored.filter((row) => claimedIds.has(row.id)).map((row) => row.rosterAssignmentId),
-      );
-
-      entries.forEach((entry, index) => {
-        if (billedAssignments.has(entry.assignmentId)) {
-          entryErrors[index] = BILLED_ATTENDANCE_MESSAGE;
-        }
-      });
-
-      if (billedAssignments.size > 0) {
-        return { ok: false, formError: BILLED_ATTENDANCE_MESSAGE, entryErrors };
-      }
-    }
-
     // In assignment id order, so two saves that overlap lock the same rows in the same order and
     // cannot deadlock on the unique index.
     const marked = entries
@@ -174,7 +126,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
     if (marked.length > 0) {
       // markedBy is only set on insert. An update keeps who marked it first, and takes the new
       // editor and time.
-      const upserted = await tx
+      await tx
         .insert(attendance)
         .values(
           marked.map((entry) => ({
@@ -193,39 +145,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
             updatedBy: access.userId,
             updatedAt: new Date(),
           },
-        })
-        .returning({ id: attendance.id, rosterAssignmentId: attendance.rosterAssignmentId });
-
-      // A row this save did not see before the lock can be inserted by another save and claimed by
-      // an Issue before the upsert lands on it. A new statement sees that committed claim, and the
-      // save is rolled back rather than change a billed day.
-      if (upserted.length > 0) {
-        const claimed = await tx
-          .select({ attendanceId: billingAttendance.attendanceId })
-          .from(billingAttendance)
-          .where(
-            inArray(
-              billingAttendance.attendanceId,
-              upserted.map((row) => row.id),
-            ),
-          );
-
-        if (claimed.length > 0) {
-          const claimedIds = new Set(claimed.map((row) => row.attendanceId));
-          const billedAssignments = new Set(
-            upserted.filter((row) => claimedIds.has(row.id)).map((row) => row.rosterAssignmentId),
-          );
-          const billedErrors: Record<number, string> = {};
-
-          entries.forEach((entry, index) => {
-            if (billedAssignments.has(entry.assignmentId)) {
-              billedErrors[index] = BILLED_ATTENDANCE_MESSAGE;
-            }
-          });
-
-          throw new BilledAfterWriteError(billedErrors);
-        }
-      }
+        });
     }
 
     if (cleared.length > 0) {
@@ -238,14 +158,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
     }
 
     return { ok: true, saved: marked.length, cleared: cleared.length };
-    })
-    .catch((error: unknown): AttendanceActionResult => {
-      if (error instanceof BilledAfterWriteError) {
-        return { ok: false, formError: BILLED_ATTENDANCE_MESSAGE, entryErrors: error.entryErrors };
-      }
-
-      throw error;
-    });
+  });
 
   if (result.ok) {
     revalidatePath(ATTENDANCE_PATH);

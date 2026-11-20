@@ -47,7 +47,6 @@ export function AttendanceCards({
               {row.startTime} - {row.endTime}
             </span>
           </div>
-          {row.billed && <span className="text-sm text-muted-foreground">Billed</span>}
           <div className="grid grid-cols-2 gap-2" role="group" aria-label={`Status of ${row.workerName}`}>
             {STATUSES.map((status) => (
               <Button
@@ -55,7 +54,7 @@ export function AttendanceCards({
                 type="button"
                 variant={row.draftStatus === status ? "default" : "outline"}
                 aria-pressed={row.draftStatus === status}
-                disabled={disabled || row.billed}
+                disabled={disabled}
                 onClick={() =>
                   onStatusChange(row.assignmentId, row.draftStatus === status ? null : status)
                 }
@@ -69,7 +68,7 @@ export function AttendanceCards({
             onChange={(event) => onReasonChange(row.assignmentId, event.target.value)}
             placeholder={row.draftStatus === null ? "Mark a status first" : "Add a reason (optional)"}
             maxLength={REASON_MAX_LENGTH}
-            disabled={disabled || row.billed || row.draftStatus === null}
+            disabled={disabled || row.draftStatus === null}
             aria-label={`Reason for ${row.workerName}`}
             className="disabled:bg-transparent"
           />

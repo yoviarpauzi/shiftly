@@ -169,20 +169,6 @@
       "when": 1794452789962,
       "tag": "0023_purple_falcon",
       "breakpoints": true
-    },
-    {
-      "idx": 24,
-      "version": "7",
-      "when": 1795052590334,
-      "tag": "0024_handy_stryfe",
-      "breakpoints": true
-    },
-    {
-      "idx": 25,
-      "version": "7",
-      "when": 1795052694553,
-      "tag": "0025_windy_justice",
-      "breakpoints": true
     }
   ]
 }

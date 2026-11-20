@@ -28,7 +28,6 @@ import {
   ClipboardListIcon,
   CalendarDaysIcon,
   ClipboardCheckIcon,
-  ReceiptTextIcon,
 } from "lucide-react";
 
 const data = {
@@ -96,12 +95,6 @@ const data = {
       title: "Attendance",
       url: "/dashboard/attendance",
       icon: <ClipboardCheckIcon />,
-      roles: ["superadmin", "ho", "admin_site"],
-    },
-    {
-      title: "Billing",
-      url: "/dashboard/billings",
-      icon: <ReceiptTextIcon />,
       roles: ["superadmin", "ho", "admin_site"],
     },
   ],

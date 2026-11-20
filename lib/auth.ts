@@ -26,6 +26,10 @@ export const auth = betterAuth({
     "/admin/impersonate-user",
     "/admin/revoke-user-session",
     "/admin/revoke-user-sessions",
+    "/admin/list-users",
+    "/admin/get-user",
+    "/admin/list-user-sessions",
+    "/admin/has-permission",
   ],
   emailAndPassword: { enabled: true },
   databaseHooks: {

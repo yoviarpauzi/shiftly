@@ -13,3 +13,16 @@ describe("auth plugins", () => {
     expect(auth.options.plugins?.at(-1)?.id).toBe("next-cookies");
   });
 });
+
+describe("auth disabled paths", () => {
+  // The admin plugin allows adminRoles to call its read endpoints. The app uses none of them, and
+  // list-user-sessions would return session tokens, so they are closed like the write endpoints.
+  it.each([
+    "/admin/list-users",
+    "/admin/get-user",
+    "/admin/list-user-sessions",
+    "/admin/has-permission",
+  ])("disables %s", (path) => {
+    expect(auth.options.disabledPaths).toContain(path);
+  });
+});

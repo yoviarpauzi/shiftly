@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 import { auth } from "@/lib/auth";
 import { isAllowedRole } from "@/lib/roles";
@@ -50,17 +50,6 @@ export async function requireUser() {
 
   if (!user) {
     redirect("/sign-in");
-  }
-
-  return user;
-}
-
-// HO-only pages and actions answer with notFound(), so the page looks missing to admin site.
-export async function requireHo() {
-  const user = await requireUser();
-
-  if (user.role !== "ho") {
-    notFound();
   }
 
   return user;

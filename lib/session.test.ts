@@ -28,8 +28,7 @@ vi.mock("@/lib/scope-status", () => ({
   userScopeIsActive: async () => fake.scopeActive,
 }));
 
-const { notFound } = await import("next/navigation");
-const { getCurrentUser, requireHo } = await import("./session");
+const { getCurrentUser } = await import("./session");
 
 const activeUser = {
   id: "user-1",
@@ -44,7 +43,6 @@ beforeEach(() => {
   fake.requestHeaders = new Headers();
   fake.storeCookies = "";
   fake.seenHeaders = null;
-  vi.mocked(notFound).mockClear();
 });
 
 describe("getCurrentUser", () => {
@@ -105,24 +103,5 @@ describe("role checks", () => {
     fake.session = { user: { ...activeUser, role: null } };
 
     expect(await getCurrentUser()).toBeNull();
-  });
-});
-
-describe("requireHo", () => {
-  it("returns an HO user", async () => {
-    fake.session = { user: activeUser };
-
-    expect(await requireHo()).toEqual(activeUser);
-    expect(notFound).not.toHaveBeenCalled();
-  });
-
-  it("calls notFound() for an admin site user", async () => {
-    fake.session = {
-      user: { ...activeUser, role: "admin_site", locationId: "location-1" },
-    };
-
-    await requireHo();
-
-    expect(notFound).toHaveBeenCalledOnce();
   });
 });

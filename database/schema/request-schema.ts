@@ -17,21 +17,13 @@ import { department, subDepartment } from "./department-schema";
 import { location } from "./location-schema";
 import { position } from "./position-schema";
 import { shift } from "./shift-schema";
-import { site } from "./site-schema";
 
-// One row per site and month. The server bumps lastValue in a single upsert to issue a PO number.
-export const poCounter = pgTable(
-  "po_counter",
-  {
-    siteId: uuid("site_id")
-      .notNull()
-      .references(() => site.id, { onDelete: "restrict" }),
-    // YYYYMM
-    period: text("period").notNull(),
-    lastValue: integer("last_value").notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.siteId, table.period] })],
-);
+// One row per month. The server bumps lastValue in a single upsert to issue a PO number.
+export const poCounter = pgTable("po_counter", {
+  // YYYYMM
+  period: text("period").primaryKey(),
+  lastValue: integer("last_value").notNull(),
+});
 
 export const rosterRequest = pgTable(
   "roster_request",
@@ -42,9 +34,6 @@ export const rosterRequest = pgTable(
     type: text("type").notNull(),
     // Daily: the day. Weekly: the first of 7 days.
     startDate: date("start_date", { mode: "string" }).notNull(),
-    siteId: uuid("site_id")
-      .notNull()
-      .references(() => site.id, { onDelete: "restrict" }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => location.id, { onDelete: "restrict" }),
@@ -71,7 +60,6 @@ export const rosterRequest = pgTable(
       "roster_request_status_check",
       sql`${table.status} in ('pending', 'approved', 'rejected', 'cancelled')`,
     ),
-    index("roster_request_siteId_idx").on(table.siteId),
     index("roster_request_locationId_idx").on(table.locationId),
     index("roster_request_status_startDate_idx").on(table.status, table.startDate),
   ],
@@ -131,10 +119,6 @@ export const rosterRequestLineDay = pgTable(
 );
 
 export const rosterRequestRelations = relations(rosterRequest, ({ one, many }) => ({
-  site: one(site, {
-    fields: [rosterRequest.siteId],
-    references: [site.id],
-  }),
   location: one(location, {
     fields: [rosterRequest.locationId],
     references: [location.id],

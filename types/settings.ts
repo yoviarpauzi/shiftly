@@ -5,7 +5,7 @@ import type { AppRole } from "@/types/roles";
 
 export type WorkDays = 5 | 7;
 
-export type WorkRuleScope = "global" | "site" | "location";
+export type WorkRuleScope = "global" | "location";
 
 export type WorkRuleValues = {
   workDaysPerWeek: WorkDays;

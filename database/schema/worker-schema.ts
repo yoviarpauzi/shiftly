@@ -14,7 +14,6 @@ import {
 import type { WorkDays } from "@/types/settings";
 import { location } from "./location-schema";
 import { position } from "./position-schema";
-import { site } from "./site-schema";
 
 export const worker = pgTable(
   "worker",
@@ -22,15 +21,12 @@ export const worker = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     employeeId: text("employee_id").notNull(),
     name: text("name").notNull(),
-    siteId: uuid("site_id")
-      .notNull()
-      .references(() => site.id, { onDelete: "restrict" }),
     locationId: uuid("location_id")
       .notNull()
       .references(() => location.id, { onDelete: "restrict" }),
     // No default: every write sends the date. Rows that existed on 2026-11-02 got 2026-12-31.
     endContract: date("end_contract", { mode: "string" }).notNull(),
-    // Null means the worker follows the work rule of the location, site, or global level.
+    // Null means the worker follows the work rule of the location or global level.
     workDaysPerWeek: smallint("work_days_per_week").$type<WorkDays>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -43,7 +39,6 @@ export const worker = pgTable(
     uniqueIndex("worker_lowerEmployeeId_active_unique")
       .on(sql`lower(${table.employeeId})`)
       .where(isNull(table.deletedAt)),
-    index("worker_siteId_idx").on(table.siteId),
     index("worker_locationId_idx").on(table.locationId),
     check("worker_work_days_check", sql`${table.workDaysPerWeek} in (5, 7)`),
   ],
@@ -67,7 +62,6 @@ export const workerPosition = pgTable(
 );
 
 export const workerRelations = relations(worker, ({ one, many }) => ({
-  site: one(site, { fields: [worker.siteId], references: [site.id] }),
   location: one(location, { fields: [worker.locationId], references: [location.id] }),
   workerPositions: many(workerPosition),
 }));

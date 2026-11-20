@@ -1,13 +1,14 @@
 import type { AttendanceSummaryProps } from "@/types/attendance";
 import { cn } from "@/lib/utils";
 
-// Four counts for the day, as compact tiles. They ignore the table's filters, so they do not move
+// Five counts for the day, as compact tiles. They ignore the table's filters, so they do not move
 // when one changes.
 export function AttendanceSummary({ summary }: AttendanceSummaryProps) {
   const cards = [
     { label: "Scheduled", value: summary.scheduled, tone: "" },
     { label: "Present", value: summary.present, tone: "text-emerald-600 dark:text-emerald-400" },
     { label: "Absent", value: summary.absent, tone: "text-destructive" },
+    { label: "Covered", value: summary.covered, tone: "text-primary" },
     { label: "Not marked", value: summary.notMarked, tone: "text-muted-foreground" },
   ];
 

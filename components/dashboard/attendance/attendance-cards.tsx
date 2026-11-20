@@ -4,6 +4,7 @@ import {
 } from "@/app/dashboard/attendance/attendance-rules";
 import { REASON_MAX_LENGTH } from "@/validation/attendance";
 import type { AttendanceCardsProps, AttendanceStatus } from "@/types/attendance";
+import { ReplaceControl } from "@/components/dashboard/attendance/replace-control";
 import { ShiftChip } from "@/components/dashboard/shift-chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ export function AttendanceCards({
   rows,
   onStatusChange,
   onReasonChange,
+  onReplace,
   errorIds,
   changedIds,
   disabled,
@@ -63,6 +65,7 @@ export function AttendanceCards({
               </Button>
             ))}
           </div>
+          <ReplaceControl row={row} disabled={disabled} onReplace={onReplace} />
           <Input
             value={row.draftReason}
             onChange={(event) => onReasonChange(row.assignmentId, event.target.value)}

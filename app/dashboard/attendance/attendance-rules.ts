@@ -5,6 +5,7 @@ import type {
   AttendanceLocationView,
   AttendanceLock,
   AttendanceStatus,
+  AttendanceSubstitute,
   AttendanceSummary,
 } from "@/types/attendance";
 
@@ -36,12 +37,21 @@ export function changedEntries(rows: AttendanceFormRow[]): AttendanceEntry[] {
   return entries;
 }
 
-// A short text that changes whenever a saved status or reason does. The form is keyed by it, so it
+// What the signature reads of a row. The replacement is optional so a row without one hashes the
+// same as a row whose replacement is null.
+type SignatureRow = {
+  assignmentId: string;
+  status: AttendanceStatus | null;
+  reason: string | null;
+  substitute?: { id: string } | null;
+};
+
+// A short text that changes whenever a saved status, reason or replacement does. The form is keyed by it, so it
 // starts again from the saved values after a save.
-export function rowsSignature(
-  rows: { assignmentId: string; status: AttendanceStatus | null; reason: string | null }[],
-): string {
-  const text = rows.map((row) => `${row.assignmentId}:${row.status ?? ""}:${row.reason ?? ""}`).join("|");
+export function rowsSignature(rows: SignatureRow[]): string {
+  const text = rows
+    .map((row) => `${row.assignmentId}:${row.status ?? ""}:${row.reason ?? ""}:${row.substitute?.id ?? ""}`)
+    .join("|");
   let hash = 5381;
 
   for (let index = 0; index < text.length; index += 1) {
@@ -52,12 +62,12 @@ export function rowsSignature(
 }
 
 // What makes the form start again from the saved rows: the day, whether one location is chosen, and
-// the saved statuses and reasons. Unsaved drafts must not follow the user to another day or into the
+// the saved statuses, reasons and replacements. Unsaved drafts must not follow the user to another day or into the
 // All view, where they would look saved.
 export function attendanceFormKey(
   date: string,
   locationId: string | null,
-  rows: { assignmentId: string; status: AttendanceStatus | null; reason: string | null }[],
+  rows: SignatureRow[],
 ): string {
   return `${date}-${locationId ?? "all"}-${rowsSignature(rows)}`;
 }
@@ -163,4 +173,29 @@ export function formatAttendanceDate(date: string): string {
 // Fills Present only where nothing is chosen yet. Every reason and every chosen status stays.
 export function markAllPresent(rows: AttendanceDraftRow[]): AttendanceDraftRow[] {
   return rows.map((row) => (row.status === null ? { ...row, status: "present" } : row));
+}
+
+// Whether a row offers Replace: only a saved Absent row, so a draft that differs from the saved
+// status never does, and not while the page is locked or saving.
+export function canReplace(
+  row: { status: AttendanceStatus | null; draftStatus: AttendanceStatus | null },
+  disabled: boolean,
+): boolean {
+  return !disabled && row.status === "absent" && row.draftStatus === "absent";
+}
+
+// The rows that have a replacement but whose draft status is no longer Absent. Saving them removes
+// the replacement, so the admin is asked first.
+export function rowsLosingReplacement(rows: AttendanceFormRow[]): AttendanceFormRow[] {
+  return rows.filter((row) => row.substitute !== null && row.draftStatus !== "absent");
+}
+
+export function replacementConfirmText(rows: { workerName: string }[]): string {
+  const names = rows.map((row) => row.workerName).join(", ");
+
+  return `The replacement of ${names} will be removed because the status is no longer Absent.`;
+}
+
+export function substituteLabel(substitute: Pick<AttendanceSubstitute, "name" | "employeeId">): string {
+  return `Replaced by ${substitute.name} (${substitute.employeeId})`;
 }

@@ -6,6 +6,7 @@ import {
 import { rowLocationLabel } from "@/app/dashboard/attendance/attendance-rules";
 import { REASON_MAX_LENGTH } from "@/validation/attendance";
 import type { AttendanceFormRow, AttendanceRowActions } from "@/types/attendance";
+import { ReplaceControl } from "@/components/dashboard/attendance/replace-control";
 import { StatusSelect } from "@/components/dashboard/attendance/attendance-status";
 import { ShiftChip } from "@/components/dashboard/shift-chip";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ const columnHelper = createColumnHelper<typeof features, AttendanceFormRow>();
 export function createAttendanceColumns({
   onStatusChange,
   onReasonChange,
+  onReplace,
   errorIds,
   disabled,
   locationView,
@@ -61,13 +63,16 @@ export function createAttendanceColumns({
       id: "status",
       header: () => <span>Status</span>,
       cell: ({ row }) => (
-        <StatusSelect
-          value={row.original.draftStatus}
-          onChange={(status) => onStatusChange(row.original.assignmentId, status)}
-          label={`Status of ${row.original.workerName}`}
-          disabled={disabled}
-          invalid={errorIds.has(row.original.assignmentId)}
-        />
+        <div className="flex flex-col items-start gap-1.5">
+          <StatusSelect
+            value={row.original.draftStatus}
+            onChange={(status) => onStatusChange(row.original.assignmentId, status)}
+            label={`Status of ${row.original.workerName}`}
+            disabled={disabled}
+            invalid={errorIds.has(row.original.assignmentId)}
+          />
+          <ReplaceControl row={row.original} disabled={disabled} onReplace={onReplace} />
+        </div>
       ),
       enableHiding: false,
     }),

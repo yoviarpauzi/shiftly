@@ -167,11 +167,26 @@ export type AttendanceEmptyProps = { locationName: string };
 export type AttendanceRowActions = {
   onStatusChange: (assignmentId: string, status: AttendanceStatus | null) => void;
   onReasonChange: (assignmentId: string, reason: string) => void;
+  // Opens the replacement dialog for a saved Absent row.
+  onReplace: (row: AttendanceFormRow) => void;
   // Rows the server refused in the last save, and rows changed since the last save.
   errorIds: ReadonlySet<string>;
   changedIds: ReadonlySet<string>;
   disabled: boolean;
   locationView: AttendanceLocationView;
+};
+
+export type SubstituteDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  row: AttendanceFormRow | null;
+};
+
+// The Replace button of a saved Absent row, or the name of who covers it with a Change button.
+export type ReplaceControlProps = {
+  row: AttendanceFormRow;
+  disabled: boolean;
+  onReplace: (row: AttendanceFormRow) => void;
 };
 
 export type AttendanceCardsProps = AttendanceRowActions & { rows: AttendanceFormRow[] };

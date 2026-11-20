@@ -6,18 +6,33 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { saveAttendance } from "@/app/dashboard/attendance/actions";
-import { changedEntries, markAllPresent } from "@/app/dashboard/attendance/attendance-rules";
+import {
+  changedEntries,
+  markAllPresent,
+  replacementConfirmText,
+  rowsLosingReplacement,
+} from "@/app/dashboard/attendance/attendance-rules";
 import type {
   AttendanceFormProps,
   AttendanceFormRow,
   AttendanceStatus,
 } from "@/types/attendance";
+import { SubstituteDialog } from "@/components/dashboard/attendance/substitute-dialog";
 import { AttendanceCards } from "@/components/dashboard/attendance/attendance-cards";
 import { AttendanceDateRow } from "@/components/dashboard/attendance/attendance-date-row";
 import {
   createAttendanceColumns,
   features,
 } from "@/components/dashboard/attendance/columns";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -61,6 +76,10 @@ export function AttendanceForm({
   const router = useRouter();
   const [formError, setFormError] = React.useState<string | null>(null);
   const [errorIds, setErrorIds] = React.useState<ReadonlySet<string>>(NO_ERRORS);
+  // The absent row whose replacement dialog is open. A replacement is saved by its own action and
+  // refreshes the page, so it does not touch the draft logic below.
+  const [replacing, setReplacing] = React.useState<AttendanceFormRow | null>(null);
+  const [confirmingSave, setConfirmingSave] = React.useState(false);
 
   const form = useForm({
     defaultValues: { rows: toFormRows(rows) },
@@ -139,11 +158,26 @@ export function AttendanceForm({
             })),
           onReasonChange: (assignmentId: string, reason: string) =>
             update(assignmentId, (row) => ({ ...row, draftReason: reason })),
+          onReplace: setReplacing,
           errorIds,
           changedIds,
           disabled,
           locationView,
         };
+
+        // Saving a status other than Absent deletes the row's replacement, so ask first.
+        const losing = rowsLosingReplacement(draftRows);
+
+        function requestSave() {
+          if (readOnly) return;
+
+          if (losing.length > 0) {
+            setConfirmingSave(true);
+            return;
+          }
+
+          void form.handleSubmit();
+        }
 
         function markAll() {
           const filled = markAllPresent(
@@ -168,7 +202,7 @@ export function AttendanceForm({
               canSave={!readOnly && changed.length > 0}
               canMarkAll={!readOnly && draftRows.some((row) => row.draftStatus === null)}
               onMarkAll={markAll}
-              onSave={() => void form.handleSubmit()}
+              onSave={requestSave}
               isSaving={saving}
               exportHref={exportHref}
             />
@@ -186,7 +220,7 @@ export function AttendanceForm({
                 onSubmit={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  if (!readOnly) void form.handleSubmit();
+                  requestSave();
                 }}
               >
                 <RowsView rows={draftRows} actions={actions} />
@@ -223,6 +257,32 @@ export function AttendanceForm({
                 )}
               </form>
             )}
+            <AlertDialog open={confirmingSave && losing.length > 0} onOpenChange={setConfirmingSave}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove replacements?</AlertDialogTitle>
+                  <AlertDialogDescription>{replacementConfirmText(losing)}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <Button
+                    onClick={() => {
+                      setConfirmingSave(false);
+                      void form.handleSubmit();
+                    }}
+                  >
+                    Save and remove
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <SubstituteDialog
+              open={replacing !== null}
+              onOpenChange={(open) => {
+                if (!open) setReplacing(null);
+              }}
+              row={replacing}
+            />
           </div>
         );
       }}
@@ -237,18 +297,20 @@ type RowsViewProps = {
 
 // The table from md up and the cards below it, both bound to the same rows.
 function RowsView({ rows, actions }: RowsViewProps) {
-  const { onStatusChange, onReasonChange, errorIds, changedIds, disabled, locationView } = actions;
+  const { onStatusChange, onReasonChange, onReplace, errorIds, changedIds, disabled, locationView } =
+    actions;
   const columns = React.useMemo(
     () =>
       createAttendanceColumns({
         onStatusChange,
         onReasonChange,
+        onReplace,
         errorIds,
         changedIds,
         disabled,
         locationView,
       }),
-    [onStatusChange, onReasonChange, errorIds, changedIds, disabled, locationView],
+    [onStatusChange, onReasonChange, onReplace, errorIds, changedIds, disabled, locationView],
   );
 
   const table = useTable({

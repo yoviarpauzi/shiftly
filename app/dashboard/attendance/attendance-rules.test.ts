@@ -6,6 +6,7 @@ import {
   ATTENDANCE_STATUS_LABELS,
   attendanceFormKey,
   attendanceLock,
+  canReplace,
   changedEntries,
   formatAttendanceDate,
   locationViewFor,
@@ -14,7 +15,10 @@ import {
   isFutureDay,
   markAllPresent,
   NOT_SCHEDULED_MESSAGE,
+  replacementConfirmText,
+  rowsLosingReplacement,
   scheduledWorkError,
+  substituteLabel,
   summarize,
 } from "./attendance-rules";
 
@@ -311,5 +315,102 @@ describe("formatAttendanceDate", () => {
 
   it("handles a leap day", () => {
     expect(formatAttendanceDate("2028-02-29")).toBe("Tue, 29 Feb 2028");
+  });
+});
+
+describe("canReplace", () => {
+  it("is true for a saved Absent row that is not locked", () => {
+    expect(canReplace({ status: "absent", draftStatus: "absent" }, false)).toBe(true);
+  });
+
+  it("is false when the draft moved away from the saved Absent", () => {
+    expect(canReplace({ status: "absent", draftStatus: "present" }, false)).toBe(false);
+    expect(canReplace({ status: "absent", draftStatus: null }, false)).toBe(false);
+  });
+
+  it("is false for an Absent that is not saved yet", () => {
+    expect(canReplace({ status: null, draftStatus: "absent" }, false)).toBe(false);
+    expect(canReplace({ status: "present", draftStatus: "absent" }, false)).toBe(false);
+  });
+
+  it("is false while the page is locked or saving", () => {
+    expect(canReplace({ status: "absent", draftStatus: "absent" }, true)).toBe(false);
+  });
+
+  it("is false for a row that is not marked", () => {
+    expect(canReplace({ status: null, draftStatus: null }, false)).toBe(false);
+  });
+});
+
+describe("rowsLosingReplacement", () => {
+  const substitute = { id: "s1", workerId: "w2", employeeId: "EMP2", name: "Sari" };
+
+  it("returns a covered row whose draft is no longer Absent", () => {
+    const row = formRow({ status: "absent", substitute, draftStatus: "present" });
+
+    expect(rowsLosingReplacement([row])).toEqual([row]);
+  });
+
+  it("returns a covered row whose draft is cleared to Not marked", () => {
+    const row = formRow({ status: "absent", substitute, draftStatus: null });
+
+    expect(rowsLosingReplacement([row])).toEqual([row]);
+  });
+
+  it("keeps a covered row that is still Absent", () => {
+    expect(
+      rowsLosingReplacement([formRow({ status: "absent", substitute, draftStatus: "absent" })]),
+    ).toEqual([]);
+  });
+
+  it("ignores a row without a replacement", () => {
+    expect(
+      rowsLosingReplacement([formRow({ status: "absent", draftStatus: "present" })]),
+    ).toEqual([]);
+  });
+});
+
+describe("replacementConfirmText", () => {
+  it("names one worker", () => {
+    expect(replacementConfirmText([formRow({ workerName: "Budi" })])).toBe(
+      "The replacement of Budi will be removed because the status is no longer Absent.",
+    );
+  });
+
+  it("names several workers", () => {
+    expect(
+      replacementConfirmText([
+        formRow({ workerName: "Budi" }),
+        formRow({ assignmentId: "a2", workerName: "Ani" }),
+      ]),
+    ).toBe("The replacement of Budi, Ani will be removed because the status is no longer Absent.");
+  });
+});
+
+describe("substituteLabel", () => {
+  it("gives the name and the employee id", () => {
+    const substitute = { id: "s1", workerId: "w2", employeeId: "EMP1", name: "Sari" };
+
+    expect(substituteLabel(substitute)).toBe("Replaced by Sari (EMP1)");
+  });
+});
+
+describe("a replacement in the form key", () => {
+  const base = { assignmentId: "a1", status: "absent", reason: null } as const;
+
+  it("changes when only the replacement changes", () => {
+    const none = rowsSignature([{ ...base, substitute: null }]);
+    const first = rowsSignature([{ ...base, substitute: { id: "s1" } }]);
+    const second = rowsSignature([{ ...base, substitute: { id: "s2" } }]);
+
+    expect(first).not.toBe(none);
+    expect(second).not.toBe(first);
+    expect(
+      attendanceFormKey("2026-11-09", "l1", [{ ...base, substitute: { id: "s1" } }]),
+    ).not.toBe(attendanceFormKey("2026-11-09", "l1", [{ ...base, substitute: null }]));
+  });
+
+  it("is the same for a row without the field and one with null", () => {
+    expect(rowsSignature([base])).toBe(rowsSignature([{ ...base, substitute: null }]));
   });
 });

@@ -77,13 +77,18 @@ export function scheduledWorkError(
   return scheduled ? null : NOT_SCHEDULED_MESSAGE;
 }
 
-// A row with no status is Not marked, which has no stored record.
-export function summarize(rows: { status: AttendanceStatus | null }[]): AttendanceSummary {
+// A row with no status is Not marked, which has no stored record. covered is how many absent
+// workers have a replacement, counted by the caller.
+export function summarize(
+  rows: { status: AttendanceStatus | null }[],
+  covered = 0,
+): AttendanceSummary {
   const summary: AttendanceSummary = {
     scheduled: rows.length,
     present: 0,
     absent: 0,
     notMarked: 0,
+    covered,
   };
 
   for (const row of rows) {

@@ -161,6 +161,7 @@ describe("summarize", () => {
       present: 0,
       absent: 0,
       notMarked: 0,
+      covered: 0,
     });
   });
 
@@ -174,7 +175,12 @@ describe("summarize", () => {
       present: 3,
       absent: 2,
       notMarked: 2,
+      covered: 0,
     });
+  });
+
+  it("reports the covered count it is given", () => {
+    expect(summarize(rows("present", "absent", "absent"), 2).covered).toBe(2);
   });
 });
 

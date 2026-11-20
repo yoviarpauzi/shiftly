@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   ATTENDANCE_STATUS_VALUES,
   REASON_MAX_LENGTH,
+  listSubstituteCandidatesSchema,
   parseAttendanceFilters,
   saveAttendanceSchema,
+  setSubstituteSchema,
 } from "./attendance";
 
 const ASSIGNMENT_A = "3f6c1c1e-8a53-4b7e-9d0a-5b1e2f7c9a10";
@@ -185,5 +187,57 @@ describe("parseAttendanceFilters", () => {
   it("trims the query and cuts it to 100 characters", () => {
     expect(parseAttendanceFilters({ q: "  Citra  " }, TODAY).query).toBe("Citra");
     expect(parseAttendanceFilters({ q: "a".repeat(150) }, TODAY).query).toHaveLength(100);
+  });
+});
+
+describe("setSubstituteSchema", () => {
+  it("accepts an assignment and a worker", () => {
+    expect(
+      setSubstituteSchema.safeParse({ assignmentId: ASSIGNMENT_A, substituteWorkerId: ID_1 })
+        .success,
+    ).toBe(true);
+  });
+
+  it("accepts null to remove the replacement", () => {
+    expect(
+      setSubstituteSchema.safeParse({ assignmentId: ASSIGNMENT_A, substituteWorkerId: null })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty assignment id", () => {
+    const result = setSubstituteSchema.safeParse({ assignmentId: "", substituteWorkerId: ID_1 });
+
+    expect(result.success).toBe(false);
+    expect(result.success ? [] : result.error.issues.map((i) => i.message)).toEqual([
+      "Choose a worker",
+    ]);
+  });
+
+  it("rejects a worker id that is not a uuid", () => {
+    const result = setSubstituteSchema.safeParse({
+      assignmentId: ASSIGNMENT_A,
+      substituteWorkerId: "x",
+    });
+
+    expect(result.success ? [] : result.error.issues.map((i) => i.message)).toEqual([
+      "Choose a worker",
+    ]);
+  });
+
+  it("rejects a missing worker field", () => {
+    expect(setSubstituteSchema.safeParse({ assignmentId: ASSIGNMENT_A }).success).toBe(false);
+  });
+});
+
+describe("listSubstituteCandidatesSchema", () => {
+  it("accepts a uuid", () => {
+    expect(listSubstituteCandidatesSchema.safeParse({ assignmentId: ASSIGNMENT_A }).success).toBe(
+      true,
+    );
+  });
+
+  it("rejects an empty assignment id", () => {
+    expect(listSubstituteCandidatesSchema.safeParse({ assignmentId: "" }).success).toBe(false);
   });
 });

@@ -35,6 +35,8 @@ export type AttendanceSummary = {
   present: number;
   absent: number;
   notMarked: number;
+  // Absent workers a replacement covers. They count as having worked.
+  covered: number;
 };
 
 // A row of the form while the admin edits: the assignment and what the admin has chosen so far.
@@ -42,6 +44,14 @@ export type AttendanceDraftRow = {
   assignmentId: string;
   status: AttendanceStatus | null;
   reason: string | null;
+};
+
+// The worker who covers an absent one for the day. id is the attendance_substitute row.
+export type AttendanceSubstitute = {
+  id: string;
+  workerId: string;
+  employeeId: string;
+  name: string;
 };
 
 // One scheduled worker for the day, as the page lists them. startTime and endTime are HH:mm.
@@ -59,6 +69,8 @@ export type AttendanceRow = {
   endTime: string;
   status: AttendanceStatus | null;
   reason: string | null;
+  // Who covers this worker, or null. Only an Absent row can have one.
+  substitute: AttendanceSubstitute | null;
 };
 
 // A row as the query returns it: the times are still HH:mm:ss, and the ids the filters need are
@@ -162,3 +174,7 @@ export type AttendanceCardsProps = AttendanceRowActions & { rows: AttendanceForm
 export type AttendanceActionResult =
   | { ok: true; saved: number; cleared: number }
   | { ok: false; formError: string; entryErrors?: Record<number, string> };
+
+export type SubstituteActionResult =
+  | { ok: true; warnings: string[] }
+  | { ok: false; formError: string };

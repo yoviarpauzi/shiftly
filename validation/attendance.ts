@@ -71,6 +71,22 @@ export const saveAttendanceSchema = z.object({
 
 export type SaveAttendanceInput = z.infer<typeof saveAttendanceSchema>;
 
+const assignmentIdField = z.string({ error: "Choose a worker" }).uuid("Choose a worker");
+
+export const setSubstituteSchema = z.object({
+  assignmentId: assignmentIdField,
+  // Null removes the replacement.
+  substituteWorkerId: z.string({ error: "Choose a worker" }).uuid("Choose a worker").nullable(),
+});
+
+export type SetSubstituteInput = z.infer<typeof setSubstituteSchema>;
+
+export const listSubstituteCandidatesSchema = z.object({
+  assignmentId: assignmentIdField,
+});
+
+export type ListSubstituteCandidatesInput = z.infer<typeof listSubstituteCandidatesSchema>;
+
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function firstValue(value: string | string[] | undefined): string {

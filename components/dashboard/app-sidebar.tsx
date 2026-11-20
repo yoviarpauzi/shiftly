@@ -19,7 +19,6 @@ import {
   LayoutDashboardIcon,
   FolderTreeIcon,
   UsersIcon,
-  Building2Icon,
   Settings2Icon,
   MapPinIcon,
   BriefcaseIcon,
@@ -36,12 +35,6 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: <LayoutDashboardIcon />,
-    },
-    {
-      title: "Site",
-      url: "/dashboard/sites",
-      icon: <Building2Icon />,
-      roles: ["superadmin"],
     },
     {
       title: "Location",

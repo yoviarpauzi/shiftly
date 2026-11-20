@@ -9,6 +9,8 @@ export type ExportAssignmentRow = {
   date: string;
   shiftId: string;
   shiftOrder: number;
+  // The replacement's name when this day is Absent and a replacement covers it, else null.
+  coveredBy: string | null;
 };
 
 // How many workers a position needs on a shift and day: the split typed on the Generate screen.

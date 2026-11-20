@@ -1,5 +1,7 @@
 import "server-only";
-import { and, asc, between, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, between, eq, gt, isNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
@@ -38,6 +40,8 @@ export async function loadExportInput(
     .where(and(eq(shift.locationId, locationId), isNull(shift.deletedAt)))
     .orderBy(asc(shift.order), asc(shift.id));
 
+  const replacement = alias(worker, "replacement_worker");
+
   const assignments = await db
     .select({
       employeeId: worker.employeeId,
@@ -49,6 +53,9 @@ export async function loadExportInput(
       date: rosterAssignment.workDate,
       shiftId: shift.id,
       shiftOrder: shift.order,
+      // Only an Absent row can have a live replacement: the roster is confirmed and the request
+      // approved by the where below, and a row changed back from Absent has none left.
+      coveredBy: sql<string | null>`case when ${attendance.status} = ${"absent"} then ${replacement.name} end`,
     })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
@@ -58,6 +65,9 @@ export async function loadExportInput(
     .innerJoin(department, eq(department.id, rosterRequestLine.departmentId))
     .innerJoin(position, eq(position.id, rosterRequestLine.positionId))
     .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
+    .leftJoin(attendance, eq(attendance.rosterAssignmentId, rosterAssignment.id))
+    .leftJoin(attendanceSubstitute, eq(attendanceSubstitute.attendanceId, attendance.id))
+    .leftJoin(replacement, eq(replacement.id, attendanceSubstitute.substituteWorkerId))
     .where(
       and(
         eq(rosterRequest.locationId, locationId),

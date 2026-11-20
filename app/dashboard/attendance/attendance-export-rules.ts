@@ -170,7 +170,9 @@ export function buildExportModel(input: ExportInput): ExportModel {
                 .sort(byWorker)
                 .map((row) => ({
                   employeeId: row.employeeId,
-                  name: row.workerName,
+                  // A covered day prints the replacement beside the absent worker, who stays on the
+                  // form. The replacement gets no line of their own.
+                  name: row.coveredBy ? `${row.workerName} (covered by ${row.coveredBy})` : row.workerName,
                   position: row.positionName,
                 })),
             })),

@@ -41,6 +41,7 @@ const withRows: ExportInput = {
       date: "2026-11-09",
       shiftId: "s1",
       shiftOrder: 1,
+      coveredBy: null,
     },
   ],
   targets: [],

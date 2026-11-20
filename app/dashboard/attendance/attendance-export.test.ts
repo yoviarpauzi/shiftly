@@ -1,6 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import type { AttendanceAccess } from "@/types/attendance";
 
 const dialect = new PgDialect();
@@ -10,20 +11,31 @@ const dialect = new PgDialect();
 const fake = vi.hoisted(() => ({
   queue: [] as unknown[][],
   wheres: [] as unknown[],
+  columns: [] as Record<string, unknown>[],
+  joins: [] as { kind: "inner" | "left"; table: unknown }[][],
   selects: 0,
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({
   db: {
-    select: () => {
+    select: (columns: Record<string, unknown>) => {
       fake.selects += 1;
+      fake.columns.push(columns);
+      const joins: { kind: "inner" | "left"; table: unknown }[] = [];
+      fake.joins.push(joins);
 
       const result = fake.queue.shift() ?? [];
       const chain = {
         from: () => chain,
-        innerJoin: () => chain,
-        leftJoin: () => chain,
+        innerJoin: (table: unknown) => {
+          joins.push({ kind: "inner", table });
+          return chain;
+        },
+        leftJoin: (table: unknown) => {
+          joins.push({ kind: "left", table });
+          return chain;
+        },
         where: (condition: unknown) => {
           fake.wheres.push(condition);
           return chain;
@@ -68,6 +80,7 @@ const assignmentRow = {
   date: "2026-11-09",
   shiftId: "s1",
   shiftOrder: 1,
+  coveredBy: null,
 };
 
 const targetRow = {
@@ -84,6 +97,8 @@ const targetRow = {
 beforeEach(() => {
   fake.queue = [];
   fake.wheres = [];
+  fake.columns = [];
+  fake.joins = [];
   fake.selects = 0;
 });
 
@@ -123,6 +138,29 @@ describe("loadExportInput", () => {
       expect.arrayContaining([LOCATION, FROM, TO, "confirmed", "approved", "work"]),
     );
     expect(targets).toEqual(expect.arrayContaining([LOCATION, FROM, TO, "confirmed", "approved"]));
+  });
+
+  it("reads the replacement's name only for an Absent row, through the attendance row", async () => {
+    fake.queue = [[locationRow], [], [], []];
+
+    await loadExportInput(HO, LOCATION, FROM, TO);
+
+    const joins = fake.joins[2];
+    const [attendanceJoin, substituteJoin, replacementJoin] = joins.slice(-3);
+
+    // The attendance row, its replacement and the replacement's worker are all optional, so a
+    // row with no mark or no replacement still prints.
+    expect(attendanceJoin).toEqual({ kind: "left", table: attendance });
+    expect(substituteJoin).toEqual({ kind: "left", table: attendanceSubstitute });
+    expect(replacementJoin.kind).toBe("left");
+
+    const covered = dialect.sqlToQuery(fake.columns[2].coveredBy as SQL);
+
+    expect(covered.sql).toContain('"attendance"."status" = $1');
+    expect(covered.sql).toMatch(/^case when .* then "[a-z_]+"\."name" end$/);
+    expect(covered.params).toEqual(["absent"]);
+    // The location, the shifts and the targets do not read it.
+    expect(fake.columns[3]).not.toHaveProperty("coveredBy");
   });
 
   it("keeps a worker, department, or shift that was deleted after the day", async () => {

@@ -110,6 +110,7 @@ const assignment = (overrides: Partial<ExportAssignmentRow> = {}): ExportAssignm
   date: D1,
   shiftId: "s1",
   shiftOrder: 1,
+  coveredBy: null,
   ...overrides,
 });
 
@@ -240,6 +241,39 @@ describe("buildExportModel", () => {
     expect(second.shiftLabels).toEqual(["S4"]);
     expect(second.forms.map((form) => form.shiftOrder)).toEqual([4]);
     expect(second.requestRows).toEqual([{ position: "Operator", counts: [2] }]);
+  });
+
+  it("prints the replacement beside the absent worker's name on the covered day only", () => {
+    const [sheet] = buildExportModel(
+      input({
+        assignments: [
+          assignment({ employeeId: "EMP-001", workerName: "Budi", date: D1, coveredBy: "Citra" }),
+          assignment({ employeeId: "EMP-001", workerName: "Budi", date: D2 }),
+          assignment({ employeeId: "EMP-002", workerName: "Dewi", date: D1 }),
+        ],
+      }),
+    ).sheets;
+
+    expect(sheet.days.map((day) => day.bands[0].forms[0].workers.map((line) => line.name))).toEqual([
+      ["Budi (covered by Citra)", "Dewi"],
+      ["Budi"],
+    ]);
+  });
+
+  it("gives the replacement no line of their own and keeps the worker's order", () => {
+    const [sheet] = buildExportModel(
+      input({
+        assignments: [
+          assignment({ employeeId: "EMP-002", workerName: "Budi", coveredBy: "Adam" }),
+          assignment({ employeeId: "EMP-003", workerName: "Citra" }),
+        ],
+      }),
+    ).sheets;
+
+    const lines = sheet.days[0].bands[0].forms[0].workers;
+
+    expect(lines.map((line) => line.employeeId)).toEqual(["EMP-002", "EMP-003"]);
+    expect(lines.map((line) => line.name)).toEqual(["Budi (covered by Adam)", "Citra"]);
   });
 
   it("orders workers by position, then name, then employee ID", () => {

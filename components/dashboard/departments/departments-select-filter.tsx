@@ -20,7 +20,6 @@ export function DepartmentsSelectFilter({
   options,
   ariaLabel,
   className,
-  resets = [],
 }: DepartmentsSelectFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -33,9 +32,6 @@ export function DepartmentsSelectFilter({
       params.delete(param);
     } else {
       params.set(param, next);
-    }
-    for (const name of resets) {
-      params.delete(name);
     }
     params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);

@@ -59,7 +59,7 @@ export function WorkRules({
     );
   }
 
-  // workRuleCardKey keeps the six keys apart and resets a card when its level or own value changes.
+  // workRuleCardKey keeps the seven keys apart and resets a card when its level or own value changes.
   const keyFor = (card: WorkRuleKey) => workRuleCardKey(card, rules);
   const cardProps = { rules, scope: scopeProps, canEdit };
 

@@ -371,7 +371,7 @@ describe("restoreShift", () => {
 
     await restoreShift(SHIFT_A);
 
-    expect(whereParams(targetSelect()?.where)).not.toContain(LOCATION_B);
+    expect(whereParams(targetSelect()?.where)).toEqual([SHIFT_A]);
     expect(updates()).toHaveLength(1);
   });
 

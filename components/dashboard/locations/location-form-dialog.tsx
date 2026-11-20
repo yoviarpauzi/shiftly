@@ -114,7 +114,7 @@ export function LocationFormDialog({
                             name={field.name}
                             value={field.state.value}
                             onBlur={field.handleBlur}
-                            placeholder="Site location name"
+                            placeholder="Location name"
                             onChange={(event) =>
                               field.handleChange(event.target.value)
                             }

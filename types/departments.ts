@@ -174,6 +174,4 @@ export type DepartmentsSelectFilterProps = {
   options: DepartmentFilterOption[];
   ariaLabel: string;
   className: string;
-  // Other params to drop when this filter changes, for a filter that depends on this one.
-  resets?: string[];
 };

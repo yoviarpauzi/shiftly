@@ -4,12 +4,12 @@ import type {
   LocationRow,
 } from "@/types/locations";
 
-export const DUPLICATE_NAME_MESSAGE = "Name is already used in this site";
+export const DUPLICATE_NAME_MESSAGE = "Name is already used";
 
 export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
 export const RESTORE_CONFLICT_MESSAGE =
-  "Another active location in this site already uses this name. Rename it before restoring.";
+  "Another active location already uses this name. Rename it before restoring.";
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`;

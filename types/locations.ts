@@ -2,18 +2,14 @@ import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 import type { LocationTimezone } from "@/validation/location";
 
-export type LocationSortColumn = "name" | "site" | "status";
+export type LocationSortColumn = "name" | "status";
 
-export type LocationAccess = {
-  // null means every site, which only superadmin gets.
-  siteId: string | null;
-};
+// Only HO manages locations, and an HO sees every location.
+export type LocationAccess = { role: "ho" };
 
 export type LocationRow = {
   id: string;
   name: string;
-  siteId: string;
-  siteName: string;
   timezone: LocationTimezone;
   deletedAt: Date | null;
 };
@@ -29,8 +25,6 @@ export type LocationStatus = "active" | "deleted" | "all";
 
 export type LocationListParams = PageParams & {
   status: LocationStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
   sort: SortCriterion<LocationSortColumn>[];
 };
 
@@ -43,7 +37,6 @@ export type SiteChoice =
 
 export type LocationFieldErrors = {
   name?: string;
-  siteId?: string;
   timezone?: string;
 };
 
@@ -75,7 +68,6 @@ export type LocationActions = {
 
 export type LocationFormDialogProps = {
   location: LocationRow | null;
-  siteChoice: SiteChoice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };

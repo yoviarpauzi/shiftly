@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { LOCATION_TIMEZONES, locationSchema } from "./location";
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
-
-const messages = (input: { name: string; siteId?: string; timezone?: string }) => {
+const messages = (input: { name: string; timezone?: string }) => {
   const result = locationSchema.safeParse({
-    siteId: SITE_ID,
     timezone: "Asia/Jakarta",
     ...input,
   });
@@ -25,7 +22,6 @@ describe("locationSchema", () => {
     expect(
       locationSchema.parse({
         name: "  Kejayan  ",
-        siteId: SITE_ID,
         timezone: "Asia/Jakarta",
       }).name,
     ).toBe("Kejayan");
@@ -41,10 +37,18 @@ describe("locationSchema", () => {
     ]);
   });
 
-  it("rejects a siteId that is not a uuid", () => {
-    expect(messages({ name: "Kejayan", siteId: "not-a-uuid" })).toEqual([
-      "Choose a site",
-    ]);
+  it("accepts a create without a site", () => {
+    expect(locationSchema.safeParse({ name: "Kejayan", timezone: "Asia/Jakarta" }).success).toBe(true);
+  });
+
+  it("does not carry a siteId through", () => {
+    const parsed = locationSchema.parse({
+      name: "Kejayan",
+      siteId: "11111111-1111-4111-8111-111111111111",
+      timezone: "Asia/Jakarta",
+    });
+
+    expect(parsed).toEqual({ name: "Kejayan", timezone: "Asia/Jakarta" });
   });
 
   describe("timezone", () => {

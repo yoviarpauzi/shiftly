@@ -1,33 +1,25 @@
 import { LocationsDataTable } from "@/components/dashboard/locations/data-table";
 import { requireLocationManager } from "./location-guard";
-import { parseLocationSite } from "@/validation/location-site";
 import { parseLocationStatus } from "@/validation/location-status";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";
-import { listLocations, siteChoiceFor } from "./locations";
+import { listLocations } from "./locations";
 
-const LOCATION_SORT_COLUMNS = ["name", "site", "status"] as const;
+const LOCATION_SORT_COLUMNS = ["name", "status"] as const;
 
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
   const params = await searchParams;
   const status = parseLocationStatus(params.status);
   const sort = parseSortParam(params.sort, LOCATION_SORT_COLUMNS);
-  const siteChoice = await siteChoiceFor(access);
-  // Only superadmin picks a site, so a fixed-site manager gets no site filter.
-  const siteId = parseLocationSite(
-    params.site,
-    siteChoice.mode === "pick" ? siteChoice.sites : [],
-  );
-  const locations = await listLocations(access, {
+  const locations = await listLocations({
     ...parsePageParams(params),
     status,
-    siteId,
     sort,
   });
 
@@ -36,14 +28,12 @@ export default async function Page({
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Locations</h1>
         <p className="text-sm text-muted-foreground">
-          Locations in the sites you can manage.
+          Locations you can manage.
         </p>
       </div>
       <LocationsDataTable
         data={locations}
         status={status}
-        siteId={siteId}
-        siteChoice={siteChoice}
         sort={sort}
       />
     </div>

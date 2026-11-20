@@ -8,11 +8,7 @@ import {
   updateLocation,
 } from "@/app/dashboard/locations/actions";
 import { nameFieldError } from "@/app/dashboard/locations/location-rules";
-import type {
-  LocationFormDialogProps,
-  LocationRow,
-  SiteChoice,
-} from "@/types/locations";
+import type { LocationFormDialogProps } from "@/types/locations";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,18 +42,8 @@ import {
   locationTimezoneSchema,
 } from "@/validation/location";
 
-// HO's site is fixed, so the form starts on it. Superadmin starts on the location's site, or empty for a new one.
-function defaultSiteId(location: LocationRow | null, siteChoice: SiteChoice) {
-  if (siteChoice.mode === "fixed") {
-    return siteChoice.site.id;
-  }
-
-  return location?.siteId ?? "";
-}
-
 export function LocationFormDialog({
   location,
-  siteChoice,
   open,
   onOpenChange,
 }: LocationFormDialogProps) {
@@ -66,7 +52,6 @@ export function LocationFormDialog({
   const form = useForm({
     defaultValues: {
       name: location?.name ?? "",
-      siteId: defaultSiteId(location, siteChoice),
       timezone: location?.timezone ?? DEFAULT_LOCATION_TIMEZONE,
     },
     validators: { onSubmit: locationSchema },
@@ -84,7 +69,6 @@ export function LocationFormDialog({
             form: result.formError,
             fields: {
               name: nameFieldError(result.fieldErrors?.name),
-              siteId: nameFieldError(result.fieldErrors?.siteId),
               timezone: nameFieldError(result.fieldErrors?.timezone),
             },
           },
@@ -118,59 +102,6 @@ export function LocationFormDialog({
             {(isSubmitting) => (
               <>
                 <FieldGroup>
-                  <form.Field name="siteId">
-                    {(field) => {
-                      if (siteChoice.mode === "fixed") {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{siteChoice.site.name}</p>
-                          </Field>
-                        );
-                      }
-
-                      const isInvalid = field.state.meta.errors.length > 0;
-
-                      return (
-                        <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(value) => {
-                              if (value) {
-                                field.handleChange(value);
-                              }
-                            }}
-                            items={siteChoice.sites.map((site) => ({
-                              value: site.id,
-                              label: site.name,
-                            }))}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={isInvalid || undefined}
-                              className="w-full"
-                            >
-                              <SelectValue placeholder="Choose a site" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {siteChoice.sites.map((site) => (
-                                  <SelectItem key={site.id} value={site.id}>
-                                    {site.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                          {isInvalid && (
-                            <FieldError errors={field.state.meta.errors} />
-                          )}
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
                   <form.Field name="name">
                     {(field) => {
                       const isInvalid = field.state.meta.errors.length > 0;

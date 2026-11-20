@@ -67,12 +67,6 @@ export function createLocationColumns(
       ),
       cell: ({ row }) => row.original.name,
     }),
-    columnHelper.accessor("siteName", {
-      header: () => (
-        <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />
-      ),
-      cell: ({ row }) => row.original.siteName,
-    }),
     columnHelper.accessor("timezone", {
       header: "Time zone",
       cell: ({ row }) => timezoneLabel(row.original.timezone),

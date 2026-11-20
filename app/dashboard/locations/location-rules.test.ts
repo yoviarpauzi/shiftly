@@ -12,8 +12,6 @@ import {
 const location = (deleted: boolean): LocationRow => ({
   id: crypto.randomUUID(),
   name: "Kejayan",
-  siteId: crypto.randomUUID(),
-  siteName: "Nestle",
   timezone: "Asia/Jakarta",
   deletedAt: deleted ? new Date() : null,
 });

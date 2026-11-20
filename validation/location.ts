@@ -18,7 +18,6 @@ export const locationSchema = z.object({
     .trim()
     .min(1, "Location name is required")
     .max(100, "Location name must be 100 characters or fewer"),
-  siteId: z.string().uuid("Choose a site"),
   timezone: locationTimezoneSchema,
 });
 

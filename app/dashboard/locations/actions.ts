@@ -10,16 +10,13 @@ import { shift } from "@/database/schema/shift-schema";
 import { worker } from "@/database/schema/worker-schema";
 import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
-import { resolveSiteId } from "./location-access";
 import { requireLocationManager } from "./location-guard";
 import type {
-  LocationAccess,
   LocationActionResult,
   LocationBulkDeleteResult,
   LocationBulkRestoreResult,
 } from "@/types/locations";
 import { locationSchema, type LocationInput } from "@/validation/location";
-import { locationScopeFilter } from "./locations";
 import {
   canDeleteLocation,
   DUPLICATE_NAME_MESSAGE,
@@ -31,7 +28,7 @@ import {
 const LOCATIONS_PATH = "/dashboard/locations";
 
 export async function createLocation(input: LocationInput): Promise<LocationActionResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
   const parsed = locationSchema.safeParse(input);
 
@@ -42,7 +39,6 @@ export async function createLocation(input: LocationInput): Promise<LocationActi
   try {
     await db.insert(location).values({
       name: parsed.data.name,
-      siteId: resolveSiteId(access, parsed.data.siteId),
       timezone: parsed.data.timezone,
     });
   } catch (error) {
@@ -62,7 +58,7 @@ export async function updateLocation(
   id: string,
   input: LocationInput,
 ): Promise<LocationActionResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
   const parsed = locationSchema.safeParse(input);
 
@@ -75,16 +71,9 @@ export async function updateLocation(
       .update(location)
       .set({
         name: parsed.data.name,
-        siteId: resolveSiteId(access, parsed.data.siteId),
         timezone: parsed.data.timezone,
       })
-      .where(
-        and(
-          eq(location.id, id),
-          isNull(location.deletedAt),
-          locationScopeFilter(access),
-        ),
-      )
+      .where(and(eq(location.id, id), isNull(location.deletedAt)))
       .returning({ id: location.id });
 
     if (updated.length === 0) {
@@ -104,22 +93,13 @@ export async function updateLocation(
 }
 
 // Checks and soft-deletes one location. The caller has already passed requireLocationManager().
-async function softDeleteLocation(
-  id: string,
-  access: LocationAccess,
-): Promise<LocationActionResult> {
+async function softDeleteLocation(id: string): Promise<LocationActionResult> {
   // The row lock stops a user from being assigned to this location until the checks have run.
   return db.transaction(async (tx) => {
     const [target] = await tx
       .select({ id: location.id })
       .from(location)
-      .where(
-        and(
-          eq(location.id, id),
-          isNull(location.deletedAt),
-          locationScopeFilter(access),
-        ),
-      )
+      .where(and(eq(location.id, id), isNull(location.deletedAt)))
       .for("update");
 
     if (!target) {
@@ -167,9 +147,9 @@ async function softDeleteLocation(
 }
 
 export async function deleteLocation(id: string): Promise<LocationActionResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
-  const result = await softDeleteLocation(id, access);
+  const result = await softDeleteLocation(id);
 
   if (result.ok) {
     revalidatePath(LOCATIONS_PATH);
@@ -179,18 +159,12 @@ export async function deleteLocation(id: string): Promise<LocationActionResult> 
 }
 
 // Restores one location. The caller has already passed requireLocationManager().
-async function restoreOne(id: string, access: LocationAccess): Promise<LocationActionResult> {
+async function restoreOne(id: string): Promise<LocationActionResult> {
   try {
     const restored = await db
       .update(location)
       .set({ deletedAt: null })
-      .where(
-        and(
-          eq(location.id, id),
-          isNotNull(location.deletedAt),
-          locationScopeFilter(access),
-        ),
-      )
+      .where(and(eq(location.id, id), isNotNull(location.deletedAt)))
       .returning({ id: location.id });
 
     if (restored.length === 0) {
@@ -208,9 +182,9 @@ async function restoreOne(id: string, access: LocationAccess): Promise<LocationA
 }
 
 export async function restoreLocation(id: string): Promise<LocationActionResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
-  const result = await restoreOne(id, access);
+  const result = await restoreOne(id);
 
   if (result.ok) {
     revalidatePath(LOCATIONS_PATH);
@@ -221,13 +195,13 @@ export async function restoreLocation(id: string): Promise<LocationActionResult>
 
 // Each location is checked on its own, so some can be deleted while others are blocked.
 export async function deleteLocations(ids: string[]): Promise<LocationBulkDeleteResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
   const deletedIds: string[] = [];
   const blocked: LocationBulkDeleteResult["blocked"] = [];
 
   for (const id of ids) {
-    const result = await softDeleteLocation(id, access);
+    const result = await softDeleteLocation(id);
 
     if (result.ok) {
       deletedIds.push(id);
@@ -248,13 +222,13 @@ export async function deleteLocations(ids: string[]): Promise<LocationBulkDelete
 
 // Each location is checked on its own, so some can be restored while others are blocked by a name conflict.
 export async function restoreLocations(ids: string[]): Promise<LocationBulkRestoreResult> {
-  const access = await requireLocationManager();
+  await requireLocationManager();
 
   const restoredIds: string[] = [];
   const blocked: LocationBulkRestoreResult["blocked"] = [];
 
   for (const id of ids) {
-    const result = await restoreOne(id, access);
+    const result = await restoreOne(id);
 
     if (result.ok) {
       restoredIds.push(id);

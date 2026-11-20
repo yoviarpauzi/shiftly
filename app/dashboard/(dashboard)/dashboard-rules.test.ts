@@ -24,7 +24,7 @@ import {
 } from "./dashboard-rules";
 
 function counts(overrides: Partial<AttendanceCounts> = {}): AttendanceCounts {
-  return { scheduled: 0, present: 0, absent: 0, ...overrides };
+  return { scheduled: 0, present: 0, absent: 0, covered: 0, ...overrides };
 }
 
 function kpis(overrides: Partial<DashboardKpis> = {}): DashboardKpis {
@@ -75,12 +75,21 @@ function card(role: Parameters<typeof kpiCards>[0], key: string, overrides: Part
 describe("attendanceRate", () => {
   it("is present out of marked, with one decimal", () => {
     expect(
-      attendanceRate({ scheduled: 214, present: 202, absent: 12 }),
+      attendanceRate({ scheduled: 214, present: 202, absent: 12, covered: 0 }),
     ).toBe(94.4);
   });
 
   it("is 100 when everyone marked is present", () => {
     expect(attendanceRate(counts({ scheduled: 5, present: 5 }))).toBe(100);
+  });
+
+  it("does not count a covered shift twice: present includes it and absent holds it", () => {
+    expect(attendanceRate({ scheduled: 3, present: 3, absent: 1, covered: 1 })).toBe(100);
+    expect(attendanceRate(counts({ scheduled: 4, present: 3, absent: 2, covered: 1 }))).toBe(75);
+  });
+
+  it("is unchanged with no covers", () => {
+    expect(attendanceRate(counts({ scheduled: 52, present: 49, absent: 3, covered: 0 }))).toBe(94.2);
   });
 
   it("is null with no shifts", () => {
@@ -215,6 +224,35 @@ describe("attendance card", () => {
       "Present out of marked",
       "8 not marked yet",
     ]);
+  });
+
+  it("counts a covered shift once, in the rate and in the not marked line", () => {
+    const attendance = card("ho", "attendance", {
+      today: counts({ scheduled: 5, present: 3, absent: 1, covered: 1 }),
+    });
+
+    expect(attendance.value).toBe("100.0%");
+    expect(attendance.lines).toContain("2 not marked yet");
+  });
+
+  it("compares with a yesterday that had covers", () => {
+    const attendance = card("ho", "attendance", {
+      today: counts({ scheduled: 50, present: 48, absent: 2 }),
+      yesterday: counts({ scheduled: 4, present: 3, absent: 2, covered: 1 }),
+    });
+
+    // Yesterday: 3 present of 4 marked is 75.0%, not 3 of 5.
+    expect(attendance.value).toBe("96.0%");
+    expect(attendance.badge).toEqual({ label: "+21.0%", tone: "up" });
+    expect(attendance.lines[0]).toBe("Up from 75.0% yesterday");
+  });
+
+  it("is unchanged with no covers", () => {
+    const attendance = card("ho", "attendance", {
+      today: counts({ scheduled: 60, present: 49, absent: 3, covered: 0 }),
+    });
+
+    expect(attendance.lines).toContain("8 not marked yet");
   });
 
   it("shows Not marked when nothing is marked but shifts exist", () => {

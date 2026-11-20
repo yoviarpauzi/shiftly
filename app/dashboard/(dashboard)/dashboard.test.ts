@@ -189,8 +189,8 @@ describe("a scope with no locations", () => {
     expect(await getKpis(emptyScope)).toEqual({
       workersToday: 0,
       workersYesterday: 0,
-      today: { scheduled: 0, present: 0, absent: 0 },
-      yesterday: { scheduled: 0, present: 0, absent: 0 },
+      today: { scheduled: 0, present: 0, absent: 0, covered: 0 },
+      yesterday: { scheduled: 0, present: 0, absent: 0, covered: 0 },
       openConflicts: 0,
       conflictedRosters: 0,
       pendingRequests: 0,
@@ -313,8 +313,8 @@ describe("getKpis", () => {
 
     expect(kpis.workersToday).toBe(7);
     expect(kpis.workersYesterday).toBe(10);
-    expect(kpis.today).toEqual({ scheduled: 7, present: 4, absent: 0 });
-    expect(kpis.yesterday).toEqual({ scheduled: 10, present: 8, absent: 1 });
+    expect(kpis.today).toEqual({ scheduled: 7, present: 4, absent: 0, covered: 0 });
+    expect(kpis.yesterday).toEqual({ scheduled: 10, present: 8, absent: 1, covered: 0 });
   });
 
   it("counts conflict rows and their rosters in draft rosters of the scope", async () => {
@@ -550,10 +550,10 @@ describe("replacement days in the attendance numbers", () => {
 
     const kpis = await getKpis(oneZone);
 
-    expect(kpis.today).toEqual({ scheduled: 3, present: 3, absent: 1 });
+    expect(kpis.today).toEqual({ scheduled: 3, present: 3, absent: 1, covered: 1 });
     expect(kpis.workersToday).toBe(3);
     // No cover yesterday.
-    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1 });
+    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1, covered: 0 });
   });
 
   it("adds the covers to the 30-day Present and keeps Not present as the absent rows", async () => {
@@ -587,8 +587,8 @@ describe("replacement days in the attendance numbers", () => {
 
     const kpis = await getKpis(oneZone);
 
-    expect(kpis.today).toEqual({ scheduled: 3, present: 2, absent: 1 });
-    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1 });
+    expect(kpis.today).toEqual({ scheduled: 3, present: 2, absent: 1, covered: 0 });
+    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1, covered: 0 });
   });
 
   it("does not query for a zone with no locations", async () => {
@@ -601,7 +601,7 @@ describe("replacement days in the attendance numbers", () => {
 
     expect(callsOn(attendanceSubstitute)).toHaveLength(0);
     expect(callsOn(rosterAssignment)).toHaveLength(0);
-    expect(kpis.today).toEqual({ scheduled: 0, present: 0, absent: 0 });
+    expect(kpis.today).toEqual({ scheduled: 0, present: 0, absent: 0, covered: 0 });
   });
 });
 

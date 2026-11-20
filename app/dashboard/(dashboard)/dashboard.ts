@@ -100,7 +100,11 @@ async function shiftCounts(zone: ScopeZone, from: string, to: string) {
 
   const coveredOn = new Map(covers.map((row) => [row.workDate, row.covered]));
 
-  return rows.map((row) => ({ ...row, present: row.present + (coveredOn.get(row.workDate) ?? 0) }));
+  return rows.map((row) => {
+    const covered = coveredOn.get(row.workDate) ?? 0;
+
+    return { ...row, present: row.present + covered, covered };
+  });
 }
 
 // Per location: draft rosters, the conflict rows they hold, and how many of them hold any.
@@ -158,13 +162,14 @@ function sum<T>(rows: T[], pick: (row: T) => number): number {
 }
 
 function emptyCounts(): AttendanceCounts {
-  return { scheduled: 0, present: 0, absent: 0 };
+  return { scheduled: 0, present: 0, absent: 0, covered: 0 };
 }
 
 function addCounts(target: AttendanceCounts, row: AttendanceCounts): void {
   target.scheduled += row.scheduled;
   target.present += row.present;
   target.absent += row.absent;
+  target.covered += row.covered;
 }
 
 export async function getKpis(scope: DashboardScope): Promise<DashboardKpis> {

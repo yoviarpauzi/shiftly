@@ -72,11 +72,14 @@ function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;
 }
 
+// Shifts with an attendance mark. `present` already includes the covered shifts, and each of them
+// also has its own absent row, so covered is taken out once: (present - covered) + absent.
 function marked(counts: AttendanceCounts): number {
-  return counts.present + counts.absent;
+  return counts.present - counts.covered + counts.absent;
 }
 
-// Present out of marked, as a percentage with one decimal. Not marked is left out.
+// Present (covered shifts included) out of marked, as a percentage with one decimal. Not marked is
+// left out. A covered shift counts once, so the rate is at most 100.
 export function attendanceRate(counts: AttendanceCounts): number | null {
   const total = marked(counts);
 

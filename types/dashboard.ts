@@ -27,8 +27,11 @@ export type DashboardScope = {
 export type AttendanceCounts = {
   // Scheduled shifts, marked or not.
   scheduled: number;
+  // Includes the covered shifts: a shift whose absent worker has a replacement counts as worked.
   present: number;
   absent: number;
+  // Absent shifts that have a live replacement. They are in both present and absent.
+  covered: number;
 };
 
 export type DashboardKpis = {

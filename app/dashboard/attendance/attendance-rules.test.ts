@@ -28,7 +28,6 @@ const formRow = (overrides: Partial<AttendanceFormRow> = {}): AttendanceFormRow 
   departmentName: "Produksi",
   positionName: "Operator",
   locationName: "Gudang Utara",
-  siteName: "Site Utama",
   shiftOrder: 1,
   shiftName: "Pagi",
   startTime: "07:00",
@@ -279,34 +278,23 @@ describe("attendanceLock", () => {
 
 describe("locationViewFor", () => {
   it("shows no location column once a location is chosen", () => {
-    expect(locationViewFor({ siteId: "s1", locationId: "l1" })).toBe("none");
+    expect(locationViewFor({ locationId: "l1" })).toBe("none");
   });
 
-  it("shows the location while only the site is chosen", () => {
-    expect(locationViewFor({ siteId: "s1", locationId: null })).toBe("location");
-  });
-
-  it("shows the site and the location under All sites", () => {
-    expect(locationViewFor({ siteId: null, locationId: null })).toBe("site-location");
+  it("shows the location name while the list spans locations", () => {
+    expect(locationViewFor({ locationId: null })).toBe("location");
   });
 });
 
 describe("rowLocationLabel", () => {
-  const row = { siteName: "Site A", locationName: "Gudang" };
+  const row = { locationName: "Gudang" };
 
   it("gives nothing when the column is off", () => {
     expect(rowLocationLabel(row, "none")).toBeNull();
   });
 
-  it("gives the location name when the site is fixed", () => {
+  it("gives the location name alone, with no site in front", () => {
     expect(rowLocationLabel(row, "location")).toBe("Gudang");
-  });
-
-  it("tells two locations with the same name apart by their site", () => {
-    expect(rowLocationLabel(row, "site-location")).toBe("Site A · Gudang");
-    expect(rowLocationLabel({ ...row, siteName: "Site B" }, "site-location")).toBe(
-      "Site B · Gudang",
-    );
   });
 });
 

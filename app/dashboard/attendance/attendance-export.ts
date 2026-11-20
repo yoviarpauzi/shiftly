@@ -24,7 +24,7 @@ export async function loadExportInput(
   to: string,
 ): Promise<ExportInput | null> {
   const [place] = await db
-    .select({ id: location.id, name: location.name, siteId: location.siteId })
+    .select({ id: location.id, name: location.name })
     .from(location)
     .where(and(eq(location.id, locationId), isNull(location.deletedAt)));
 

@@ -17,10 +17,9 @@ const TYPE_OPTIONS = [
   { value: "weekly", label: "Weekly" },
 ];
 
-// Search, roster status, type, site, then location. A superadmin picks both site and location, HO
-// picks a location, and admin site sees neither. The location belongs to its site, so changing the
-// site drops it.
-export function RostersFilters({ filters, sites, locations }: RosterFiltersProps) {
+// Search, roster status, type, then location. HO picks a location, and admin site, which has one,
+// does not.
+export function RostersFilters({ filters, locations }: RosterFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <RequestsSearch />
@@ -38,19 +37,6 @@ export function RostersFilters({ filters, sites, locations }: RosterFiltersProps
         label="Filter rosters by type"
         className="h-9 w-36"
       />
-      {sites.length > 0 && (
-        <FilterSelect
-          param="site"
-          value={filters.siteId ?? ALL}
-          options={[
-            { value: ALL, label: "All sites" },
-            ...sites.map((site) => ({ value: site.id, label: site.name })),
-          ]}
-          label="Filter rosters by site"
-          className="h-9 w-48"
-          resets={["location"]}
-        />
-      )}
       {locations.length > 1 && (
         <FilterSelect
           param="location"

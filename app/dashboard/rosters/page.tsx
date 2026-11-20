@@ -3,10 +3,8 @@ import { RostersFilters } from "@/components/dashboard/rosters/rosters-filters";
 import type { RosterSortColumn } from "@/types/rosters";
 import { parsePageParams } from "@/validation/pagination";
 import { parseRequestLocation } from "@/validation/request-location";
-import { parseRequestSite } from "@/validation/request-site";
 import { parseRosterFilters } from "@/validation/rosters";
 import { parseSortParam } from "@/validation/sort";
-import { requestLocationsFor } from "../requests/request-rules";
 import { requestChoicesFor } from "../requests/requests";
 import { requireRosterUser } from "./roster-guard";
 import { listRosters } from "./rosters";
@@ -30,14 +28,10 @@ export default async function Page({
   const parsed = parseRosterFilters(params);
   // The Roster menu has the Request menu's scope, so the same choices feed its filters.
   const choices = await requestChoicesFor(access);
-  // Only a superadmin with several sites picks a site. HO and admin site are already scoped.
-  const pickSite =
-    access.siteId === null && access.locationId === null && choices.sites.length > 1;
-  const siteId = parseRequestSite(params.site, pickSite ? choices.sites : []);
-  const locations = requestLocationsFor(choices.locations, siteId, pickSite);
-  // Only locations of the chosen site count, so a ?location= outside it is ignored.
+  const locations = choices.locations;
+  // Only locations the actor can see count, so a ?location= outside them is ignored.
   const locationId = parseRequestLocation(params.location, locations);
-  const filters = { ...parsed, siteId, locationId };
+  const filters = { ...parsed, locationId };
 
   const rosters = await listRosters(access, {
     ...parsePageParams(params),
@@ -55,8 +49,7 @@ export default async function Page({
       </div>
       <RostersFilters
         filters={filters}
-        sites={pickSite ? choices.sites.map(({ id, name }) => ({ id, name })) : []}
-        locations={locations}
+        locations={locations.map(({ id, name }) => ({ id, name }))}
       />
       <RostersDataTable page={rosters} />
     </div>

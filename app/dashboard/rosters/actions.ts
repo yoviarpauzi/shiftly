@@ -127,14 +127,13 @@ async function lockRoster(
   const [request] = await tx
     .select({
       status: rosterRequest.status,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(rosterRequest)
     .where(eq(rosterRequest.id, found.requestId))
     .for("update");
 
-  if (!request || !canAccessRosterLocation(access, { id: request.locationId, siteId: request.siteId })) {
+  if (!request || !canAccessRosterLocation(access, { id: request.locationId })) {
     return null;
   }
 
@@ -190,8 +189,7 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
         .select({
           id: rosterRequest.id,
           status: rosterRequest.status,
-          siteId: rosterRequest.siteId,
-          locationId: rosterRequest.locationId,
+              locationId: rosterRequest.locationId,
         })
         .from(rosterRequest)
         .where(eq(rosterRequest.id, data.requestId))
@@ -199,7 +197,7 @@ export async function generateRoster(input: GenerateRosterInput): Promise<Roster
 
       if (
         !request ||
-        !canAccessRosterLocation(access, { id: request.locationId, siteId: request.siteId })
+        !canAccessRosterLocation(access, { id: request.locationId })
       ) {
         return { ok: false, formError: ROSTER_NOT_FOUND_MESSAGE };
       }
@@ -548,13 +546,12 @@ async function visibleRoster(access: RequestAccess, rosterId: string) {
   const [request] = await db
     .select({
       status: rosterRequest.status,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(rosterRequest)
     .where(eq(rosterRequest.id, found.requestId));
 
-  if (!request || !canAccessRosterLocation(access, { id: request.locationId, siteId: request.siteId })) {
+  if (!request || !canAccessRosterLocation(access, { id: request.locationId })) {
     return null;
   }
 

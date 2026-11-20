@@ -167,7 +167,6 @@ export function parseRosterFilters(params: SearchParams): RosterFilters {
   return {
     status: STATUSES.includes(status) ? status : "all",
     type: type === "daily" || type === "weekly" ? type : "all",
-    siteId: uuidOrNull(params.site),
     locationId: uuidOrNull(params.location),
     query: firstValue(params.q).trim().slice(0, MAX_QUERY_LENGTH),
   };

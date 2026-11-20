@@ -235,7 +235,6 @@ describe("parseRosterFilters", () => {
     expect(parseRosterFilters({})).toEqual({
       status: "all",
       type: "all",
-      siteId: null,
       locationId: null,
       query: "",
     });
@@ -253,11 +252,13 @@ describe("parseRosterFilters", () => {
     expect(parseRosterFilters({ type: "x" }).type).toBe("all");
   });
 
-  it("keeps a uuid for site and location and gives null for anything else", () => {
-    const parsed = parseRosterFilters({ site: SHIFT_1, location: "nope" });
+  it("keeps a uuid for location and gives null for anything else", () => {
+    expect(parseRosterFilters({ location: SHIFT_1 }).locationId).toBe(SHIFT_1);
+    expect(parseRosterFilters({ location: "nope" }).locationId).toBeNull();
+  });
 
-    expect(parsed.siteId).toBe(SHIFT_1);
-    expect(parsed.locationId).toBeNull();
+  it("ignores a site param, which no longer exists", () => {
+    expect(parseRosterFilters({ site: SHIFT_1 })).not.toHaveProperty("siteId");
   });
 
   it("uses the first element of an array value", () => {

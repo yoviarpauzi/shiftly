@@ -20,7 +20,6 @@ export type AssignmentKind = "work" | "off" | "break";
 export type RosterFilters = {
   status: RosterStatusFilter;
   type: "all" | "daily" | "weekly";
-  siteId: string | null;
   locationId: string | null;
   query: string;
 };
@@ -47,7 +46,6 @@ export type RosterRow = {
   startDate: string;
   days: number;
   locationName: string;
-  siteName: string;
   status: RosterListStatus;
   conflictCount: number | null;
   updatedAt: string | null;
@@ -65,10 +63,8 @@ export type RosterDataTableProps = { page: RosterPage };
 
 export type RosterFiltersProps = {
   filters: RosterFilters;
-  // Empty unless the actor picks the site: a superadmin with more than one site.
-  sites: { id: string; name: string }[];
   // The locations the location filter offers. Fewer than two hides the filter.
-  locations: { id: string; name: string; siteId: string }[];
+  locations: { id: string; name: string }[];
 };
 
 export type RosterStatusBadgeProps = { status: RosterListStatus };
@@ -181,7 +177,6 @@ export type RosterDetail = {
   type: "daily" | "weekly";
   startDate: string;
   locationName: string;
-  siteName: string;
   status: RosterStatus;
   // False once the roster is confirmed or its request is no longer approved: no replacing,
   // generating again, or confirming.
@@ -427,7 +422,7 @@ export type LocationWorker = {
 // The engine's input without its targets, which come from the Generate screen.
 export type LoadedEngineInput = {
   input: Omit<RosterEngineInput, "targets">;
-  location: { id: string; siteId: string };
+  location: { id: string };
 };
 
 // A worker who could take over a row, with what checkReplacement needs to judge them.

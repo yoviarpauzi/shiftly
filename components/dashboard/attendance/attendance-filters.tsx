@@ -16,20 +16,15 @@ const STATUS_OPTIONS = [
   { value: "leave", label: "Leave" },
 ];
 
-// Search, then site, location, department, shift, and status. Site and location can be All, which
-// only views: marking needs one location. A superadmin picks both, HO picks a location, and admin
-// site sees neither. The location needs a site first, and the department and shift, which belong to
-// one location, need a location. A new site resets the location, department, and shift, and a new
-// location resets the department and shift.
+// Search, then location, department, shift, and status. Location can be All, which only views:
+// marking needs one location. HO picks a location and admin site, which has one, does not. The
+// department and shift belong to one location, so they need a location, and a new location resets
+// both.
 export function AttendanceFilters({
   filters,
   choices,
 }: AttendanceFiltersProps) {
-  const locations = choices.locations.filter(
-    (location) => location.siteId === choices.siteId,
-  );
-  const showLocation =
-    choices.siteId === null ? choices.sites.length > 1 : locations.length > 1;
+  const showLocation = choices.locations.length > 1;
   const noLocation = choices.locationId === null;
 
   return (
@@ -38,29 +33,13 @@ export function AttendanceFilters({
         placeholder="Search by name or ID"
         label="Search workers"
       />
-      {choices.sites.length > 1 && (
-        <FilterSelect
-          param="site"
-          value={choices.siteId ?? ALL}
-          options={[
-            { value: ALL, label: "All sites" },
-            ...choices.sites.map((site) => ({
-              value: site.id,
-              label: site.name,
-            })),
-          ]}
-          label="Site"
-          className="h-9 w-32"
-          resets={["location", "department", "shift"]}
-        />
-      )}
       {showLocation && (
         <FilterSelect
           param="location"
           value={choices.locationId ?? ALL}
           options={[
             { value: ALL, label: "All locations" },
-            ...locations.map((location) => ({
+            ...choices.locations.map((location) => ({
               value: location.id,
               label: location.name,
             })),
@@ -68,7 +47,6 @@ export function AttendanceFilters({
           label="Location"
           className="h-9 w-40"
           resets={["department", "shift"]}
-          disabled={choices.siteId === null}
         />
       )}
       <FilterSelect

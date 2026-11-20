@@ -9,7 +9,6 @@ export type AttendanceStatusFilter = "all" | "not-marked" | AttendanceStatus;
 // The filters of the Attendance page, read from the URL. date is YYYY-MM-DD.
 export type AttendanceFilters = {
   date: string;
-  siteId: string | null;
   locationId: string | null;
   departmentId: string | null;
   shiftId: string | null;
@@ -24,11 +23,10 @@ export type AttendanceEntry = {
   reason: string | null;
 };
 
-// siteId null means every site, which only a superadmin has. locationId is set for admin site only.
+// locationId null means every location, which only HO has. It is set for admin site.
 export type AttendanceAccess = {
   userId: string;
   role: AppRole;
-  siteId: string | null;
   locationId: string | null;
 };
 
@@ -57,7 +55,6 @@ export type AttendanceRow = {
   positionName: string;
   // The place of the request, so a list that spans locations can tell the rows apart.
   locationName: string;
-  siteName: string;
   shiftOrder: number;
   shiftName: string;
   startTime: string;
@@ -84,13 +81,11 @@ export type AttendanceListResult = {
   isFuture: boolean;
 };
 
-// What the page offers in its filters, and the site and location it resolved to. Null means All, or
-// that the access allows none.
+// What the page offers in its filters, and the location it resolved to. Null means All, or that the
+// access allows none.
 export type AttendanceChoices = {
-  siteId: string | null;
   locationId: string | null;
-  sites: { id: string; name: string }[];
-  locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
+  locations: { id: string; name: string; timezone: LocationTimezone }[];
   departments: { id: string; name: string }[];
   shifts: { id: string; name: string }[];
 };
@@ -105,8 +100,8 @@ export type AttendanceFormRow = AttendanceRow & {
 // yet (All). Null means it can.
 export type AttendanceLock = "future" | "scope" | null;
 
-// The Location column: none, the location name, or the site and the location.
-export type AttendanceLocationView = "none" | "location" | "site-location";
+// The Location column: none, or the location name.
+export type AttendanceLocationView = "none" | "location";
 
 export type AttendanceFormProps = {
   date: string;

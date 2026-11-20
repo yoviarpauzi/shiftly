@@ -102,8 +102,6 @@ vi.mock("@/lib/db", () => ({
 const { revalidatePath } = await import("next/cache");
 const { saveAttendance } = await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
 const LOCATION_A2 = "44444444-4444-4444-8444-444444444444";
 const ASSIGNMENT_1 = "a0000000-0000-4000-8000-000000000001";
@@ -113,27 +111,14 @@ const DATE = "2026-11-09";
 
 const access = (overrides: Partial<AttendanceAccess>): AttendanceAccess => ({
   userId: "user-1",
-  role: "superadmin",
-  siteId: null,
+  role: "ho",
   locationId: null,
   ...overrides,
 });
 
-const superadmin = access({});
-const hoA = access({ userId: "ho-a", role: "ho", siteId: SITE_A });
-const hoB = access({ userId: "ho-b", role: "ho", siteId: SITE_B });
-const adminA = access({
-  userId: "admin-a",
-  role: "admin_site",
-  siteId: SITE_A,
-  locationId: LOCATION_A,
-});
-const adminOther = access({
-  userId: "admin-o",
-  role: "admin_site",
-  siteId: SITE_A,
-  locationId: LOCATION_A2,
-});
+const ho = access({});
+const adminA = access({ userId: "admin-a", role: "admin_site", locationId: LOCATION_A });
+const adminOther = access({ userId: "admin-o", role: "admin_site", locationId: LOCATION_A2 });
 
 const stored = (id: string, overrides: Record<string, unknown> = {}) => ({
   id,
@@ -142,7 +127,6 @@ const stored = (id: string, overrides: Record<string, unknown> = {}) => ({
   rosterStatus: "confirmed",
   requestStatus: "approved",
   locationId: LOCATION_A,
-  siteId: SITE_A,
   timezone: "Asia/Jakarta",
   ...overrides,
 });
@@ -160,7 +144,7 @@ const writes = () => fake.calls.filter((call) => call.op !== "select");
 beforeEach(() => {
   fake.calls = [];
   fake.rows = { assignments: [stored(ASSIGNMENT_1), stored(ASSIGNMENT_2)] };
-  fake.access = superadmin;
+  fake.access = ho;
   vi.mocked(revalidatePath).mockClear();
   // Noon in Jakarta on the saved date, so the date is today and never in the future.
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -396,11 +380,8 @@ describe("saveAttendance", () => {
   });
 
   describe("access", () => {
-    it.each([
-      ["HO on a location of another site", hoB],
-      ["admin site on another location of the same site", adminOther],
-    ])("refuses %s as not found and writes nothing", async (_label, role) => {
-      fake.access = role;
+    it("refuses admin site of another location as not found and writes nothing", async () => {
+      fake.access = adminOther;
 
       const res = await saveAttendance(input([entry(ASSIGNMENT_1, "present")]));
 
@@ -409,8 +390,7 @@ describe("saveAttendance", () => {
     });
 
     it.each([
-      ["superadmin", superadmin],
-      ["HO on their own site", hoA],
+      ["HO", ho],
       ["admin site on their own location", adminA],
     ])("lets %s save", async (_label, role) => {
       fake.access = role;

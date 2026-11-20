@@ -39,29 +39,24 @@ vi.mock("@/lib/db", () => ({
 
 const { loadExportInput } = await import("./attendance-export");
 
-const SITE_1 = "11111111-1111-4111-8111-111111111111";
-const SITE_2 = "22222222-2222-4222-8222-222222222222";
 const LOCATION = "33333333-3333-4333-8333-333333333331";
 const OTHER_LOCATION = "33333333-3333-4333-8333-333333333332";
 const FROM = "2026-11-09";
 const TO = "2026-11-15";
 
-const SUPERADMIN: AttendanceAccess = {
-  userId: "u-1",
-  role: "superadmin",
-  siteId: null,
-  locationId: null,
+const HO: AttendanceAccess = { userId: "u-1", role: "ho", locationId: null };
+const ADMIN_OWN: AttendanceAccess = {
+  userId: "u-2",
+  role: "admin_site",
+  locationId: LOCATION,
 };
-const HO_SITE_1: AttendanceAccess = { userId: "u-2", role: "ho", siteId: SITE_1, locationId: null };
-const HO_SITE_2: AttendanceAccess = { userId: "u-3", role: "ho", siteId: SITE_2, locationId: null };
 const ADMIN_OTHER: AttendanceAccess = {
   userId: "u-4",
   role: "admin_site",
-  siteId: SITE_1,
   locationId: OTHER_LOCATION,
 };
 
-const locationRow = { id: LOCATION, name: "Kejayan", siteId: SITE_1 };
+const locationRow = { id: LOCATION, name: "Kejayan" };
 
 const assignmentRow = {
   employeeId: "00123",
@@ -96,25 +91,30 @@ describe("loadExportInput", () => {
   it("gives null and reads nothing more when the location does not exist", async () => {
     fake.queue = [[]];
 
-    expect(await loadExportInput(SUPERADMIN, LOCATION, FROM, TO)).toBeNull();
+    expect(await loadExportInput(HO, LOCATION, FROM, TO)).toBeNull();
     expect(fake.selects).toBe(1);
   });
 
   it("gives null for a location outside the access, without reading any rows", async () => {
     fake.queue = [[locationRow]];
-    expect(await loadExportInput(HO_SITE_2, LOCATION, FROM, TO)).toBeNull();
-    expect(fake.selects).toBe(1);
-
-    fake.queue = [[locationRow]];
-    fake.selects = 0;
     expect(await loadExportInput(ADMIN_OTHER, LOCATION, FROM, TO)).toBeNull();
     expect(fake.selects).toBe(1);
+  });
+
+  it("lets HO and the admin site of the location read it", async () => {
+    for (const access of [HO, ADMIN_OWN]) {
+      fake.queue = [[locationRow], [], [], []];
+
+      expect(await loadExportInput(access, LOCATION, FROM, TO)).toMatchObject({
+        locationName: "Kejayan",
+      });
+    }
   });
 
   it("asks only for the location, the week, confirmed rosters, and approved requests", async () => {
     fake.queue = [[locationRow], [], [], []];
 
-    await loadExportInput(HO_SITE_1, LOCATION, FROM, TO);
+    await loadExportInput(HO, LOCATION, FROM, TO);
 
     const assignments = dialect.sqlToQuery(fake.wheres[2] as SQL).params;
     const targets = dialect.sqlToQuery(fake.wheres[3] as SQL).params;
@@ -128,7 +128,7 @@ describe("loadExportInput", () => {
   it("keeps a worker, department, or shift that was deleted after the day", async () => {
     fake.queue = [[locationRow], [], [], []];
 
-    await loadExportInput(SUPERADMIN, LOCATION, FROM, TO);
+    await loadExportInput(HO, LOCATION, FROM, TO);
 
     for (const where of [fake.wheres[2], fake.wheres[3]]) {
       const text = dialect.sqlToQuery(where as SQL).sql;
@@ -142,7 +142,7 @@ describe("loadExportInput", () => {
   it("returns the rows with the location name and the week", async () => {
     fake.queue = [[locationRow], [{ id: "s1", order: 1 }], [assignmentRow], [targetRow]];
 
-    const input = await loadExportInput(SUPERADMIN, LOCATION, FROM, TO);
+    const input = await loadExportInput(HO, LOCATION, FROM, TO);
 
     expect(input).toEqual({
       locationName: "Kejayan",
@@ -169,7 +169,7 @@ describe("loadExportInput", () => {
       [{ ...targetRow, shiftId: "s9", shiftOrder: 3 }],
     ];
 
-    const input = await loadExportInput(SUPERADMIN, LOCATION, FROM, TO);
+    const input = await loadExportInput(HO, LOCATION, FROM, TO);
 
     expect(input?.shifts).toEqual([
       { id: "s1", order: 1 },

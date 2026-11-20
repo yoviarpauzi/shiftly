@@ -73,7 +73,7 @@ export function RostersDataTable({ page: data }: RosterDataTableProps) {
   }
 
   const pageCount = Math.max(1, Math.ceil(data.total / data.pageSize));
-  const filtered = ["status", "type", "site", "location"].some((key) => searchParams.has(key));
+  const filtered = ["status", "type", "location"].some((key) => searchParams.has(key));
   const empty = query
     ? `No rosters match "${query}"`
     : filtered

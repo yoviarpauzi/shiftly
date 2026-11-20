@@ -59,7 +59,7 @@ const fake = vi.hoisted(() => ({
     roster: [] as Record<string, unknown>[],
   },
   access: null as unknown,
-  user: { id: "super-1", name: "Super" },
+  user: { id: "ho-1", name: "Super" },
   engineInput: null as unknown,
   lines: [] as unknown[],
   context: null as unknown,
@@ -149,7 +149,7 @@ vi.mock("./roster-guard", () => ({
   requireRosterUser: async () => ({ user: fake.user, access: fake.access }),
 }));
 vi.mock("./rosters", () => ({
-  loadEngineInput: async () => ({ input: fake.engineInput, location: { id: "x", siteId: "y" } }),
+  loadEngineInput: async () => ({ input: fake.engineInput, location: { id: "x" } }),
   loadRequestLines: async () => fake.lines,
   loadReplacementContext: async () => fake.context,
   loadCellContext: async (_reader: unknown, input: unknown) => {
@@ -189,8 +189,6 @@ const {
   swapRosterCellWorker,
 } = await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
 const LOCATION_B = "44444444-4444-4444-8444-444444444444";
 const REQUEST_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -207,17 +205,17 @@ const VERSION = "2026-11-03T10:00:00.000Z";
 
 type Role = { user: { id: string; name: string }; access: RequestAccess };
 
-const superadmin: Role = {
-  user: { id: "super-1", name: "Super" },
-  access: { siteId: null, locationId: null },
+const ho: Role = {
+  user: { id: "ho-1", name: "HO" },
+  access: { locationId: null },
 };
-const hoB: Role = {
-  user: { id: "ho-b", name: "HO B" },
-  access: { siteId: SITE_B, locationId: null },
+const adminA: Role = {
+  user: { id: "admin-a", name: "Admin A" },
+  access: { locationId: LOCATION_A },
 };
 const adminB: Role = {
   user: { id: "admin-b", name: "Admin B" },
-  access: { siteId: SITE_A, locationId: LOCATION_B },
+  access: { locationId: LOCATION_B },
 };
 
 function actAs(role: Role) {
@@ -268,7 +266,6 @@ const generateInput = (overrides: Record<string, unknown> = {}) => ({
 const storedRequest = (overrides: Record<string, unknown> = {}) => ({
   id: REQUEST_ID,
   status: "approved",
-  siteId: SITE_A,
   locationId: LOCATION_A,
   ...overrides,
 });
@@ -277,7 +274,6 @@ const storedRoster = (overrides: Record<string, unknown> = {}) => ({
   id: ROSTER_ID,
   status: "draft",
   updatedAt: new Date(VERSION),
-  siteId: SITE_A,
   locationId: LOCATION_A,
   ...overrides,
 });
@@ -305,7 +301,7 @@ beforeEach(() => {
   fake.locationWorkerCalls = [];
   fake.rosterWorkerIds = [];
   fake.rosterWorkerCalls = [];
-  actAs(superadmin);
+  actAs(ho);
   vi.mocked(revalidatePath).mockClear();
 });
 
@@ -455,7 +451,7 @@ describe("generateRoster", () => {
     expect(writesTo("insert", roster)[0].values).toEqual({
       requestId: REQUEST_ID,
       status: "draft",
-      generatedBy: "super-1",
+      generatedBy: "ho-1",
     });
     expect(writesTo("insert", rosterShiftTarget)[0].values).toEqual(
       targets().map((target) => ({
@@ -526,7 +522,7 @@ describe("generateRoster", () => {
     ]);
     expect(writesTo("update", roster)[0].set).toEqual({
       generatedAt: expect.any(Date),
-      generatedBy: "super-1",
+      generatedBy: "ho-1",
     });
   });
 
@@ -694,7 +690,7 @@ describe("replaceRosterWorker", () => {
       requestLineId: LINE_A,
       fromWorkerId: W1,
       toWorkerId: W2,
-      editedBy: "super-1",
+      editedBy: "ho-1",
     });
     expect(writesTo("update", roster)[0].set).toEqual({ updatedAt: expect.any(Date) });
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard/rosters");
@@ -792,7 +788,6 @@ describe("replaceRosterWorker", () => {
   });
 
   it.each([
-    ["HO on another site", hoB],
     ["admin site on another location", adminB],
   ])("refuses %s as not found", async (_label, role) => {
     actAs(role);
@@ -841,7 +836,7 @@ describe("confirmRoster", () => {
     expect(writes()[0].set).toEqual({
       status: "confirmed",
       confirmedAt: expect.any(Date),
-      confirmedBy: "super-1",
+      confirmedBy: "ho-1",
     });
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard/rosters");
     expect(revalidatePath).toHaveBeenCalledWith(`/dashboard/rosters/${ROSTER_ID}`);
@@ -868,7 +863,7 @@ describe("confirmRoster", () => {
   });
 
   it("refuses a roster outside the actor's scope as not found", async () => {
-    actAs(hoB);
+    actAs(adminB);
     fake.rows.roster = [storedRoster()];
 
     expect(await confirmRoster(confirmInput())).toEqual({
@@ -886,12 +881,12 @@ describe("confirmRoster", () => {
 
 describe("listReplacementCandidates", () => {
   it("passes the actor's access and the ids to the query", async () => {
-    actAs(hoB);
+    actAs(adminA);
 
     const res = await listReplacementCandidates({ rosterId: ROSTER_ID, lineId: LINE_A, fromWorkerId: W1 });
 
     expect(res).toEqual([{ workerId: "w9" }]);
-    expect(fake.candidates).toEqual([[{ siteId: SITE_B, locationId: null }, ROSTER_ID, LINE_A, W1]]);
+    expect(fake.candidates).toEqual([[{ locationId: LOCATION_A }, ROSTER_ID, LINE_A, W1]]);
   });
 
   it("gives nothing for ids that are not uuids, without a query", async () => {
@@ -1000,7 +995,6 @@ const rosterRefusals: [string, () => void, { version?: string }, string][] = [
     REQUEST_NOT_APPROVED_MESSAGE,
   ],
   ["a stale version", () => {}, { version: "2026-11-03T09:00:00.000Z" }, ROSTER_CHANGED_MESSAGE],
-  ["HO on another site", () => actAs(hoB), {}, ROSTER_NOT_FOUND_MESSAGE],
   ["admin site on another location", () => actAs(adminB), {}, ROSTER_NOT_FOUND_MESSAGE],
 ];
 
@@ -1058,7 +1052,7 @@ describe("editRosterCell", () => {
       beforeShiftId: null,
       afterKind: "work",
       afterShiftId: SHIFT_2,
-      editedBy: "super-1",
+      editedBy: "ho-1",
     });
     expect(whereParams(writesTo("delete", rosterConflict)[0].where)).toEqual([ROSTER_ID]);
     expect(writesTo("update", roster)[0].set).toEqual({ updatedAt: expect.any(Date) });
@@ -1244,7 +1238,7 @@ describe("editRosterCell", () => {
       ROSTER_LINE_MISSING_MESSAGE,
     ],
     [
-      "a shift that is not active at the site",
+      "a shift that is not active at the location",
       () => {},
       { to: { kind: "work", shiftId: STRAY_SHIFT } },
       CELL_SHIFT_MESSAGE,
@@ -1344,7 +1338,7 @@ describe("swapRosterCellWorker", () => {
         beforeShiftId: SHIFT_1,
         afterKind: "off",
         afterShiftId: null,
-        editedBy: "super-1",
+        editedBy: "ho-1",
       },
       {
         rosterId: ROSTER_ID,
@@ -1355,7 +1349,7 @@ describe("swapRosterCellWorker", () => {
         beforeShiftId: null,
         afterKind: "work",
         afterShiftId: SHIFT_1,
-        editedBy: "super-1",
+        editedBy: "ho-1",
       },
     ]);
     expect(writesTo("update", roster)[0].set).toEqual({ updatedAt: expect.any(Date) });
@@ -1391,7 +1385,7 @@ describe("swapRosterCellWorker", () => {
     expect(writesTo("insert", rosterCellEdit)).toHaveLength(2);
   });
 
-  it("refuses to hand over a shift that is no longer active at the site", async () => {
+  it("refuses to hand over a shift that is no longer active at the location", async () => {
     cellContext().shifts = [{ id: SHIFT_2, order: 2 }];
 
     expect(await swapRosterCellWorker(swapInput())).toEqual({
@@ -1485,7 +1479,6 @@ const locationWorker = (id: string, employeeId: string, positionNames = ["Operat
 // The roster-level cases a read-only cell action answers with nothing.
 const notVisible: [string, () => void][] = [
   ["a roster that does not exist", () => (fake.rows.roster = [])],
-  ["HO on another site", () => actAs(hoB)],
   ["admin site on another location", () => actAs(adminB)],
 ];
 
@@ -1699,5 +1692,55 @@ describe("previewCellChange", () => {
       ok: true,
       warnings: preview.warnings,
     });
+  });
+});
+
+// The target row's location decides, not anything the client sent: an admin site of location A
+// reaches a roster of A and none of B, and HO reaches both.
+describe("roster scope by the target row's location", () => {
+  const storedAt = (locationId: string) => {
+    fake.rows.request = [storedRequest({ locationId })];
+    fake.rows.roster = [storedRoster({ locationId })];
+    seedCellContext();
+  };
+
+  it.each([
+    ["confirm", () => confirmRoster(confirmInput())],
+    ["edit a cell", () => editRosterCell(editInput())],
+  ])("lets admin site of location A %s on a roster of location A", async (_label, run) => {
+    actAs(adminA);
+    storedAt(LOCATION_A);
+
+    const res = await run();
+
+    expect(res).toMatchObject({ ok: true });
+  });
+
+  it("lets admin site of location A generate for a request of location A", async () => {
+    actAs(adminA);
+    fake.rows.request = [storedRequest({ locationId: LOCATION_A })];
+
+    const res = await generateRoster(generateInput());
+
+    expect(res).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ["generate", () => generateRoster(generateInput())],
+    ["confirm", () => confirmRoster(confirmInput())],
+    ["edit a cell", () => editRosterCell(editInput())],
+  ])("refuses admin site of location A to %s on a roster of location B", async (_label, run) => {
+    actAs(adminA);
+    storedAt(LOCATION_B);
+
+    expect(await run()).toEqual({ ok: false, formError: ROSTER_NOT_FOUND_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+
+  it.each([LOCATION_A, LOCATION_B])("lets HO confirm a roster of location %s", async (locationId) => {
+    actAs(ho);
+    storedAt(locationId);
+
+    expect(await confirmRoster(confirmInput())).toEqual({ ok: true });
   });
 });

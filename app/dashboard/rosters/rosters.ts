@@ -30,7 +30,6 @@ import {
   rosterShiftTarget,
 } from "@/database/schema/roster-schema";
 import { shift } from "@/database/schema/shift-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker, workerPosition } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
@@ -105,7 +104,6 @@ type ListRowInput = {
   type: string;
   startDate: string;
   locationName: string;
-  siteName: string;
   rosterId: string | null;
   rosterStatus: string | null;
   conflictCount: number | null;
@@ -123,7 +121,6 @@ export function shapeRosterRow(row: ListRowInput): RosterRow {
     startDate: row.startDate,
     days: type === "weekly" ? 7 : 1,
     locationName: row.locationName,
-    siteName: row.siteName,
     status: hasRoster ? (row.rosterStatus as RosterStatus) : "not-generated",
     conflictCount: hasRoster ? (row.conflictCount ?? 0) : null,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
@@ -374,14 +371,13 @@ function lastPlacement(
 
 function rosterListFilter(
   access: RequestAccess,
-  { query, status, type, siteId, locationId }: RosterListParams,
+  { query, status, type, locationId }: RosterListParams,
 ) {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     eq(rosterRequest.status, "approved"),
     requestScopeFilter(access),
-    siteId ? eq(rosterRequest.siteId, siteId) : undefined,
     locationId ? eq(rosterRequest.locationId, locationId) : undefined,
     status === "not-generated"
       ? isNull(roster.id)
@@ -423,7 +419,6 @@ export async function listRosters(
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
       locationName: location.name,
-      siteName: site.name,
       rosterId: roster.id,
       rosterStatus: roster.status,
       conflictCount: conflictCounts.conflictCount,
@@ -431,7 +426,6 @@ export async function listRosters(
     })
     .from(rosterRequest)
     .innerJoin(location, eq(location.id, rosterRequest.locationId))
-    .innerJoin(site, eq(site.id, rosterRequest.siteId))
     .leftJoin(roster, eq(roster.requestId, rosterRequest.id))
     .leftJoin(conflictCounts, eq(conflictCounts.rosterId, roster.id))
     .where(filter)
@@ -525,15 +519,12 @@ export async function getRoster(
       type: rosterRequest.type,
       requestStatus: rosterRequest.status,
       startDate: rosterRequest.startDate,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
       locationName: location.name,
-      siteName: site.name,
     })
     .from(roster)
     .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
     .innerJoin(location, eq(location.id, rosterRequest.locationId))
-    .innerJoin(site, eq(site.id, rosterRequest.siteId))
     .leftJoin(generatedBy, eq(generatedBy.id, roster.generatedBy))
     .leftJoin(confirmedBy, eq(confirmedBy.id, roster.confirmedBy))
     .where(and(eq(roster.id, rosterId), requestScopeFilter(access)));
@@ -631,7 +622,7 @@ export async function getRoster(
       shiftId: row.shiftId,
     })),
     targets: await loadTargets(db, rosterId),
-    rules: await loadEngineRules(db, { locationId: head.locationId, siteId: head.siteId }),
+    rules: await loadEngineRules(db, { locationId: head.locationId }),
     history: await loadHistories(db, workerIds, days, rosterId),
   });
 
@@ -658,7 +649,6 @@ export async function getRoster(
     type,
     startDate: head.startDate,
     locationName: head.locationName,
-    siteName: head.siteName,
     status: head.status as RosterStatus,
     editable: isRosterEditable(head.status, head.requestStatus),
     generatedByName: head.generatedByName ?? null,
@@ -782,7 +772,6 @@ export async function getGenerateView(
       poNumber: rosterRequest.poNumber,
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
       locationName: location.name,
     })
@@ -999,7 +988,6 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
     .select({
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(rosterRequest)
@@ -1039,10 +1027,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
 
   const workerIds = workers.map((row) => row.id);
   const positions = await loadWorkerPositions(tx, workerIds);
-  const rules = await loadEngineRules(tx, {
-    locationId: request.locationId,
-    siteId: request.siteId,
-  });
+  const rules = await loadEngineRules(tx, { locationId: request.locationId });
 
   return {
     input: {
@@ -1061,7 +1046,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
       rules,
       history: await loadHistories(tx, workerIds, days),
     },
-    location: { id: request.locationId, siteId: request.siteId },
+    location: { id: request.locationId },
   };
 }
 
@@ -1077,7 +1062,6 @@ export async function loadReplacementContext(
   const [head] = await reader
     .select({
       requestId: roster.requestId,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(roster)
@@ -1129,10 +1113,7 @@ export async function loadReplacementContext(
     return { ok: false, reason: "worker" };
   }
 
-  const rules = await loadEngineRules(reader, {
-    locationId: head.locationId,
-    siteId: head.siteId,
-  });
+  const rules = await loadEngineRules(reader, { locationId: head.locationId });
   const inRoster = new Set(assignments.map((entry) => entry.workerId));
 
   const pool = await reader
@@ -1239,7 +1220,6 @@ export async function loadCellContext(
       requestId: roster.requestId,
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
     })
     .from(roster)
@@ -1344,7 +1324,7 @@ export async function loadCellContext(
           ? []
           : await otherRosterWorkQuery(reader, input.rosterId, workerIds, days),
       history: await loadHistories(reader, workerIds, days, input.rosterId),
-      rules: await loadEngineRules(reader, { locationId: head.locationId, siteId: head.siteId }),
+      rules: await loadEngineRules(reader, { locationId: head.locationId }),
       previousConflicts,
       lines,
     },

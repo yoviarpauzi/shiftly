@@ -102,7 +102,6 @@ export function parseAttendanceFilters(params: SearchParams, today: string): Att
 
   return {
     date: isCalendarDate(date) ? date : today,
-    siteId: uuidOrNull(params.site),
     locationId: uuidOrNull(params.location),
     departmentId: uuidOrNull(params.department),
     shiftId: uuidOrNull(params.shift),

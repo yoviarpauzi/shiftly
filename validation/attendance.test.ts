@@ -9,7 +9,7 @@ import {
 
 const ASSIGNMENT_A = "3f6c1c1e-8a53-4b7e-9d0a-5b1e2f7c9a10";
 const ASSIGNMENT_B = "7b2d9f40-1c6e-4a8b-8e35-0d4c6a1f2b93";
-const SITE_ID = "a1c4e2f6-5d3b-4c7a-9e18-6f2b0d8c4a57";
+const ID_1 = "a1c4e2f6-5d3b-4c7a-9e18-6f2b0d8c4a57";
 const TODAY = "2026-11-09";
 
 const entry = (overrides: Record<string, unknown> = {}) => ({
@@ -128,7 +128,6 @@ describe("parseAttendanceFilters", () => {
   it("gives today and the defaults for an empty query", () => {
     expect(parseAttendanceFilters({}, TODAY)).toEqual({
       date: TODAY,
-      siteId: null,
       locationId: null,
       departmentId: null,
       shiftId: null,
@@ -155,14 +154,18 @@ describe("parseAttendanceFilters", () => {
 
   it("keeps a uuid for each id filter and gives null for anything else", () => {
     const parsed = parseAttendanceFilters(
-      { site: SITE_ID, location: "not-a-uuid", department: SITE_ID, shift: "" },
+      { location: "not-a-uuid", department: ID_1, shift: "" },
       TODAY,
     );
 
-    expect(parsed.siteId).toBe(SITE_ID);
     expect(parsed.locationId).toBeNull();
-    expect(parsed.departmentId).toBe(SITE_ID);
+    expect(parsed.departmentId).toBe(ID_1);
     expect(parsed.shiftId).toBeNull();
+    expect(parseAttendanceFilters({ location: ID_1 }, TODAY).locationId).toBe(ID_1);
+  });
+
+  it("ignores a site param, which no longer exists", () => {
+    expect(parseAttendanceFilters({ site: ID_1 }, TODAY)).not.toHaveProperty("siteId");
   });
 
   it("uses the first element of an array value", () => {

@@ -120,25 +120,18 @@ export function attendanceLock(
   return isFuture ? "future" : null;
 }
 
-// What the Location column shows for the scope on screen.
-export function locationViewFor(choices: {
-  siteId: string | null;
-  locationId: string | null;
-}): AttendanceLocationView {
-  if (choices.locationId !== null) return "none";
-
-  return choices.siteId !== null ? "location" : "site-location";
+// What the Location column shows for the scope on screen: nothing while one location is chosen, the
+// location name while the list spans locations.
+export function locationViewFor(choices: { locationId: string | null }): AttendanceLocationView {
+  return choices.locationId !== null ? "none" : "location";
 }
 
-// The text of the Location column. Under All sites it names the site too, because two sites can
-// each have a location of the same name.
+// The text of the Location column.
 export function rowLocationLabel(
-  row: { siteName: string; locationName: string },
+  row: { locationName: string },
   view: AttendanceLocationView,
 ): string | null {
-  if (view === "none") return null;
-
-  return view === "location" ? row.locationName : `${row.siteName} · ${row.locationName}`;
+  return view === "none" ? null : row.locationName;
 }
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

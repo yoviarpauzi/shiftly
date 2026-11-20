@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { shift } from "@/database/schema/shift-schema";
-import { site } from "@/database/schema/site-schema";
 import type { AttendanceAccess } from "@/types/attendance";
 
 const dialect = new PgDialect();
@@ -41,17 +40,12 @@ vi.mock("@/lib/db", () => ({
 
 const { attendanceChoicesFor, resolveSelection } = await import("./attendance");
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333331";
 const LOCATION_B = "33333333-3333-4333-8333-333333333332";
 const SHIFT_ID = "88888888-8888-4888-8888-888888888888";
 
-const SUPERADMIN: AttendanceAccess = {
-  userId: "user-1",
-  role: "superadmin",
-  siteId: null,
-  locationId: null,
-};
+const HO: AttendanceAccess = { userId: "user-1", role: "ho", locationId: null };
+const ADMIN_A: AttendanceAccess = { userId: "user-2", role: "admin_site", locationId: LOCATION_A };
 
 beforeEach(() => {
   fake.calls = [];
@@ -59,23 +53,22 @@ beforeEach(() => {
 });
 
 function seedChoices(locations: { id: string; name: string }[]) {
-  fake.rows.set(site, [{ id: SITE_ID, name: "Site" }]);
   fake.rows.set(
     location,
-    locations.map((entry) => ({ ...entry, siteId: SITE_ID, timezone: "Asia/Jakarta" })),
+    locations.map((entry) => ({ ...entry, timezone: "Asia/Jakarta" })),
   );
   fake.rows.set(department, [{ id: "dep-1", name: "Packing" }]);
   fake.rows.set(shift, [{ id: SHIFT_ID, name: "Pagi" }]);
 }
 
 describe("attendanceChoicesFor", () => {
-  it("reads the active shifts of the selected location, not of its site", async () => {
+  it("reads the active shifts of the selected location", async () => {
     seedChoices([
       { id: LOCATION_A, name: "A" },
       { id: LOCATION_B, name: "B" },
     ]);
 
-    const choices = await attendanceChoicesFor(SUPERADMIN, SITE_ID, LOCATION_B);
+    const choices = await attendanceChoicesFor(HO, LOCATION_B);
 
     expect(choices.locationId).toBe(LOCATION_B);
     expect(choices.shifts).toEqual([{ id: SHIFT_ID, name: "Pagi" }]);
@@ -85,13 +78,12 @@ describe("attendanceChoicesFor", () => {
 
     expect(params).toContain(LOCATION_B);
     expect(params).not.toContain(LOCATION_A);
-    expect(params).not.toContain(SITE_ID);
   });
 
-  it("offers no shifts and reads none when the site has no location", async () => {
+  it("offers no shifts and reads none when there is no location", async () => {
     seedChoices([]);
 
-    const choices = await attendanceChoicesFor(SUPERADMIN, SITE_ID, null);
+    const choices = await attendanceChoicesFor(HO, null);
 
     expect(choices.locationId).toBeNull();
     expect(choices.shifts).toEqual([]);
@@ -104,7 +96,7 @@ describe("attendanceChoicesFor", () => {
       { id: LOCATION_B, name: "B" },
     ]);
 
-    const choices = await attendanceChoicesFor(SUPERADMIN, SITE_ID, null);
+    const choices = await attendanceChoicesFor(HO, null);
 
     expect(choices.locationId).toBeNull();
     expect(choices.departments).toEqual([]);
@@ -114,65 +106,69 @@ describe("attendanceChoicesFor", () => {
   });
 });
 
-const SITE_B = "11111111-1111-4111-8111-111111111112";
-const LOCATION_OF_B = "33333333-3333-4333-8333-333333333333";
+describe("attendanceChoicesFor scope", () => {
+  const locationRead = () => fake.calls.find((call) => call.table === location);
+  const locationParams = () => dialect.sqlToQuery(locationRead()?.where as SQL).params;
+
+  it("lists every location for HO, without a location filter", async () => {
+    seedChoices([
+      { id: LOCATION_A, name: "A" },
+      { id: LOCATION_B, name: "B" },
+    ]);
+
+    const choices = await attendanceChoicesFor(HO, null);
+
+    expect(choices.locations.map((entry) => entry.id)).toEqual([LOCATION_A, LOCATION_B]);
+    expect(locationParams()).toEqual([]);
+  });
+
+  it("asks for the admin site's own location only", async () => {
+    seedChoices([{ id: LOCATION_A, name: "A" }]);
+
+    const choices = await attendanceChoicesFor(ADMIN_A, null);
+
+    expect(locationParams()).toEqual([LOCATION_A]);
+    expect(choices.locations.map((entry) => entry.id)).toEqual([LOCATION_A]);
+    // One location, so it is chosen without being asked.
+    expect(choices.locationId).toBe(LOCATION_A);
+  });
+
+  it("offers no site list and no site on the choices", async () => {
+    seedChoices([{ id: LOCATION_A, name: "A" }]);
+
+    const choices = await attendanceChoicesFor(HO, null);
+
+    expect(choices).not.toHaveProperty("sites");
+    expect(choices).not.toHaveProperty("siteId");
+    expect(choices.locations[0]).not.toHaveProperty("siteId");
+  });
+});
 
 describe("resolveSelection", () => {
-  const twoSites = [{ id: SITE_ID }, { id: SITE_B }];
-  const locations = [
-    { id: LOCATION_A, siteId: SITE_ID },
-    { id: LOCATION_B, siteId: SITE_ID },
-    { id: LOCATION_OF_B, siteId: SITE_B },
-  ];
+  const two = [{ id: LOCATION_A }, { id: LOCATION_B }];
 
-  it("is All sites and All locations when nothing is chosen and there is a choice", () => {
-    expect(resolveSelection(twoSites, locations, null, null)).toEqual({
-      siteId: null,
-      locationId: null,
-    });
+  it("is All when nothing is chosen and there is a choice", () => {
+    expect(resolveSelection(two, null)).toBeNull();
   });
 
-  it("picks the only site and the only location without being asked", () => {
-    expect(
-      resolveSelection([{ id: SITE_ID }], [{ id: LOCATION_A, siteId: SITE_ID }], null, null),
-    ).toEqual({ siteId: SITE_ID, locationId: LOCATION_A });
+  it("picks the only location without being asked", () => {
+    expect(resolveSelection([{ id: LOCATION_A }], null)).toBe(LOCATION_A);
   });
 
-  it("picks the only site but stays on All locations when it has two", () => {
-    expect(resolveSelection([{ id: SITE_ID }], locations.slice(0, 2), null, null)).toEqual({
-      siteId: SITE_ID,
-      locationId: null,
-    });
+  it("keeps a chosen location", () => {
+    expect(resolveSelection(two, LOCATION_B)).toBe(LOCATION_B);
   });
 
-  it("keeps a chosen site and location", () => {
-    expect(resolveSelection(twoSites, locations, SITE_ID, LOCATION_B)).toEqual({
-      siteId: SITE_ID,
-      locationId: LOCATION_B,
-    });
+  it("falls back to All for a location that is not allowed", () => {
+    expect(resolveSelection(two, "99999999-9999-4999-8999-999999999999")).toBeNull();
   });
 
-  it("falls back to All for a site that is not allowed", () => {
-    expect(
-      resolveSelection(twoSites, locations, "99999999-9999-4999-8999-999999999999", LOCATION_A),
-    ).toEqual({ siteId: null, locationId: null });
+  it("falls back to the only location when the asked one is not allowed", () => {
+    expect(resolveSelection([{ id: LOCATION_A }], LOCATION_B)).toBe(LOCATION_A);
   });
 
-  it("falls back to All locations for a location of another site", () => {
-    expect(resolveSelection(twoSites, locations, SITE_ID, LOCATION_OF_B)).toEqual({
-      siteId: SITE_ID,
-      locationId: null,
-    });
-  });
-
-  it("ignores a location when no site is chosen", () => {
-    expect(resolveSelection(twoSites, locations, null, LOCATION_A)).toEqual({
-      siteId: null,
-      locationId: null,
-    });
-  });
-
-  it("gives null for both when there are no sites", () => {
-    expect(resolveSelection([], [], null, null)).toEqual({ siteId: null, locationId: null });
+  it("gives null when there are no locations", () => {
+    expect(resolveSelection([], null)).toBeNull();
+    expect(resolveSelection([], LOCATION_A)).toBeNull();
   });
 });

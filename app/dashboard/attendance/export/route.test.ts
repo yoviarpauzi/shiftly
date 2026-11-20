@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AttendanceAccess } from "@/types/attendance";
 import type { ExportInput } from "@/types/attendance-export";
 
-const ACCESS: AttendanceAccess = {
-  userId: "u-1",
-  role: "superadmin",
-  siteId: null,
-  locationId: null,
-};
+const ACCESS: AttendanceAccess = { userId: "u-1", role: "ho", locationId: null };
 
 const loaded = vi.hoisted(() => ({ input: null as unknown }));
 

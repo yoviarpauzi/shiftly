@@ -64,7 +64,6 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
         rosterStatus: roster.status,
         requestStatus: rosterRequest.status,
         locationId: location.id,
-        siteId: location.siteId,
         timezone: location.timezone,
       })
       .from(rosterAssignment)
@@ -83,7 +82,7 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
       byId.size !== ids.length ||
       locations.size !== 1 ||
       ![...locations.values()].every((row) =>
-        canAccessAttendanceLocation(access, { id: row.locationId, siteId: row.siteId }),
+        canAccessAttendanceLocation(access, { id: row.locationId }),
       )
     ) {
       return { ok: false, formError: ATTENDANCE_NOT_FOUND_MESSAGE };

@@ -18,9 +18,9 @@ export default async function Page({
   const params = await searchParams;
 
   // The date defaults to today in the location's zone, and the location comes from the choices, so
-  // the site and location are read first with a stand-in date.
+  // the location is read first with a stand-in date.
   const asked = parseAttendanceFilters(params, dateInZone(DEFAULT_LOCATION_TIMEZONE));
-  const choices = await attendanceChoicesFor(access, asked.siteId, asked.locationId);
+  const choices = await attendanceChoicesFor(access, asked.locationId);
   const chosen = choices.locations.find((entry) => entry.id === choices.locationId);
   const today = dateInZone(chosen?.timezone ?? DEFAULT_LOCATION_TIMEZONE);
 
@@ -28,7 +28,6 @@ export default async function Page({
   // A department or shift that is not one of this location's choices is ignored.
   const filters = {
     ...parsed,
-    siteId: choices.siteId,
     locationId: choices.locationId,
     departmentId: choices.departments.some((entry) => entry.id === parsed.departmentId)
       ? parsed.departmentId

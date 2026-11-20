@@ -4,6 +4,8 @@ import type { EvalCell, RosterWarning } from "@/types/rosters";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: {} }));
+// The saved work rules are read by roster-work-rules, which these pure helpers never reach.
+vi.mock("./roster-work-rules", () => ({ loadEngineRules: async () => ({}) }));
 
 const {
   busyWorkersQuery,
@@ -28,7 +30,6 @@ describe("shapeRosterRow", () => {
     type: "weekly",
     startDate: "2026-11-09",
     locationName: "Gudang A",
-    siteName: "Nestle Kejayan",
     rosterId: null,
     rosterStatus: null,
     conflictCount: null,
@@ -43,8 +44,7 @@ describe("shapeRosterRow", () => {
       startDate: "2026-11-09",
       days: 7,
       locationName: "Gudang A",
-      siteName: "Nestle Kejayan",
-      status: "not-generated",
+        status: "not-generated",
       conflictCount: null,
       updatedAt: null,
       rosterId: null,

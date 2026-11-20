@@ -15,8 +15,6 @@ export const ATTENDANCE_NOT_FOUND_MESSAGE = "Attendance not found";
 export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus | "not-marked", string> = {
   present: "Present",
   absent: "Absent",
-  sick: "Sick",
-  leave: "Leave",
   "not-marked": "Not marked",
 };
 
@@ -85,8 +83,6 @@ export function summarize(rows: { status: AttendanceStatus | null }[]): Attendan
     scheduled: rows.length,
     present: 0,
     absent: 0,
-    sick: 0,
-    leave: 0,
     notMarked: 0,
   };
 

@@ -4,7 +4,7 @@ import type { AttendanceFilters, AttendanceStatus } from "@/types/attendance";
 
 import { isCalendarDate } from "./calendar-date";
 
-export const ATTENDANCE_STATUS_VALUES = ["present", "absent", "sick", "leave"] as const;
+export const ATTENDANCE_STATUS_VALUES = ["present", "absent"] as const;
 
 export const REASON_MAX_LENGTH = 200;
 

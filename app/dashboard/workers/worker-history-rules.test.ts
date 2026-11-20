@@ -139,7 +139,7 @@ describe("toHistoryRows", () => {
   });
 
   it("keeps a recorded status", () => {
-    expect(toHistoryRows([{ ...joined, attendanceStatus: "sick" }])[0].attendance).toBe("sick");
+    expect(toHistoryRows([{ ...joined, attendanceStatus: "absent" }])[0].attendance).toBe("absent");
   });
 
   it("gives an off row no shift and no attendance", () => {
@@ -164,8 +164,7 @@ describe("summarizeHistory", () => {
   it("counts days by kind and work days by attendance", () => {
     const rows = [
       ...workRows(6, "present"),
-      ...workRows(1, "absent"),
-      ...workRows(1, "sick"),
+      ...workRows(2, "absent"),
       ...workRows(1, "not-marked"),
       off(),
       off(),
@@ -177,9 +176,7 @@ describe("summarizeHistory", () => {
       offDays: 2,
       breakDays: 1,
       present: 6,
-      absent: 1,
-      sick: 1,
-      leave: 0,
+      absent: 2,
       notMarked: 1,
     });
   });
@@ -290,7 +287,7 @@ describe("buildWorkerHistory", () => {
     const plain = buildWorkerHistory(rows, ALL, { page: 1, pageSize: 10, direction: "desc" });
     const narrowed = buildWorkerHistory(
       rows,
-      { ...ALL, attendance: "leave" },
+      { ...ALL, attendance: "absent" },
       { page: 1, pageSize: 10, direction: "desc" },
     );
 
@@ -361,9 +358,9 @@ describe("narrowFilters", () => {
   });
 
   it("leaves the other filters alone", () => {
-    const result = narrowFilters({ ...ALL, departmentId: DEPT_B, attendance: "sick" }, choices);
+    const result = narrowFilters({ ...ALL, departmentId: DEPT_B, attendance: "absent" }, choices);
 
-    expect(result).toMatchObject({ attendance: "sick", month: "2026-11" });
+    expect(result).toMatchObject({ attendance: "absent", month: "2026-11" });
   });
 });
 

@@ -121,6 +121,13 @@ describe("landing copy", () => {
     expect(new Set(STEPS.map((step) => step.alt)).size).toBe(STEPS.length);
   });
 
+  it("describes attendance as Present or Absent only", () => {
+    const attendance = STEPS[4];
+
+    expect(attendance?.detail).toBe("Mark each scheduled shift as present or absent.");
+    expect(`${attendance?.detail} ${attendance?.alt}`).not.toMatch(/sick|leave/i);
+  });
+
   it("keeps the generate step's detail about the work rules and a repeatable roster", () => {
     expect(STEPS[2]?.detail).toBe(
       "Shiftly builds the roster from your work rules. The same request always gives the same roster.",

@@ -43,7 +43,9 @@ describe("parseWorkerHistoryParams", () => {
     expect(parseWorkerHistoryParams({ attendance: "not-marked" }, TODAY).attendance).toBe(
       "not-marked",
     );
-    expect(parseWorkerHistoryParams({ attendance: "sick" }, TODAY).attendance).toBe("sick");
+    expect(parseWorkerHistoryParams({ attendance: "absent" }, TODAY).attendance).toBe("absent");
+    expect(parseWorkerHistoryParams({ attendance: "sick" }, TODAY).attendance).toBe("all");
+    expect(parseWorkerHistoryParams({ attendance: "leave" }, TODAY).attendance).toBe("all");
     expect(parseWorkerHistoryParams({ attendance: "late" }, TODAY).attendance).toBe("all");
   });
 });

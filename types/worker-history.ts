@@ -69,8 +69,6 @@ export type WorkerHistorySummary = {
   breakDays: number;
   present: number;
   absent: number;
-  sick: number;
-  leave: number;
   notMarked: number;
 };
 

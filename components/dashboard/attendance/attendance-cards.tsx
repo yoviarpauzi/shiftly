@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const STATUSES: AttendanceStatus[] = ["present", "absent", "sick", "leave"];
+const STATUSES: AttendanceStatus[] = ["present", "absent"];
 
 // The same rows as the table, as cards, for widths under md. A status button that is already chosen
 // sets the worker back to Not marked.

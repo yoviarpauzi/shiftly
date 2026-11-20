@@ -189,8 +189,8 @@ describe("a scope with no locations", () => {
     expect(await getKpis(emptyScope)).toEqual({
       workersToday: 0,
       workersYesterday: 0,
-      today: { scheduled: 0, present: 0, absent: 0, sick: 0, leave: 0 },
-      yesterday: { scheduled: 0, present: 0, absent: 0, sick: 0, leave: 0 },
+      today: { scheduled: 0, present: 0, absent: 0 },
+      yesterday: { scheduled: 0, present: 0, absent: 0 },
       openConflicts: 0,
       conflictedRosters: 0,
       pendingRequests: 0,
@@ -282,7 +282,10 @@ describe("getKpis", () => {
       sql: 'count(*) filter (where "attendance"."status" = $1)',
       params: ["present"],
     });
-    expect(column(wib, "leave").params).toEqual(["leave"]);
+    expect(column(wib, "absent").params).toEqual(["absent"]);
+    expect(Object.keys(wib.columns).sort()).toEqual(
+      ["absent", "present", "scheduled", "workDate", "workers"],
+    );
 
     expectOnlyScopeIds();
   });
@@ -294,8 +297,6 @@ describe("getKpis", () => {
       scheduled: workers,
       present,
       absent,
-      sick: 0,
-      leave: 0,
     });
 
     fake.answer = (call: Call) => {
@@ -311,8 +312,8 @@ describe("getKpis", () => {
 
     expect(kpis.workersToday).toBe(7);
     expect(kpis.workersYesterday).toBe(10);
-    expect(kpis.today).toEqual({ scheduled: 7, present: 4, absent: 0, sick: 0, leave: 0 });
-    expect(kpis.yesterday).toEqual({ scheduled: 10, present: 8, absent: 1, sick: 0, leave: 0 });
+    expect(kpis.today).toEqual({ scheduled: 7, present: 4, absent: 0 });
+    expect(kpis.yesterday).toEqual({ scheduled: 10, present: 8, absent: 1 });
   });
 
   it("counts conflict rows and their rosters in draft rosters of the scope", async () => {
@@ -473,20 +474,18 @@ describe("getAttendanceSeries", () => {
   });
 
   it("returns 30 days oldest first, zero-filled, adding the zones on a shared date", async () => {
-    const day = (workDate: string, present: number, absent: number, sick: number, leave: number) => ({
+    const day = (workDate: string, present: number, absent: number) => ({
       workDate,
-      workers: present + absent + sick + leave,
-      scheduled: present + absent + sick + leave,
+      workers: present + absent,
+      scheduled: present + absent,
       present,
       absent,
-      sick,
-      leave,
     });
 
     fake.answer = (call: Call) =>
       zoneOf(call) === "WIB"
-        ? [day("2026-11-09", 4, 1, 1, 0)]
-        : [day("2026-11-09", 2, 0, 0, 1), day("2026-11-10", 1, 0, 0, 0)];
+        ? [day("2026-11-09", 4, 2)]
+        : [day("2026-11-09", 2, 1), day("2026-11-10", 1, 0)];
 
     const series = await getAttendanceSeries(twoZones);
 
@@ -623,8 +622,8 @@ describe("getWeekChart", () => {
     };
 
     fake.answer = () => [
-      { workDate: "2026-11-09", workers: 5, scheduled: 6, present: 0, absent: 0, sick: 0, leave: 0 },
-      { workDate: "2026-11-15", workers: 2, scheduled: 2, present: 0, absent: 0, sick: 0, leave: 0 },
+      { workDate: "2026-11-09", workers: 5, scheduled: 6, present: 0, absent: 0 },
+      { workDate: "2026-11-15", workers: 2, scheduled: 2, present: 0, absent: 0 },
     ];
 
     const points = await getWeekChart(thursday, "scheduled");

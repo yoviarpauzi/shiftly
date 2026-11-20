@@ -1,7 +1,7 @@
 import type { HistorySummaryProps } from "@/types/worker-history";
 import { cn } from "@/lib/utils";
 
-// Eight counts for the month, as compact tiles. They ignore the table's filters, so they do not
+// Six counts for the month, as compact tiles. They ignore the table's filters, so they do not
 // move when one changes. The tones are the ones Attendance uses.
 export function HistorySummary({ summary }: HistorySummaryProps) {
   const cards = [
@@ -10,8 +10,6 @@ export function HistorySummary({ summary }: HistorySummaryProps) {
     { label: "Break", value: summary.breakDays, tone: "" },
     { label: "Present", value: summary.present, tone: "text-emerald-600 dark:text-emerald-400" },
     { label: "Absent", value: summary.absent, tone: "text-destructive" },
-    { label: "Sick", value: summary.sick, tone: "text-primary" },
-    { label: "Leave", value: summary.leave, tone: "" },
     { label: "Not marked", value: summary.notMarked, tone: "text-muted-foreground" },
   ];
 

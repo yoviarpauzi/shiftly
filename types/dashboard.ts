@@ -29,8 +29,6 @@ export type AttendanceCounts = {
   scheduled: number;
   present: number;
   absent: number;
-  sick: number;
-  leave: number;
 };
 
 export type DashboardKpis = {

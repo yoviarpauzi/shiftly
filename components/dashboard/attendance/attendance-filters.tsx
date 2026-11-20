@@ -12,8 +12,6 @@ const STATUS_OPTIONS = [
   { value: "not-marked", label: "Not marked" },
   { value: "present", label: "Present" },
   { value: "absent", label: "Absent" },
-  { value: "sick", label: "Sick" },
-  { value: "leave", label: "Leave" },
 ];
 
 // Search, then location, department, shift, and status. Location can be All, which only views:

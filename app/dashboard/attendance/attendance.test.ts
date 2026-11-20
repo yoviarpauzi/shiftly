@@ -60,10 +60,10 @@ describe("buildAttendanceList", () => {
   it("keeps only the workers with the chosen status", () => {
     const { rows } = buildAttendanceList(
       [
-        joined({ assignmentId: "a1", status: "sick" }),
+        joined({ assignmentId: "a1", status: "absent" }),
         joined({ assignmentId: "a2", status: "present" }),
       ],
-      filters({ status: "sick" }),
+      filters({ status: "absent" }),
     );
 
     expect(rows.map((row) => row.assignmentId)).toEqual(["a1"]);
@@ -115,8 +115,6 @@ describe("buildAttendanceList", () => {
       scheduled: 3,
       present: 1,
       absent: 1,
-      sick: 0,
-      leave: 0,
       notMarked: 1,
     });
   });

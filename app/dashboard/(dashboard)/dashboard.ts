@@ -80,8 +80,6 @@ function shiftCounts(zone: ScopeZone, from: string, to: string) {
       scheduled: count(),
       present: countWhere(sql`${attendance.status} = ${"present"}`),
       absent: countWhere(sql`${attendance.status} = ${"absent"}`),
-      sick: countWhere(sql`${attendance.status} = ${"sick"}`),
-      leave: countWhere(sql`${attendance.status} = ${"leave"}`),
     })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
@@ -146,15 +144,13 @@ function sum<T>(rows: T[], pick: (row: T) => number): number {
 }
 
 function emptyCounts(): AttendanceCounts {
-  return { scheduled: 0, present: 0, absent: 0, sick: 0, leave: 0 };
+  return { scheduled: 0, present: 0, absent: 0 };
 }
 
 function addCounts(target: AttendanceCounts, row: AttendanceCounts): void {
   target.scheduled += row.scheduled;
   target.present += row.present;
   target.absent += row.absent;
-  target.sick += row.sick;
-  target.leave += row.leave;
 }
 
 export async function getKpis(scope: DashboardScope): Promise<DashboardKpis> {
@@ -232,7 +228,7 @@ export async function getAttendanceSeries(scope: DashboardScope): Promise<Series
 
     if (point) {
       point.present += row.present;
-      point.notPresent += row.absent + row.sick + row.leave;
+      point.notPresent += row.absent;
     }
   }
 

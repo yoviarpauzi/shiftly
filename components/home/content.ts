@@ -98,11 +98,11 @@ export const STEPS: HomeStep[] = [
   },
   {
     title: "Mark attendance",
-    detail: "Mark each scheduled shift as present, absent, sick, or on leave.",
+    detail: "Mark each scheduled shift as present or absent.",
     phoneCrop: { x: 300, y: 56, width: 600, height: 290 },
     video: "/landing/steps/attendance.mp4",
     poster: "/landing/steps/attendance.webp",
-    alt: "Attendance marked present, absent, or sick for the day's scheduled shifts, with a confirmation that it was saved.",
+    alt: "Attendance marked present or absent for the day's scheduled shifts, with a confirmation that it was saved.",
   },
 ];
 

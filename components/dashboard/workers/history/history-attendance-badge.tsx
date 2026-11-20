@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 const DOT_TONES = {
   present: "bg-emerald-500",
   absent: "bg-destructive",
-  sick: "bg-primary",
-  leave: "bg-muted-foreground",
   "not-marked": "border border-muted-foreground",
 } as const;
 

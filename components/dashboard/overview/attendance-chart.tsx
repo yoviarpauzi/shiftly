@@ -47,7 +47,7 @@ import { AttendanceTable } from "./attendance-table";
 
 const chartConfig = {
   present: { label: "Present", color: "var(--chart-1)" },
-  notPresent: { label: "Not present (absent, sick or leave)", color: "var(--chart-2)" },
+  notPresent: { label: "Not present (absent)", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
 const RANGES: { value: SeriesRange; label: string; title: string }[] = [
@@ -156,7 +156,7 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>
-          Workers marked present, and workers who were absent, sick or on leave
+          Workers marked present, and workers who were absent
         </CardDescription>
         <CardAction>
           <ToggleGroup

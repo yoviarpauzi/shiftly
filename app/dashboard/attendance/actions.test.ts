@@ -164,16 +164,18 @@ describe("attendance actions module", () => {
 });
 
 describe("saveAttendance", () => {
-  it("refuses a status that does not exist and reads nothing", async () => {
-    const res = await saveAttendance(input([entry(ASSIGNMENT_1, "late")]));
+  it("refuses a status that does not exist, including sick and leave, and reads nothing", async () => {
+    for (const status of ["late", "sick", "leave"]) {
+      const res = await saveAttendance(input([entry(ASSIGNMENT_1, status)]));
 
-    expect(res.ok).toBe(false);
+      expect(res.ok).toBe(false);
+    }
     expect(fake.calls).toEqual([]);
   });
 
   it("saves an insert and an update, and counts them", async () => {
     const res = await saveAttendance(
-      input([entry(ASSIGNMENT_1, "present"), entry(ASSIGNMENT_2, "sick", "Fever")]),
+      input([entry(ASSIGNMENT_1, "present"), entry(ASSIGNMENT_2, "absent", "Fever")]),
     );
 
     expect(res).toEqual({ ok: true, saved: 2, cleared: 0 });
@@ -193,7 +195,7 @@ describe("saveAttendance", () => {
       },
       {
         rosterAssignmentId: ASSIGNMENT_2,
-        status: "sick",
+        status: "absent",
         reason: "Fever",
         markedBy: "user-1",
         updatedBy: "user-1",
@@ -203,7 +205,7 @@ describe("saveAttendance", () => {
   });
 
   it("updates an existing row by its assignment, with updatedBy and updatedAt set and markedBy left", async () => {
-    await saveAttendance(input([entry(ASSIGNMENT_2, "sick", "Fever")]));
+    await saveAttendance(input([entry(ASSIGNMENT_2, "absent", "Fever")]));
 
     const [insert] = writes();
 
@@ -268,7 +270,7 @@ describe("saveAttendance", () => {
     const long = "x".repeat(200);
 
     await saveAttendance(
-      input([entry(ASSIGNMENT_1, "sick", `  ${long}  `), entry(ASSIGNMENT_2, "leave", "   ")]),
+      input([entry(ASSIGNMENT_1, "absent", `  ${long}  `), entry(ASSIGNMENT_2, "present", "   ")]),
     );
 
     const [insert] = writes();
@@ -279,7 +281,7 @@ describe("saveAttendance", () => {
   });
 
   it("refuses a 201-character reason", async () => {
-    const res = await saveAttendance(input([entry(ASSIGNMENT_1, "sick", "x".repeat(201))]));
+    const res = await saveAttendance(input([entry(ASSIGNMENT_1, "absent", "x".repeat(201))]));
 
     expect(res.ok).toBe(false);
     expect(fake.calls).toEqual([]);

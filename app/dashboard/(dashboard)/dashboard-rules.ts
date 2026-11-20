@@ -73,7 +73,7 @@ function plural(count: number, one: string, many: string): string {
 }
 
 function marked(counts: AttendanceCounts): number {
-  return counts.present + counts.absent + counts.sick + counts.leave;
+  return counts.present + counts.absent;
 }
 
 // Present out of marked, as a percentage with one decimal. Not marked is left out.

@@ -31,16 +31,22 @@ describe("saveAttendanceSchema", () => {
     expect(save([entry()]).success).toBe(true);
   });
 
-  it("accepts each of the four statuses and null", () => {
+  it("has only Present and Absent as statuses", () => {
+    expect([...ATTENDANCE_STATUS_VALUES]).toEqual(["present", "absent"]);
+  });
+
+  it("accepts each of the two statuses and null", () => {
     for (const status of [...ATTENDANCE_STATUS_VALUES, null]) {
       expect(save([entry({ status })]).success).toBe(true);
     }
   });
 
-  it("refuses a status outside the four", () => {
-    expect(issues(save([entry({ status: "late" })]))).toEqual([
-      { path: ["entries", 0, "status"], message: "Choose a status" },
-    ]);
+  it("refuses a status outside the two, including the old sick and leave", () => {
+    for (const status of ["late", "sick", "leave"]) {
+      expect(issues(save([entry({ status })]))).toEqual([
+        { path: ["entries", 0, "status"], message: "Choose a status" },
+      ]);
+    }
   });
 
   it("refuses an assignment id that is not a uuid", () => {
@@ -147,7 +153,9 @@ describe("parseAttendanceFilters", () => {
   });
 
   it("keeps a known status and falls back to all for anything else", () => {
-    expect(parseAttendanceFilters({ status: "sick" }, TODAY).status).toBe("sick");
+    expect(parseAttendanceFilters({ status: "absent" }, TODAY).status).toBe("absent");
+    expect(parseAttendanceFilters({ status: "sick" }, TODAY).status).toBe("all");
+    expect(parseAttendanceFilters({ status: "leave" }, TODAY).status).toBe("all");
     expect(parseAttendanceFilters({ status: "not-marked" }, TODAY).status).toBe("not-marked");
     expect(parseAttendanceFilters({ status: "late" }, TODAY).status).toBe("all");
   });

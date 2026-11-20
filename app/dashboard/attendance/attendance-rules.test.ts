@@ -44,7 +44,7 @@ describe("changedEntries", () => {
     expect(
       changedEntries([
         formRow(),
-        formRow({ assignmentId: "a2", status: "sick", reason: "Fever", draftStatus: "sick", draftReason: "Fever" }),
+        formRow({ assignmentId: "a2", status: "absent", reason: "Fever", draftStatus: "absent", draftReason: "Fever" }),
       ]),
     ).toEqual([]);
   });
@@ -64,15 +64,15 @@ describe("changedEntries", () => {
   it("gives a changed reason on its own", () => {
     expect(
       changedEntries([
-        formRow({ status: "sick", reason: "Fever", draftStatus: "sick", draftReason: "Flu" }),
+        formRow({ status: "absent", reason: "Fever", draftStatus: "absent", draftReason: "Flu" }),
       ]),
-    ).toEqual([{ assignmentId: "a1", status: "sick", reason: "Flu" }]);
+    ).toEqual([{ assignmentId: "a1", status: "absent", reason: "Flu" }]);
   });
 
   it("clears a worker set back to Not marked, with no reason", () => {
     expect(
       changedEntries([
-        formRow({ status: "sick", reason: "Fever", draftStatus: null, draftReason: "Fever" }),
+        formRow({ status: "absent", reason: "Fever", draftStatus: null, draftReason: "Fever" }),
       ]),
     ).toEqual([{ assignmentId: "a1", status: null, reason: null }]);
   });
@@ -83,7 +83,7 @@ describe("changedEntries", () => {
 
   it("treats a saved null reason and an empty draft as the same", () => {
     expect(
-      changedEntries([formRow({ status: "leave", reason: null, draftStatus: "leave", draftReason: "" })]),
+      changedEntries([formRow({ status: "present", reason: null, draftStatus: "present", draftReason: "" })]),
     ).toEqual([]);
   });
 });
@@ -149,8 +149,6 @@ describe("ATTENDANCE_STATUS_LABELS", () => {
     expect(ATTENDANCE_STATUS_LABELS).toEqual({
       present: "Present",
       absent: "Absent",
-      sick: "Sick",
-      leave: "Leave",
       "not-marked": "Not marked",
     });
   });
@@ -162,23 +160,19 @@ describe("summarize", () => {
       scheduled: 0,
       present: 0,
       absent: 0,
-      sick: 0,
-      leave: 0,
       notMarked: 0,
     });
   });
 
   it("counts every status and the rows that are not marked", () => {
     const summary = summarize(
-      rows("present", "present", "absent", "sick", "leave", null, null),
+      rows("present", "present", "absent", "absent", "present", null, null),
     );
 
     expect(summary).toEqual({
       scheduled: 7,
-      present: 2,
-      absent: 1,
-      sick: 1,
-      leave: 1,
+      present: 3,
+      absent: 2,
       notMarked: 2,
     });
   });
@@ -204,14 +198,14 @@ describe("isFutureDay", () => {
 describe("markAllPresent", () => {
   const input: AttendanceDraftRow[] = [
     { assignmentId: "a", status: null, reason: null },
-    { assignmentId: "b", status: "sick", reason: "Fever" },
+    { assignmentId: "b", status: "absent", reason: "Fever" },
     { assignmentId: "c", status: null, reason: "kept" },
   ];
 
   it("sets Present only where the status is null, and keeps every reason", () => {
     expect(markAllPresent(input)).toEqual([
       { assignmentId: "a", status: "present", reason: null },
-      { assignmentId: "b", status: "sick", reason: "Fever" },
+      { assignmentId: "b", status: "absent", reason: "Fever" },
       { assignmentId: "c", status: "present", reason: "kept" },
     ]);
   });
@@ -248,7 +242,7 @@ describe("attendanceFormKey", () => {
   });
 
   it("changes when a saved status or reason changes", () => {
-    const after = [saved[0], { ...saved[1], status: "sick" as const, reason: "Fever" }];
+    const after = [saved[0], { ...saved[1], status: "absent" as const, reason: "Fever" }];
 
     expect(attendanceFormKey("2026-11-09", "l1", after)).not.toBe(
       attendanceFormKey("2026-11-09", "l1", saved),

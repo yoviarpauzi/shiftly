@@ -10,8 +10,6 @@ const ATTENDANCE_OPTIONS: WorkerFilterOption[] = [
   { value: "all", label: "All attendance" },
   { value: "present", label: ATTENDANCE_STATUS_LABELS.present },
   { value: "absent", label: ATTENDANCE_STATUS_LABELS.absent },
-  { value: "sick", label: ATTENDANCE_STATUS_LABELS.sick },
-  { value: "leave", label: ATTENDANCE_STATUS_LABELS.leave },
   { value: "not-marked", label: ATTENDANCE_STATUS_LABELS["not-marked"] },
 ];
 

@@ -15,8 +15,6 @@ const NOT_MARKED = "not-marked";
 const DOT_COLOURS: Record<AttendanceStatus | typeof NOT_MARKED, string> = {
   present: "bg-emerald-500",
   absent: "bg-red-500",
-  sick: "bg-primary",
-  leave: "bg-muted-foreground",
   // Hollow, so it reads as nothing chosen yet.
   [NOT_MARKED]: "border border-muted-foreground/60 bg-transparent",
 };
@@ -25,8 +23,6 @@ export const STATUS_ORDER: (AttendanceStatus | typeof NOT_MARKED)[] = [
   NOT_MARKED,
   "present",
   "absent",
-  "sick",
-  "leave",
 ];
 
 // A coloured dot beside the label, so a status is never told by colour alone.

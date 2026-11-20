@@ -116,8 +116,6 @@ export function summarizeHistory(rows: WorkerHistoryRow[]): WorkerHistorySummary
     breakDays: 0,
     present: 0,
     absent: 0,
-    sick: 0,
-    leave: 0,
     notMarked: 0,
   };
 

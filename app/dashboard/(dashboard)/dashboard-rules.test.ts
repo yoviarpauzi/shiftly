@@ -24,15 +24,15 @@ import {
 } from "./dashboard-rules";
 
 function counts(overrides: Partial<AttendanceCounts> = {}): AttendanceCounts {
-  return { scheduled: 0, present: 0, absent: 0, sick: 0, leave: 0, ...overrides };
+  return { scheduled: 0, present: 0, absent: 0, ...overrides };
 }
 
 function kpis(overrides: Partial<DashboardKpis> = {}): DashboardKpis {
   return {
     workersToday: 214,
     workersYesterday: 208,
-    today: counts({ scheduled: 52, present: 49, absent: 2, sick: 1, leave: 0 }),
-    yesterday: counts({ scheduled: 50, present: 48, absent: 1, sick: 1, leave: 0 }),
+    today: counts({ scheduled: 52, present: 49, absent: 3 }),
+    yesterday: counts({ scheduled: 50, present: 48, absent: 2 }),
     openConflicts: 5,
     conflictedRosters: 2,
     pendingRequests: 3,
@@ -75,7 +75,7 @@ function card(role: Parameters<typeof kpiCards>[0], key: string, overrides: Part
 describe("attendanceRate", () => {
   it("is present out of marked, with one decimal", () => {
     expect(
-      attendanceRate({ scheduled: 214, present: 202, absent: 7, sick: 3, leave: 2 }),
+      attendanceRate({ scheduled: 214, present: 202, absent: 12 }),
     ).toBe(94.4);
   });
 
@@ -177,8 +177,8 @@ describe("attendance card", () => {
 
   it("says up when the rate rose", () => {
     const attendance = card("ho", "attendance", {
-      today: counts({ scheduled: 50, present: 48, absent: 1, sick: 1 }),
-      yesterday: counts({ scheduled: 52, present: 49, absent: 2, sick: 1 }),
+      today: counts({ scheduled: 50, present: 48, absent: 2 }),
+      yesterday: counts({ scheduled: 52, present: 49, absent: 3 }),
     });
 
     expect(attendance.value).toBe("96.0%");
@@ -188,7 +188,7 @@ describe("attendance card", () => {
 
   it("says same when the rates are equal", () => {
     const attendance = card("ho", "attendance", {
-      yesterday: counts({ scheduled: 52, present: 49, absent: 2, sick: 1 }),
+      yesterday: counts({ scheduled: 52, present: 49, absent: 3 }),
     });
 
     expect(attendance.badge).toEqual({ label: "0.0%", tone: "neutral" });
@@ -207,7 +207,7 @@ describe("attendance card", () => {
 
   it("adds a line for workers not marked yet", () => {
     const attendance = card("ho", "attendance", {
-      today: counts({ scheduled: 60, present: 49, absent: 2, sick: 1, leave: 0 }),
+      today: counts({ scheduled: 60, present: 49, absent: 3 }),
     });
 
     expect(attendance.lines).toEqual([

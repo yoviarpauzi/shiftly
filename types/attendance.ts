@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { AppRole } from "@/types/roles";
 import type { LocationTimezone } from "@/validation/location";
 
-export type AttendanceStatus = "present" | "absent" | "sick" | "leave";
+export type AttendanceStatus = "present" | "absent";
 
 export type AttendanceStatusFilter = "all" | "not-marked" | AttendanceStatus;
 
@@ -34,8 +34,6 @@ export type AttendanceSummary = {
   scheduled: number;
   present: number;
   absent: number;
-  sick: number;
-  leave: number;
   notMarked: number;
 };
 

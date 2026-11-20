@@ -5,7 +5,6 @@ import { attendance } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment, rosterConflict } from "@/database/schema/roster-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker } from "@/database/schema/worker-schema";
 import type { DashboardScope, ScopeLocation } from "@/types/dashboard";
 
@@ -83,9 +82,6 @@ const { getAttendanceSeries, getAttentionCounts, getBreakdown, getKpis, getWeekC
   await import("./dashboard");
 const { contractEndingFilter } = await import("@/app/dashboard/workers/workers");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
-const SITE_C = "23232323-2323-4323-8323-232323232323";
 const LOC_A = "33333333-3333-4333-8333-333333333333";
 const LOC_B = "44444444-4444-4444-8444-444444444444";
 const LOC_C = "55555555-5555-4555-8555-555555555555";
@@ -96,21 +92,19 @@ function scopeLocation(overrides: Partial<ScopeLocation>): ScopeLocation {
   return {
     id: LOC_A,
     name: "Gudang Utara",
-    siteId: SITE_A,
-    siteName: "Nestle Kejayan",
     timezone: "Asia/Jakarta",
     ...overrides,
   };
 }
 
 // Two zones: WIB is still on Monday 9 Nov while WITA is already on Tuesday 10 Nov. Location A and C
-// are in WIB, B is in WITA. A and B belong to site A, C to site B.
+// are in WIB, B is in WITA.
 const twoZones: DashboardScope = {
-  access: { siteId: null, locationId: null },
+  access: { locationId: null },
   locations: [
     scopeLocation({ id: LOC_A, name: "Gudang Utara" }),
     scopeLocation({ id: LOC_B, name: "Gudang Timur", timezone: "Asia/Makassar" }),
-    scopeLocation({ id: LOC_C, name: "Plant 1", siteId: SITE_B, siteName: "Indofood Cikarang" }),
+    scopeLocation({ id: LOC_C, name: "Plant 1" }),
   ],
   zones: [
     { timezone: "Asia/Jakarta", today: "2026-11-09", locationIds: [LOC_A, LOC_C] },
@@ -119,7 +113,7 @@ const twoZones: DashboardScope = {
 };
 
 const emptyScope: DashboardScope = {
-  access: { siteId: null, locationId: null },
+  access: { locationId: null },
   locations: [],
   zones: [],
 };
@@ -255,30 +249,6 @@ describe("a scope with no locations", () => {
       expect(await getWeekChart(emptyScope, "scheduled")).toEqual(week);
       expect(calls()).toHaveLength(0);
     });
-  });
-
-  it("still lists every active site as a zero row for a superadmin", async () => {
-    fake.answer = (call: Call) =>
-      call.table === site
-        ? [
-            { id: SITE_B, name: "Indofood Cikarang" },
-            { id: SITE_A, name: "Nestle Kejayan" },
-          ]
-        : [];
-
-    const zero = { locations: 0, workers: 0, pendingRequests: 0, draftRosters: 0, conflicts: 0 };
-
-    expect(await getBreakdown(emptyScope, "superadmin")).toEqual({
-      kind: "sites",
-      rows: [
-        { id: SITE_B, name: "Indofood Cikarang", ...zero },
-        { id: SITE_A, name: "Nestle Kejayan", ...zero },
-      ],
-    });
-
-    // Only the sites are read: there is no location to count anything in.
-    expect(calls()).toHaveLength(1);
-    expect(calls()[0].table).toBe(site);
   });
 });
 
@@ -556,11 +526,8 @@ describe("getAttentionCounts", () => {
     expect(wib.groupBy).toEqual([rosterRequest.locationId]);
     expect(column(wib, "shifts").sql).toBe("count(*)");
 
-    // In the order of the scope's locations, each with its site for the Attendance link.
-    expect(counts.unmarkedLocations).toEqual([
-      { id: LOC_B, siteId: SITE_A },
-      { id: LOC_C, siteId: SITE_B },
-    ]);
+    // In the order of the scope's locations.
+    expect(counts.unmarkedLocations).toEqual([{ id: LOC_B }, { id: LOC_C }]);
     expect(counts.unmarkedWorkers).toBe(5);
   });
 
@@ -687,14 +654,6 @@ describe("getWeekChart", () => {
 
 describe("getBreakdown", () => {
   function feedCounts(call: Call): unknown[] {
-    if (call.table === site) {
-      return [
-        { id: SITE_B, name: "Indofood Cikarang" },
-        { id: SITE_C, name: "Mayora Tangerang" },
-        { id: SITE_A, name: "Nestle Kejayan" },
-      ];
-    }
-
     if (call.table === worker) {
       return [
         { locationId: LOC_A, workers: 10 },
@@ -715,51 +674,6 @@ describe("getBreakdown", () => {
     return [];
   }
 
-  it("gives superadmin one row per active site, with zeros for a site with nothing", async () => {
-    fake.answer = feedCounts;
-
-    const breakdown = await getBreakdown(twoZones, "superadmin");
-
-    expect(breakdown).toEqual({
-      kind: "sites",
-      rows: [
-        { id: SITE_B, name: "Indofood Cikarang", locations: 1, workers: 0, pendingRequests: 0, draftRosters: 0, conflicts: 0 },
-        { id: SITE_C, name: "Mayora Tangerang", locations: 0, workers: 0, pendingRequests: 0, draftRosters: 0, conflicts: 0 },
-        { id: SITE_A, name: "Nestle Kejayan", locations: 2, workers: 15, pendingRequests: 3, draftRosters: 1, conflicts: 2 },
-      ],
-    });
-
-    const [sites] = callsOn(site);
-    expect(render(sites.where)).toEqual({ sql: '"site"."deleted_at" is null', params: [] });
-    expect(sites.orderBy?.map((term) => render(term).sql)).toEqual([
-      '"site"."name" asc',
-      '"site"."id" asc',
-    ]);
-
-    // Active workers on the books, not today's schedule.
-    const [workers] = callsOn(worker);
-    expect(render(workers.where)).toEqual({
-      sql: '("worker"."deleted_at" is null and "worker"."location_id" in ($1, $2, $3))',
-      params: [LOC_A, LOC_B, LOC_C],
-    });
-    expect(workers.groupBy).toEqual([worker.locationId]);
-    expect(column(workers, "workers").sql).toBe("count(*)");
-
-    expectOnlyScopeIds();
-  });
-
-  it("limits the sites to the scope's site when the access names one", async () => {
-    fake.answer = feedCounts;
-
-    await getBreakdown({ ...twoZones, access: { siteId: SITE_A, locationId: null } }, "superadmin");
-
-    const [sites] = callsOn(site);
-    expect(render(sites.where)).toEqual({
-      sql: '("site"."deleted_at" is null and "site"."id" = $1)',
-      params: [SITE_A],
-    });
-  });
-
   it("gives HO one row per location in scope, with zeros for a location with nothing", async () => {
     fake.answer = feedCounts;
 
@@ -773,19 +687,29 @@ describe("getBreakdown", () => {
         { id: LOC_C, name: "Plant 1", workers: 0, pendingRequests: 0, draftRosters: 0, conflicts: 0 },
       ],
     });
-    expect(callsOn(site)).toHaveLength(0);
+
+    // Active workers on the books, not today's schedule.
+    const [workers] = callsOn(worker);
+    expect(render(workers.where)).toEqual({
+      sql: '("worker"."deleted_at" is null and "worker"."location_id" in ($1, $2, $3))',
+      params: [LOC_A, LOC_B, LOC_C],
+    });
+    expect(workers.groupBy).toEqual([worker.locationId]);
+    expect(column(workers, "workers").sql).toBe("count(*)");
+
+    expectOnlyScopeIds();
   });
 
   it("gives admin site its latest three requests, newest first", async () => {
     const own: DashboardScope = {
-      access: { siteId: SITE_A, locationId: LOC_A },
+      access: { locationId: LOC_A },
       locations: [twoZones.locations[0]],
       zones: [{ timezone: "Asia/Jakarta", today: "2026-11-09", locationIds: [LOC_A] }],
     };
     const rows = [
-      { id: "r3", poNumber: "PO-NK-202611-0003", type: "weekly", startDate: "2026-11-16", status: "pending" },
-      { id: "r2", poNumber: "PO-NK-202611-0002", type: "daily", startDate: "2026-11-10", status: "approved" },
-      { id: "r1", poNumber: "PO-NK-202611-0001", type: "weekly", startDate: "2026-11-09", status: "approved" },
+      { id: "r3", poNumber: "PO-202611-0003", type: "weekly", startDate: "2026-11-16", status: "pending" },
+      { id: "r2", poNumber: "PO-202611-0002", type: "daily", startDate: "2026-11-10", status: "approved" },
+      { id: "r1", poNumber: "PO-202611-0001", type: "weekly", startDate: "2026-11-09", status: "approved" },
     ];
 
     fake.answer = (call: Call) => (call.table === rosterRequest ? rows : []);

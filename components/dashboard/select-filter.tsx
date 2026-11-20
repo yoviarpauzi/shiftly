@@ -15,7 +15,7 @@ export type FilterOption = { value: string; label: string };
 // The "all" option removes the param, so the URL only carries filters that are set.
 const ALL = "all";
 
-// resets lists other params to drop when this filter changes, such as a location that belongs to the old site.
+// resets lists other params to drop when this filter changes, such as a sub-department that belongs to the old department.
 export function SelectFilter({
   param,
   value,

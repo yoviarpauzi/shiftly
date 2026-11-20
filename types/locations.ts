@@ -28,13 +28,6 @@ export type LocationListParams = PageParams & {
   sort: SortCriterion<LocationSortColumn>[];
 };
 
-export type SiteOption = { id: string; name: string };
-
-// Superadmin picks a site. HO gets its own site as fixed text.
-export type SiteChoice =
-  | { mode: "pick"; sites: SiteOption[] }
-  | { mode: "fixed"; site: SiteOption };
-
 export type LocationFieldErrors = {
   name?: string;
   timezone?: string;

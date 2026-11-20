@@ -82,27 +82,17 @@ export type HomeRule = {
   detail: string;
 };
 
-// One site of the example in the Roles section, with how many locations it has.
-export type ScopeSite = {
-  name: string;
-  locations: number;
-};
-
-// `reach` has one list per site of the example, in the order of SCOPE_SITES, with one entry per
-// location of that site: true for the locations the role can see.
+// `reach` has one entry per location of the example in the Roles section, in the order drawn:
+// true for the locations the role can see.
 export type HomeRole = {
   name: string;
   scope: string;
   summary: string;
-  reach: boolean[][];
-};
-
-export type ScopeSitesProps = {
-  className?: string;
+  reach: boolean[];
 };
 
 export type ScopeCellsProps = {
-  reach: boolean[][];
+  reach: boolean[];
 };
 
 export type BandCopy = {

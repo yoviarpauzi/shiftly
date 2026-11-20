@@ -1,7 +1,6 @@
 import "server-only";
 import {
   and,
-  asc,
   count,
   countDistinct,
   desc,
@@ -21,7 +20,6 @@ import { attendance } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment, rosterConflict } from "@/database/schema/roster-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type { RequestStatus, RequestType } from "@/types/requests";
@@ -37,7 +35,6 @@ import type {
   RequestCountRow,
   ScopeZone,
   SeriesPoint,
-  SiteRow,
   WeekPoint,
 } from "@/types/dashboard";
 
@@ -290,7 +287,7 @@ export async function getAttentionCounts(scope: DashboardScope): Promise<Attenti
     conflictedRosters: sum(drafts, (row) => row.conflictedRosters),
     unmarkedLocations: scope.locations
       .filter((row) => unmarkedIds.has(row.id))
-      .map((row) => ({ id: row.id, siteId: row.siteId })),
+      .map((row) => ({ id: row.id })),
     unmarkedWorkers: sum(unmarked, (row) => row.shifts),
     contractsEnding: contracts[0]?.total ?? 0,
   };
@@ -387,40 +384,6 @@ async function locationRows(scope: DashboardScope): Promise<LocationRow[]> {
   }));
 }
 
-// Every active site gets a row, a site with no location in scope a row of zeros. With no location
-// at all, only the sites are read.
-async function siteRows(scope: DashboardScope): Promise<SiteRow[]> {
-  const [sites, locations] = await Promise.all([
-    db
-      .select({ id: site.id, name: site.name })
-      .from(site)
-      .where(
-        and(
-          isNull(site.deletedAt),
-          scope.access.siteId ? eq(site.id, scope.access.siteId) : undefined,
-        ),
-      )
-      .orderBy(asc(site.name), asc(site.id)),
-    scope.locations.length > 0 ? locationRows(scope) : [],
-  ]);
-
-  const siteOf = new Map(scope.locations.map((row) => [row.id, row.siteId]));
-
-  return sites.map(({ id, name }) => {
-    const own = locations.filter((row) => siteOf.get(row.id) === id);
-
-    return {
-      id,
-      name,
-      locations: own.length,
-      workers: sum(own, (row) => row.workers),
-      pendingRequests: sum(own, (row) => row.pendingRequests),
-      draftRosters: sum(own, (row) => row.draftRosters),
-      conflicts: sum(own, (row) => row.conflicts),
-    };
-  });
-}
-
 function recentRequests(scope: DashboardScope) {
   return db
     .select({
@@ -436,13 +399,8 @@ function recentRequests(scope: DashboardScope) {
     .limit(RECENT_REQUESTS);
 }
 
-// Superadmin sees By site, HO By location, and admin site its latest requests.
+// HO sees By location and admin site its latest requests.
 export async function getBreakdown(scope: DashboardScope, role: DashboardRole): Promise<Breakdown> {
-  // A superadmin's sites are listed even with no location, as rows of zeros.
-  if (role === "superadmin") {
-    return { kind: "sites", rows: await siteRows(scope) };
-  }
-
   const kind = role === "ho" ? "locations" : "requests";
 
   if (scope.zones.length === 0) {

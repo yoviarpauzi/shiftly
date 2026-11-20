@@ -225,7 +225,7 @@ function conflictsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
   };
 }
 
-function approvalsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
+function approvalsCard(kpis: DashboardKpis): KpiCard {
   const label = "Pending approvals";
 
   if (kpis.pendingRequests === 0) {
@@ -239,7 +239,6 @@ function approvalsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
     };
   }
 
-  const who = role === "ho" ? "you or a superadmin" : "HO or a superadmin";
   let second = "Weekly requests need an approval";
 
   if (kpis.oldestPendingDate !== null) {
@@ -253,7 +252,7 @@ function approvalsCard(role: DashboardRole, kpis: DashboardKpis): KpiCard {
     label,
     value: String(kpis.pendingRequests),
     badge: { label: "Weekly", tone: "pending" },
-    lines: [`Waiting for ${who}`, second],
+    lines: ["Waiting for you", second],
     danger: false,
   };
 }
@@ -273,13 +272,13 @@ function requestsCard(kpis: DashboardKpis): KpiCard {
       pending === 0
         ? "None waiting for HO approval"
         : `${pending} ${plural(pending, "is", "are")} waiting for HO approval`,
-      "Only HO or superadmin can approve",
+      "Only HO can approve",
     ],
     danger: false,
   };
 }
 
-// Superadmin and HO approve requests, so they see approvals. Admin site follows its own requests.
+// HO approves requests, so it sees approvals. Admin site follows its own requests.
 export function kpiCards(role: DashboardRole, kpis: DashboardKpis): KpiCard[] {
   const workers = workersCard(role, kpis);
   const attendance = attendanceCard(kpis.today, kpis.yesterday);
@@ -289,7 +288,7 @@ export function kpiCards(role: DashboardRole, kpis: DashboardKpis): KpiCard[] {
     return [workers, attendance, requestsCard(kpis), conflicts];
   }
 
-  return [workers, attendance, conflicts, approvalsCard(role, kpis)];
+  return [workers, attendance, conflicts, approvalsCard(kpis)];
 }
 
 function requestsItem(role: DashboardRole, count: number): AttentionItem {
@@ -299,19 +298,17 @@ function requestsItem(role: DashboardRole, count: number): AttentionItem {
     return {
       key: "requests",
       title: `${count} ${plural(count, "request is", "requests are")} waiting for HO approval`,
-      detail: `You can follow ${plural(count, "its", "their")} status here. Only HO or a superadmin can approve ${plural(count, "it", "them")}.`,
+      detail: `You can follow ${plural(count, "its", "their")} status here. Only HO can approve ${plural(count, "it", "them")}.`,
       button: "View request",
       href,
     };
   }
 
   // The frames word this the same for one request and for many.
-  const who = role === "ho" ? "you or a superadmin approve" : "HO or a superadmin approves";
-
   return {
     key: "requests",
     title: `${count} ${plural(count, "request is", "requests are")} waiting for approval`,
-    detail: `Weekly requests stay pending until ${who} them.`,
+    detail: `Weekly requests stay pending until you approve them.`,
     button: "Review",
     href,
   };
@@ -331,11 +328,10 @@ function attendanceItem(counts: AttentionCounts, today: string): AttentionItem {
       ? `${day}. ${counts.unmarkedWorkers} ${plural(counts.unmarkedWorkers, "worker in the confirmed roster is", "workers in the confirmed roster are")} waiting to be marked.`
       : `${day}. Confirmed rosters are waiting to be marked.`;
 
-  // The Attendance page reads `location` only inside the chosen site, so one location names both.
   const [only] = counts.unmarkedLocations;
   const href =
     locations === 1
-      ? `/dashboard/attendance?site=${encodeURIComponent(only.siteId)}&location=${encodeURIComponent(only.id)}`
+      ? `/dashboard/attendance?location=${encodeURIComponent(only.id)}`
       : "/dashboard/attendance";
 
   return { key: "attendance", title, detail, button: "Mark attendance", href };
@@ -343,7 +339,6 @@ function attendanceItem(counts: AttentionCounts, today: string): AttentionItem {
 
 // The order of the list, as the frames show it. Admin site starts with its own attendance task.
 const ATTENTION_ORDER: Record<DashboardRole, AttentionKey[]> = {
-  superadmin: ["requests", "drafts", "conflicts", "attendance", "contracts"],
   ho: ["requests", "drafts", "conflicts", "attendance", "contracts"],
   admin_site: ["attendance", "requests", "drafts", "conflicts", "contracts"],
 };
@@ -469,24 +464,15 @@ export function tickDates(series: SeriesPoint[], range: SeriesRange): string[] {
     .map((point) => point.date);
 }
 
-export function dashboardSubtitle(
-  role: DashboardRole,
-  names: { siteName: string | null; locationName: string | null },
-): string {
-  if (role === "superadmin") {
-    return "Everything that needs attention across all sites.";
-  }
-
+export function dashboardSubtitle(role: DashboardRole, locationName: string | null): string {
   if (role === "ho") {
-    return `Everything that needs attention at ${names.siteName ?? "your site"}.`;
+    return "Everything that needs attention across all locations.";
   }
 
-  const place = [names.siteName, names.locationName].filter(Boolean).join(" / ");
-
-  return `What needs attention at ${place || "your location"}.`;
+  return `What needs attention at ${locationName ?? "your location"}.`;
 }
 
-// The title, description, caption and tone of the week chart. Superadmin and HO see the gaps the
+// The title, description, caption and tone of the week chart. HO sees the gaps the
 // rules left, and an admin site sees how many workers are scheduled. For every role the caption
 // counts the conflicts dated this week (the sum of the gaps chart), so it agrees with the bars.
 export function weekChartCopy(role: DashboardRole, weekConflicts: number): WeekChartCopy {

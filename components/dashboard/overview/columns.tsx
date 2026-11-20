@@ -12,7 +12,6 @@ import type {
   LocationRow,
   NumberHeaderProps,
   RecentRequestRow,
-  SiteRow,
 } from "@/types/dashboard";
 
 // The summary tables only list rows, so no sorting, filtering or pagination feature is loaded.
@@ -40,33 +39,8 @@ function NumberHeader({ label }: NumberHeaderProps) {
   return <div className="text-right">{label}</div>;
 }
 
-const siteHelper = createColumnHelper<typeof summaryFeatures, SiteRow>();
 const locationHelper = createColumnHelper<typeof summaryFeatures, LocationRow>();
 const requestHelper = createColumnHelper<typeof summaryFeatures, RecentRequestRow>();
-
-export const siteColumns = siteHelper.columns([
-  siteHelper.accessor("name", { header: "Site" }),
-  siteHelper.accessor("locations", {
-    header: () => <NumberHeader label="Locations" />,
-    cell: ({ row }) => <CountCell value={row.original.locations} />,
-  }),
-  siteHelper.accessor("workers", {
-    header: () => <NumberHeader label="Workers" />,
-    cell: ({ row }) => <CountCell value={row.original.workers} />,
-  }),
-  siteHelper.accessor("pendingRequests", {
-    header: () => <NumberHeader label="Pending requests" />,
-    cell: ({ row }) => <CountCell value={row.original.pendingRequests} />,
-  }),
-  siteHelper.accessor("draftRosters", {
-    header: () => <NumberHeader label="Draft rosters" />,
-    cell: ({ row }) => <CountCell value={row.original.draftRosters} />,
-  }),
-  siteHelper.accessor("conflicts", {
-    header: () => <NumberHeader label="Conflicts" />,
-    cell: ({ row }) => <CountCell value={row.original.conflicts} danger />,
-  }),
-]);
 
 export const locationColumns = locationHelper.columns([
   locationHelper.accessor("name", { header: "Location" }),

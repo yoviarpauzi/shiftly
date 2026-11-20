@@ -9,7 +9,6 @@ import type {
   HomeStep,
   NavLink,
   RecordingSize,
-  ScopeSite,
   StepCrop,
 } from "@/types/home";
 
@@ -22,7 +21,7 @@ export const NAV_LINKS: NavLink[] = [
 export const HERO_COPY: HeroCopy = {
   lead: "Rosters that respect",
   audience:
-    "For outsourcing teams that build shift rosters for several client sites by hand.",
+    "For outsourcing teams that build shift rosters for several locations by hand.",
   subtitle:
     "Shiftly builds each location's roster from the requests you approve, and records any rule it cannot meet, with the reason.",
   claims: ["Same request, same roster.", "No AI model is involved."],
@@ -73,7 +72,7 @@ export const STEPS: HomeStep[] = [
   {
     title: "Approve",
     detail:
-      "A weekly request waits for the HO assigned to the site, the role that sees all of its locations, or a superadmin. A daily request is approved when it is saved.",
+      "A weekly request waits for the HO, the role that sees every location. A daily request is approved when it is saved.",
     phoneCrop: { x: 560, y: 215, width: 570, height: 260 },
     video: "/landing/steps/approve.mp4",
     poster: "/landing/steps/approve.webp",
@@ -124,7 +123,7 @@ export const CONFLICT_EXAMPLE: ConflictExample = {
 export const RULES: HomeRule[] = [
   {
     title: "Working days per week",
-    detail: "5 or 7 days, set per site, location, or worker.",
+    detail: "5 or 7 days, set per location or worker.",
   },
   {
     title: "Max working days per month",
@@ -148,49 +147,32 @@ export const ROLES_HEADING: HomeSectionHeading = {
     "Access follows the account, not the menu. Each role works inside its own slice of the data.",
 };
 
-// The example the Roles section draws: two sites, five locations in all.
-export const SCOPE_SITES: ScopeSite[] = [
-  { name: "Site A", locations: 3 },
-  { name: "Site B", locations: 2 },
-];
+// The example the Roles section draws: five locations.
+export const SCOPE_LOCATIONS = 5;
 
 export const SCOPE_NOTE =
-  "Filled squares are the locations a role can see, in an example with two sites and five locations.";
+  "Filled squares are the locations a role can see, in an example with five locations.";
 
 export const ROLES: HomeRole[] = [
   {
-    name: "Superadmin",
-    scope: "All sites",
-    summary: "Manages sites, locations, users, and the global work rules.",
-    reach: [
-      [true, true, true],
-      [true, true],
-    ],
-  },
-  {
     name: "HO",
-    scope: "One site, all its locations",
-    summary: "Approves weekly requests and sets the work rules for the site.",
-    reach: [
-      [true, true, true],
-      [false, false],
-    ],
+    scope: "All locations",
+    summary:
+      "Approves weekly requests, manages locations and users, and sets the work rules.",
+    reach: [true, true, true, true, true],
   },
   {
     name: "Admin site",
     scope: "One location",
     summary:
       "Makes requests, reviews rosters, and marks attendance for the location.",
-    reach: [
-      [false, true, false],
-      [false, false],
-    ],
+    reach: [false, true, false, false, false],
   },
 ];
 
 export const BAND_COPY: BandCopy = {
-  title: "Accounts come from your superadmin.",
-  detail: "No account yet? Your superadmin adds people in the Users menu.",
+  title: "Accounts come from your HO.",
+  detail: "No account yet? Your HO adds people in the Users menu.",
 };
 
 // What the band says to someone who is already signed in.
@@ -201,6 +183,6 @@ export const BAND_COPY_SIGNED_IN: BandCopy = {
 };
 
 export const FOOTER_COPY: FooterCopy = {
-  tagline: "Roster and shift management for outsourced workers across sites.",
+  tagline: "Roster and shift management for outsourced workers across locations.",
   copyright: "© 2026 Shiftly",
 };

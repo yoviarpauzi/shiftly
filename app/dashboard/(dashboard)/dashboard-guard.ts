@@ -1,27 +1,20 @@
 import "server-only";
 import { notFound } from "next/navigation";
-import { requireRequestUser } from "@/app/dashboard/requests/request-guard";
+import { requireUser } from "@/lib/session";
 import type { DashboardRole } from "@/types/dashboard";
 import type { RequestAccess } from "@/types/requests";
+import { dashboardAccessFor } from "./dashboard-access";
 
-const DASHBOARD_ROLES: readonly string[] = ["superadmin", "ho", "admin_site"];
-
-function isDashboardRole(role: string | null): role is DashboardRole {
-  return role !== null && DASHBOARD_ROLES.includes(role);
-}
-
-// The dashboard is open to the same roles as requests: superadmin, HO, and admin site. The access
-// rule is requireRequestUser's, so anyone without access already gets notFound() there. This only
-// narrows the role for the page.
+// The dashboard is open to HO and admin site. Anyone else gets notFound(), as in the request pages.
 export async function requireDashboardUser(): Promise<{
   role: DashboardRole;
   access: RequestAccess;
 }> {
-  const { user, access } = await requireRequestUser();
+  const dashboard = dashboardAccessFor(await requireUser());
 
-  if (!isDashboardRole(user.role)) {
+  if (!dashboard) {
     notFound();
   }
 
-  return { role: user.role, access };
+  return dashboard;
 }

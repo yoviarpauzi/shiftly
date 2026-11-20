@@ -3,13 +3,11 @@ import type { RequestAccess, RequestStatus, RequestType } from "@/types/requests
 import type { summaryFeatures } from "@/components/dashboard/overview/columns";
 import type { LocationTimezone } from "@/validation/location";
 
-export type DashboardRole = "superadmin" | "ho" | "admin_site";
+export type DashboardRole = "ho" | "admin_site";
 
 export type ScopeLocation = {
   id: string;
   name: string;
-  siteId: string;
-  siteName: string;
   timezone: LocationTimezone;
 };
 
@@ -54,8 +52,7 @@ export type AttentionCounts = {
   draftRosters: number;
   conflicts: number;
   conflictedRosters: number;
-  // With the site, because the Attendance page picks a location only inside the chosen site.
-  unmarkedLocations: { id: string; siteId: string }[];
+  unmarkedLocations: { id: string }[];
   unmarkedWorkers: number;
   contractsEnding: number;
 };
@@ -110,17 +107,14 @@ export type AttentionItem = {
   href: string;
 };
 
-export type SiteRow = {
+export type LocationRow = {
   id: string;
   name: string;
-  locations: number;
   workers: number;
   pendingRequests: number;
   draftRosters: number;
   conflicts: number;
 };
-
-export type LocationRow = Omit<SiteRow, "locations">;
 
 export type RecentRequestRow = {
   id: string;
@@ -131,7 +125,6 @@ export type RecentRequestRow = {
 };
 
 export type Breakdown =
-  | { kind: "sites"; rows: SiteRow[] }
   | { kind: "locations"; rows: LocationRow[] }
   | { kind: "requests"; rows: RecentRequestRow[] };
 
@@ -201,7 +194,7 @@ export type AttendanceEndLabelsProps = {
 
 export type BreakdownTableProps = {
   breakdown: Breakdown;
-  // The site name for HO, the location name for admin site, null for a superadmin.
+  // The location name for admin site, null for HO, who sees every location.
   contextName: string | null;
 };
 

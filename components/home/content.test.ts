@@ -13,7 +13,7 @@ import {
   RECORDING_SIZE,
   ROLES,
   RULES,
-  SCOPE_SITES,
+  SCOPE_LOCATIONS,
   STEPS,
   STEP_CROP,
 } from "@/components/home/content";
@@ -58,7 +58,7 @@ describe("landing copy", () => {
 
   it("says who the page is for and the problem, using only what the PRD states", () => {
     expect(HERO_COPY.audience).toBe(
-      "For outsourcing teams that build shift rosters for several client sites by hand.",
+      "For outsourcing teams that build shift rosters for several locations by hand.",
     );
   });
 
@@ -92,9 +92,9 @@ describe("landing copy", () => {
     expectInsidePageArea(STEP_CROP, RECORDING_SIZE);
   });
 
-  it("describes the approver by the site assignment, not by an expansion of HO", () => {
+  it("describes the approver by what the HO sees, not by an expansion of HO", () => {
     expect(STEPS[1]?.detail).toBe(
-      "A weekly request waits for the HO assigned to the site, the role that sees all of its locations, or a superadmin. A daily request is approved when it is saved.",
+      "A weekly request waits for the HO, the role that sees every location. A daily request is approved when it is saved.",
     );
   });
 
@@ -147,36 +147,26 @@ describe("landing copy", () => {
     );
   });
 
-  it("has three roles, outermost first", () => {
-    expect(ROLES.map((role) => role.name)).toEqual([
-      "Superadmin",
-      "HO",
-      "Admin site",
-    ]);
+  it("has two roles, outermost first", () => {
+    expect(ROLES.map((role) => role.name)).toEqual(["HO", "Admin site"]);
   });
 
   it("draws each role's reach over every location of the example", () => {
     for (const role of ROLES) {
-      expect(role.reach.map((cells) => cells.length)).toEqual(
-        SCOPE_SITES.map((site) => site.locations),
-      );
+      expect(role.reach).toHaveLength(SCOPE_LOCATIONS);
     }
 
-    const [superadmin, ho, adminSite] = ROLES;
-    // Superadmin sees all sites.
-    expect(superadmin?.reach.flat().every(Boolean)).toBe(true);
-    // HO sees every location of one site and nothing of the others.
-    const hoSites = ho?.reach ?? [];
-    expect(hoSites.filter((cells) => cells.every(Boolean))).toHaveLength(1);
-    expect(hoSites.filter((cells) => cells.some(Boolean) && !cells.every(Boolean))).toHaveLength(0);
+    const [ho, adminSite] = ROLES;
+    // HO sees every location.
+    expect(ho?.reach.every(Boolean)).toBe(true);
     // Admin site sees exactly one location.
-    expect(adminSite?.reach.flat().filter(Boolean)).toHaveLength(1);
+    expect(adminSite?.reach.filter(Boolean)).toHaveLength(1);
   });
 
   it("tells visitors where accounts come from", () => {
-    expect(BAND_COPY.title).toBe("Accounts come from your superadmin.");
+    expect(BAND_COPY.title).toBe("Accounts come from your HO.");
     expect(BAND_COPY.detail).toBe(
-      "No account yet? Your superadmin adds people in the Users menu.",
+      "No account yet? Your HO adds people in the Users menu.",
     );
   });
 

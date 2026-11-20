@@ -18,7 +18,6 @@ import type {
 import {
   locationColumns,
   requestColumns,
-  siteColumns,
   summaryFeatures,
 } from "./columns";
 
@@ -76,14 +75,9 @@ export function BreakdownTable({ breakdown, contextName }: BreakdownTableProps) 
   let body: React.ReactNode;
 
   switch (breakdown.kind) {
-    case "sites":
-      title = "By site";
-      subtitle = "How each site is doing right now.";
-      body = <SummaryTable data={breakdown.rows} columns={siteColumns} getRowId={rowId} />;
-      break;
     case "locations":
       title = "By location";
-      subtitle = `How each location${contextName ? ` of ${contextName}` : ""} is doing right now.`;
+      subtitle = "How each location is doing right now.";
       body = <SummaryTable data={breakdown.rows} columns={locationColumns} getRowId={rowId} />;
       break;
     case "requests":

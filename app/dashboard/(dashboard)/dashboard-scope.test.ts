@@ -55,19 +55,16 @@ vi.mock("@/lib/db", () => ({ db: { select: () => builder({}) } }));
 
 const { buildScope, dashboardScopeFor } = await import("./dashboard-scope");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
 const LOCATION_B = "44444444-4444-4444-8444-444444444444";
 const LOCATION_C = "55555555-5555-4555-8555-555555555555";
 
-const everything: RequestAccess = { siteId: null, locationId: null };
+const everything: RequestAccess = { locationId: null };
 
 function scopeLocation(overrides: Partial<ScopeLocation>): ScopeLocation {
   return {
     id: LOCATION_A,
     name: "Gudang Utara",
-    siteId: SITE_A,
-    siteName: "Nestle Kejayan",
     timezone: "Asia/Jakarta",
     ...overrides,
   };
@@ -132,45 +129,35 @@ describe("dashboardScopeFor", () => {
     return { call, where, orderBy };
   }
 
-  it("reads the active locations joined to their active site, ordered by site, location, id", async () => {
+  it("reads the active locations ordered by name and id, with no join", async () => {
     await dashboardScopeFor(everything);
 
     const { call, where, orderBy } = recorded();
 
     expect(call.table).toBe(location);
-    expect(call.joined).toBeDefined();
+    expect(call.joined).toBeUndefined();
     expect(where.sql).toContain('"location"."deleted_at" is null');
-    expect(where.sql).toContain('"site"."deleted_at" is null');
-    expect(orderBy).toEqual(['"site"."name" asc', '"location"."name" asc', '"location"."id" asc']);
+    expect(orderBy).toEqual(['"location"."name" asc', '"location"."id" asc']);
   });
 
-  it("adds no site or location condition for a superadmin", async () => {
+  it("adds no location condition for an HO, so it covers every active location", async () => {
     await dashboardScopeFor(everything);
 
     const { where } = recorded();
 
-    expect(where.sql).not.toContain('"location"."site_id"');
-    expect(where.sql).not.toContain('"location"."id"');
+    expect(where.sql).not.toContain('"location"."id" =');
+    expect(where.sql).not.toContain("site");
     expect(where.params).toEqual([]);
   });
 
-  it("limits an HO to the locations of its site", async () => {
-    await dashboardScopeFor({ siteId: SITE_A, locationId: null });
-
-    const { where } = recorded();
-
-    expect(where.sql).toContain('"location"."site_id" = $1');
-    expect(where.sql).not.toContain('"location"."id" =');
-    expect(where.params).toEqual([SITE_A]);
-  });
-
   it("limits an admin site to its own location", async () => {
-    await dashboardScopeFor({ siteId: SITE_A, locationId: LOCATION_A });
+    await dashboardScopeFor({ locationId: LOCATION_A });
 
     const { where } = recorded();
 
-    expect(where.sql).toContain('"location"."id" = ');
-    expect(where.params).toContain(LOCATION_A);
+    expect(where.sql).toContain('"location"."deleted_at" is null');
+    expect(where.sql).toContain('"location"."id" = $1');
+    expect(where.params).toEqual([LOCATION_A]);
   });
 
   it("returns the rows as a scope with zones", async () => {

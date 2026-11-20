@@ -56,11 +56,10 @@ function attention(overrides: Partial<AttentionCounts> = {}): AttentionCounts {
   };
 }
 
-// The Attendance page picks a location only inside the chosen site, so the link carries both.
-const ONE_LOCATION = { id: "loc-1", siteId: "site-1" };
+const ONE_LOCATION = { id: "loc-1" };
 
 function unmarked(count: number): AttentionCounts["unmarkedLocations"] {
-  return Array.from({ length: count }, (_, index) => ({ id: `loc-${index + 1}`, siteId: "site-1" }));
+  return Array.from({ length: count }, (_, index) => ({ id: `loc-${index + 1}` }));
 }
 
 function card(role: Parameters<typeof kpiCards>[0], key: string, overrides: Partial<DashboardKpis> = {}) {
@@ -109,8 +108,8 @@ describe("rateDelta", () => {
 });
 
 describe("kpiCards order", () => {
-  it("shows approvals for superadmin and HO", () => {
-    for (const role of ["superadmin", "ho"] as const) {
+  it("shows approvals for HO", () => {
+    for (const role of ["ho"] as const) {
       expect(kpiCards(role, kpis()).map((item) => item.key)).toEqual([
         "workers",
         "attendance",
@@ -132,7 +131,7 @@ describe("kpiCards order", () => {
 
 describe("workers card", () => {
   it("shows more than yesterday", () => {
-    const workers = card("superadmin", "workers");
+    const workers = card("ho", "workers");
 
     expect(workers.label).toBe("Workers today");
     expect(workers.value).toBe("214");
@@ -152,14 +151,14 @@ describe("workers card", () => {
   });
 
   it("shows the same as yesterday", () => {
-    const workers = card("superadmin", "workers", { workersYesterday: 214 });
+    const workers = card("ho", "workers", { workersYesterday: 214 });
 
     expect(workers.badge).toEqual({ label: "0", tone: "neutral" });
     expect(workers.lines).toEqual(["Same as yesterday", "Scheduled in confirmed rosters"]);
   });
 
   it("shows fewer than yesterday", () => {
-    const workers = card("superadmin", "workers", { workersToday: 210, workersYesterday: 214 });
+    const workers = card("ho", "workers", { workersToday: 210, workersYesterday: 214 });
 
     expect(workers.badge).toEqual({ label: "-4", tone: "down" });
     expect(workers.lines).toEqual(["4 fewer than yesterday", "Scheduled in confirmed rosters"]);
@@ -168,7 +167,7 @@ describe("workers card", () => {
 
 describe("attendance card", () => {
   it("shows the rate against yesterday", () => {
-    const attendance = card("superadmin", "attendance");
+    const attendance = card("ho", "attendance");
 
     expect(attendance.label).toBe("Attendance today");
     expect(attendance.value).toBe("94.2%");
@@ -177,7 +176,7 @@ describe("attendance card", () => {
   });
 
   it("says up when the rate rose", () => {
-    const attendance = card("superadmin", "attendance", {
+    const attendance = card("ho", "attendance", {
       today: counts({ scheduled: 50, present: 48, absent: 1, sick: 1 }),
       yesterday: counts({ scheduled: 52, present: 49, absent: 2, sick: 1 }),
     });
@@ -188,7 +187,7 @@ describe("attendance card", () => {
   });
 
   it("says same when the rates are equal", () => {
-    const attendance = card("superadmin", "attendance", {
+    const attendance = card("ho", "attendance", {
       yesterday: counts({ scheduled: 52, present: 49, absent: 2, sick: 1 }),
     });
 
@@ -197,7 +196,7 @@ describe("attendance card", () => {
   });
 
   it("says nothing was marked yesterday, with no badge", () => {
-    const attendance = card("superadmin", "attendance", {
+    const attendance = card("ho", "attendance", {
       yesterday: counts({ scheduled: 50 }),
     });
 
@@ -207,7 +206,7 @@ describe("attendance card", () => {
   });
 
   it("adds a line for workers not marked yet", () => {
-    const attendance = card("superadmin", "attendance", {
+    const attendance = card("ho", "attendance", {
       today: counts({ scheduled: 60, present: 49, absent: 2, sick: 1, leave: 0 }),
     });
 
@@ -237,7 +236,7 @@ describe("attendance card", () => {
   });
 
   it("shows No shifts when nothing is scheduled", () => {
-    const attendance = card("superadmin", "attendance", { today: counts() });
+    const attendance = card("ho", "attendance", { today: counts() });
 
     expect(attendance.value).toBe("No shifts");
     expect(attendance.badge).toBeNull();
@@ -246,7 +245,7 @@ describe("attendance card", () => {
 
 describe("conflicts card", () => {
   it("is red with the roster count", () => {
-    const conflicts = card("superadmin", "conflicts");
+    const conflicts = card("ho", "conflicts");
 
     expect(conflicts.label).toBe("Open conflicts");
     expect(conflicts.value).toBe("5");
@@ -259,14 +258,14 @@ describe("conflicts card", () => {
   });
 
   it("uses the singular for one roster", () => {
-    const conflicts = card("superadmin", "conflicts", { conflictedRosters: 1 });
+    const conflicts = card("ho", "conflicts", { conflictedRosters: 1 });
 
     expect(conflicts.badge).toEqual({ label: "1 roster", tone: "danger" });
     expect(conflicts.lines[1]).toBe("In 1 draft roster, with a reason");
   });
 
-  it("is calm at zero for a superadmin and an HO", () => {
-    for (const role of ["superadmin", "ho"] as const) {
+  it("is calm at zero for an HO", () => {
+    for (const role of ["ho"] as const) {
       const conflicts = card(role, "conflicts", { openConflicts: 0, conflictedRosters: 0 });
 
       expect(conflicts.value).toBe("0");
@@ -292,25 +291,13 @@ describe("conflicts card", () => {
 });
 
 describe("approvals card", () => {
-  it("names the oldest request for a superadmin", () => {
-    const approvals = card("superadmin", "approvals");
+  it("names the oldest request and speaks to the HO in the second person", () => {
+    const approvals = card("ho", "approvals");
 
     expect(approvals.label).toBe("Pending approvals");
     expect(approvals.value).toBe("3");
     expect(approvals.badge).toEqual({ label: "Weekly", tone: "pending" });
-    expect(approvals.lines).toEqual([
-      "Waiting for HO or a superadmin",
-      "Oldest request is from Fri 6 Nov",
-    ]);
-  });
-
-  it("speaks to the HO in the second person", () => {
-    const approvals = card("ho", "approvals");
-
-    expect(approvals.lines).toEqual([
-      "Waiting for you or a superadmin",
-      "Oldest request is from Fri 6 Nov",
-    ]);
+    expect(approvals.lines).toEqual(["Waiting for you", "Oldest request is from Fri 6 Nov"]);
   });
 
   it("says Requested on for a single request", () => {
@@ -320,7 +307,7 @@ describe("approvals card", () => {
   });
 
   it("is empty at zero", () => {
-    for (const role of ["superadmin", "ho"] as const) {
+    for (const role of ["ho"] as const) {
       const approvals = card(role, "approvals", {
         pendingRequests: 0,
         oldestPendingDate: null,
@@ -346,7 +333,7 @@ describe("requests card", () => {
     expect(requests.badge).toEqual({ label: "1 pending", tone: "pending" });
     expect(requests.lines).toEqual([
       "1 is waiting for HO approval",
-      "Only HO or superadmin can approve",
+      "Only HO can approve",
     ]);
   });
 
@@ -362,19 +349,19 @@ describe("requests card", () => {
     expect(requests.badge).toEqual({ label: "None pending", tone: "neutral" });
     expect(requests.lines).toEqual([
       "None waiting for HO approval",
-      "Only HO or superadmin can approve",
+      "Only HO can approve",
     ]);
   });
 });
 
 describe("attentionItems", () => {
   it("is empty when every count is 0", () => {
-    expect(attentionItems("superadmin", attention(), "2026-11-09")).toEqual([]);
+    expect(attentionItems("ho", attention(), "2026-11-09")).toEqual([]);
   });
 
   it("shows only the items above 0, in a fixed order", () => {
     const items = attentionItems(
-      "superadmin",
+      "ho",
       attention({
         contractsEnding: 6,
         conflicts: 5,
@@ -401,7 +388,7 @@ describe("attentionItems", () => {
       "6 worker contracts end within 30 days",
     ]);
     expect(items.map((item) => item.detail)).toEqual([
-      "Weekly requests stay pending until HO or a superadmin approves them.",
+      "Weekly requests stay pending until you approve them.",
       "Confirm a roster so attendance can be marked against it.",
       "Shifts the rules could not fill, each with its reason.",
       "Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.",
@@ -431,7 +418,7 @@ describe("attentionItems", () => {
 
   it("uses the singular forms for one", () => {
     const items = attentionItems(
-      "superadmin",
+      "ho",
       attention({
         pendingRequests: 1,
         draftRosters: 1,
@@ -452,7 +439,7 @@ describe("attentionItems", () => {
       "1 worker contract ends within 30 days",
     ]);
     expect(items.map((item) => item.detail)).toEqual([
-      "Weekly requests stay pending until HO or a superadmin approves them.",
+      "Weekly requests stay pending until you approve them.",
       "Confirm it so attendance can be marked against it.",
       "Shifts the rules could not fill, each with its reason.",
       "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
@@ -478,7 +465,7 @@ describe("attentionItems", () => {
     expect(items.map((item) => [item.title, item.detail, item.button])).toEqual([
       [
         "1 request is waiting for approval",
-        "Weekly requests stay pending until you or a superadmin approve them.",
+        "Weekly requests stay pending until you approve them.",
         "Review",
       ],
       [
@@ -525,7 +512,7 @@ describe("attentionItems", () => {
       ],
       [
         "1 request is waiting for HO approval",
-        "You can follow its status here. Only HO or a superadmin can approve it.",
+        "You can follow its status here. Only HO can approve it.",
         "View request",
       ],
       [
@@ -536,9 +523,9 @@ describe("attentionItems", () => {
     ]);
   });
 
-  it("keeps requests before attendance for a superadmin with the same counts", () => {
+  it("keeps requests before attendance for an HO with the same counts", () => {
     const items = attentionItems(
-      "superadmin",
+      "ho",
       attention({
         pendingRequests: 1,
         unmarkedLocations: [ONE_LOCATION],
@@ -575,21 +562,21 @@ describe("attentionItems", () => {
   });
 
   it("words the draft detail for several rosters", () => {
-    const [item] = attentionItems("superadmin", attention({ draftRosters: 2 }), "2026-11-09");
+    const [item] = attentionItems("ho", attention({ draftRosters: 2 }), "2026-11-09");
 
     expect(item.detail).toBe("Confirm a roster so attendance can be marked against it.");
   });
 
   it("falls back to the generic attendance detail for one location with no worker count", () => {
     const [item] = attentionItems(
-      "superadmin",
+      "ho",
       attention({ unmarkedLocations: [ONE_LOCATION], unmarkedWorkers: 0 }),
       "2026-11-09",
     );
 
     expect(item.title).toBe("Attendance is not marked today");
     expect(item.detail).toBe("Mon, 9 Nov 2026. Confirmed rosters are waiting to be marked.");
-    expect(item.href).toBe("/dashboard/attendance?site=site-1&location=loc-1");
+    expect(item.href).toBe("/dashboard/attendance?location=loc-1");
   });
 
   it("uses the singular worker wording for one unmarked worker", () => {
@@ -606,7 +593,7 @@ describe("attentionItems", () => {
 
   it("says the draft roster when many conflicts sit in one roster", () => {
     const items = attentionItems(
-      "superadmin",
+      "ho",
       attention({ conflicts: 2, conflictedRosters: 1 }),
       "2026-11-09",
     );
@@ -621,7 +608,7 @@ describe("attentionItems", () => {
       "2026-11-09",
     );
 
-    expect(item.href).toBe("/dashboard/attendance?site=site-1&location=loc-1");
+    expect(item.href).toBe("/dashboard/attendance?location=loc-1");
     expect(item.detail).toBe(
       "Mon, 9 Nov 2026. 18 workers in the confirmed roster are waiting to be marked.",
     );
@@ -629,7 +616,7 @@ describe("attentionItems", () => {
 
   it("does not pick a location when several are unmarked", () => {
     const [item] = attentionItems(
-      "superadmin",
+      "ho",
       attention({ unmarkedLocations: unmarked(2), unmarkedWorkers: 30 }),
       "2026-11-09",
     );
@@ -644,7 +631,7 @@ describe("attentionItems", () => {
     expect(item.title).toBe("3 requests are waiting for HO approval");
     expect(item.button).toBe("View request");
     expect(item.detail).toBe(
-      "You can follow their status here. Only HO or a superadmin can approve them.",
+      "You can follow their status here. Only HO can approve them.",
     );
   });
 
@@ -654,7 +641,7 @@ describe("attentionItems", () => {
     expect(item.title).toBe("1 request is waiting for HO approval");
     expect(item.button).toBe("View request");
     expect(item.detail).toBe(
-      "You can follow its status here. Only HO or a superadmin can approve it.",
+      "You can follow its status here. Only HO can approve it.",
     );
     expect(item.href).toBe("/dashboard/requests?status=pending");
   });
@@ -743,34 +730,20 @@ describe("sliceSeries", () => {
 });
 
 describe("dashboardSubtitle", () => {
-  it("covers all sites for a superadmin", () => {
-    expect(dashboardSubtitle("superadmin", { siteName: null, locationName: null })).toBe(
-      "Everything that needs attention across all sites.",
+  it("covers all locations for an HO", () => {
+    expect(dashboardSubtitle("ho", null)).toBe(
+      "Everything that needs attention across all locations.",
     );
   });
 
-  it("names the site for an HO", () => {
-    expect(
-      dashboardSubtitle("ho", { siteName: "Indofood Cikarang", locationName: null }),
-    ).toBe("Everything that needs attention at Indofood Cikarang.");
+  it("names the location for an admin site", () => {
+    expect(dashboardSubtitle("admin_site", "Gudang Utara")).toBe(
+      "What needs attention at Gudang Utara.",
+    );
   });
 
-  it("names the site and location for an admin site", () => {
-    expect(
-      dashboardSubtitle("admin_site", { siteName: "Nestle Kejayan", locationName: "Gudang Utara" }),
-    ).toBe("What needs attention at Nestle Kejayan / Gudang Utara.");
-  });
-
-  it("falls back when a name is missing", () => {
-    expect(dashboardSubtitle("ho", { siteName: null, locationName: null })).toBe(
-      "Everything that needs attention at your site.",
-    );
-    expect(dashboardSubtitle("admin_site", { siteName: null, locationName: null })).toBe(
-      "What needs attention at your location.",
-    );
-    expect(
-      dashboardSubtitle("admin_site", { siteName: null, locationName: "Gudang Utara" }),
-    ).toBe("What needs attention at Gudang Utara.");
+  it("falls back when the admin site location name is missing", () => {
+    expect(dashboardSubtitle("admin_site", null)).toBe("What needs attention at your location.");
   });
 });
 
@@ -890,8 +863,8 @@ describe("scopeToday", () => {
 describe("weekChartCopy", () => {
   // The caption counts the conflicts dated this week, the same days the bars show, not every
   // conflict in every draft roster.
-  it("frames the gaps chart for a superadmin with this week's conflicts", () => {
-    expect(weekChartCopy("superadmin", 5)).toEqual({
+  it("frames the gaps chart for an HO with this week's conflicts", () => {
+    expect(weekChartCopy("ho", 5)).toEqual({
       title: "Gaps in this week's rosters",
       description: "Shifts the rules could not fill, per day",
       caption: "5 conflicts this week",
@@ -899,17 +872,8 @@ describe("weekChartCopy", () => {
     });
   });
 
-  it("uses the same gaps chart for an HO", () => {
-    expect(weekChartCopy("ho", 2)).toEqual({
-      title: "Gaps in this week's rosters",
-      description: "Shifts the rules could not fill, per day",
-      caption: "2 conflicts this week",
-      tone: "danger",
-    });
-  });
-
   it("uses the singular for one conflict", () => {
-    expect(weekChartCopy("superadmin", 1).caption).toBe("1 conflict this week");
+    expect(weekChartCopy("ho", 1).caption).toBe("1 conflict this week");
   });
 
   it("says nothing is unfilled when there are no conflicts this week", () => {

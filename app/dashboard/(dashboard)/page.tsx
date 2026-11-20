@@ -45,22 +45,18 @@ async function DashboardView() {
   const place = scope.locations[0] ?? null;
   // The latest zone's date, so a scope across zones never names the day before.
   const today = scopeToday(scope.zones);
-  const siteName = role === "superadmin" ? null : (place?.siteName ?? null);
   const locationName = role === "admin_site" ? (place?.name ?? null) : null;
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">
-      <OverviewHeader role={role} subtitle={dashboardSubtitle(role, { siteName, locationName })} />
+      <OverviewHeader role={role} subtitle={dashboardSubtitle(role, locationName)} />
       <KpiCards cards={kpiCards(role, kpis)} />
       <AttendanceChart series={series} />
       <div className="grid grid-cols-1 gap-4 md:gap-6 @4xl/main:grid-cols-2">
         <AttentionList items={attentionItems(role, counts, today)} />
         <WeekChart points={week} {...weekChartCopy(role, weekConflicts)} />
       </div>
-      <BreakdownTable
-        breakdown={breakdown}
-        contextName={role === "ho" ? siteName : locationName}
-      />
+      <BreakdownTable breakdown={breakdown} contextName={locationName} />
     </div>
   );
 }

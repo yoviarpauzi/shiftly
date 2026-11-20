@@ -39,19 +39,20 @@ function builder(call: Call) {
 }
 
 vi.mock("server-only", () => ({}));
+// workers.ts reads the work rules for the detail page only. These tests never reach it.
+vi.mock("@/app/dashboard/rosters/roster-work-rules", () => ({ loadEngineRules: vi.fn() }));
 vi.mock("next/navigation", () => ({ notFound: () => undefined }));
 vi.mock("@/lib/db", () => ({ db: { select: () => builder({}) } }));
 
 const { listWorkers } = await import("./workers");
 
-const access: WorkerAccess = { siteId: null, locationId: null };
+const access: WorkerAccess = { locationId: null };
 
 const params: WorkerListParams = {
   page: 1,
   pageSize: 10,
   query: "",
   status: "active",
-  siteId: null,
   locationId: null,
   positionId: null,
   ending: false,

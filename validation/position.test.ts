@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { positionNameSchema, positionSchema } from "./position";
+import { positionSchema } from "./position";
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
-
-const messages = (input: { name: string; siteId?: string }) => {
-  const result = positionSchema.safeParse({ siteId: SITE_ID, ...input });
+const messages = (input: { name: string }) => {
+  const result = positionSchema.safeParse(input);
   return result.success ? [] : result.error.issues.map((issue) => issue.message);
 };
 
@@ -18,7 +16,7 @@ describe("positionSchema", () => {
   });
 
   it("trims surrounding spaces", () => {
-    expect(positionSchema.parse({ name: "  Cook  ", siteId: SITE_ID }).name).toBe("Cook");
+    expect(positionSchema.parse({ name: "  Cook  " }).name).toBe("Cook");
   });
 
   it("accepts exactly 100 characters", () => {
@@ -31,16 +29,9 @@ describe("positionSchema", () => {
     ]);
   });
 
-  it("rejects a siteId that is not a uuid", () => {
-    expect(messages({ name: "Cook", siteId: "not-a-uuid" })).toEqual(["Choose a site"]);
-  });
-});
-
-describe("positionNameSchema", () => {
-  it("accepts a name alone and drops siteId", () => {
-    const parsed = positionNameSchema.parse({ name: "Cook" });
+  it("needs a name alone, and drops any siteId a client still sends", () => {
+    const parsed = positionSchema.parse({ name: "Cook", siteId: "11111111-1111-4111-8111-111111111111" });
 
     expect(parsed).toEqual({ name: "Cook" });
-    expect("siteId" in parsed).toBe(false);
   });
 });

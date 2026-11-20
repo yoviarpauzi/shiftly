@@ -14,7 +14,6 @@ import { bulkPositionRestoreMessage } from "@/app/dashboard/positions/position-r
 import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
-import type { SiteChoice } from "@/types/locations";
 import type {
   PositionPage,
   PositionRow,
@@ -30,7 +29,6 @@ import {
 import { DeletePositionDialog } from "@/components/dashboard/positions/delete-position-dialog";
 import { PositionFormDialog } from "@/components/dashboard/positions/position-form-dialog";
 import { PositionsSearch } from "@/components/dashboard/positions/positions-search";
-import { PositionsSiteFilter } from "@/components/dashboard/positions/positions-site-filter";
 import { PositionsStatusFilter } from "@/components/dashboard/positions/positions-status-filter";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,14 +53,10 @@ async function restoreWithToast(position: PositionRow) {
 export function PositionsDataTable({
   data,
   status,
-  siteId,
-  siteChoice,
   sort,
 }: {
   data: PositionPage;
   status: PositionStatus;
-  siteId: string | null;
-  siteChoice: SiteChoice;
   sort: SortCriterion<PositionSortColumn>[];
 }) {
   const router = useRouter();
@@ -171,9 +165,6 @@ export function PositionsDataTable({
         <div className="flex items-center gap-2">
           <PositionsSearch />
           <PositionsStatusFilter status={status} />
-          {siteChoice.mode === "pick" && (
-            <PositionsSiteFilter siteId={siteId} sites={siteChoice.sites} />
-          )}
         </div>
         <Button onClick={() => openForm(null)}>
           <PlusIcon data-icon="inline-start" />
@@ -276,7 +267,6 @@ export function PositionsDataTable({
       <PositionFormDialog
         key={formKey}
         position={editingPosition}
-        siteChoice={siteChoice}
         open={formOpen}
         onOpenChange={setFormOpen}
       />

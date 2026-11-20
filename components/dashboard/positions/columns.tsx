@@ -72,12 +72,6 @@ export function createPositionColumns(
         <span className="font-medium">{row.original.name}</span>
       ),
     }),
-    columnHelper.accessor("siteName", {
-      header: () => (
-        <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />
-      ),
-      cell: ({ row }) => row.original.siteName,
-    }),
     columnHelper.accessor("deletedAt", {
       header: () => (
         <div className="pl-8">

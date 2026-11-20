@@ -3,7 +3,6 @@ import type { WorkDays } from "@/types/settings";
 export const IMPORT_COLUMNS = [
   "employee_id",
   "name",
-  "site",
   "location",
   "positions",
   "end_contract",
@@ -28,7 +27,6 @@ export type ImportRowBase = {
   rowNumber: number;
   employeeId: string;
   name: string;
-  siteName: string;
   locationName: string;
   positionNames: string[];
   // YYYY-MM-DD when valid, otherwise the cell as read, so the preview shows what is wrong.
@@ -44,7 +42,6 @@ export type ImportRowResult =
       errors: [];
       // null for a create.
       workerId: string | null;
-      siteId: string;
       locationId: string;
       positionIds: string[];
     });
@@ -59,14 +56,13 @@ export type ImportCommitResult =
   | { ok: true; created: number; updated: number }
   | { ok: false; formError?: string; preview?: ImportPreview };
 
-// Sites, locations, and positions are already limited to what the actor may write to.
+// Locations are already limited to what the actor may write to. Positions are global.
 // existing holds active workers of any scope whose employee ID is in the file, so the resolver
 // can tell an update from an ID that belongs to a worker out of scope.
 export type ImportLookups = {
-  sites: { id: string; name: string }[];
-  locations: { id: string; siteId: string; name: string }[];
-  positions: { id: string; siteId: string; name: string }[];
-  existing: { id: string; employeeId: string; siteId: string; locationId: string }[];
+  locations: { id: string; name: string }[];
+  positions: { id: string; name: string }[];
+  existing: { id: string; employeeId: string; locationId: string }[];
 };
 
 export type ImportWorkersDialogProps = {

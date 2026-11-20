@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { workerSchema } from "./worker";
 
-const SITE = "11111111-1111-4111-8111-111111111111";
 const LOCATION = "22222222-2222-4222-8222-222222222222";
 const POSITION = "33333333-3333-4333-8333-333333333333";
 
 const valid = {
   employeeId: "EMP-001",
   name: "Budi",
-  siteId: SITE,
   locationId: LOCATION,
   positionIds: [POSITION],
   endContract: "2026-12-31",
@@ -48,9 +46,15 @@ describe("workerSchema", () => {
     expect(workerSchema.safeParse({ ...valid, name: "" }).success).toBe(false);
   });
 
-  it("rejects a site or location that is not a uuid", () => {
-    expect(workerSchema.safeParse({ ...valid, siteId: "x" }).success).toBe(false);
+  it("rejects a location that is not a uuid", () => {
+    expect(workerSchema.safeParse({ ...valid, locationId: "x" }).success).toBe(false);
     expect(workerSchema.safeParse({ ...valid, locationId: "" }).success).toBe(false);
+  });
+
+  it("needs no site, and drops a siteId a client still sends", () => {
+    const parsed = workerSchema.parse({ ...valid, siteId: "11111111-1111-4111-8111-111111111111" });
+
+    expect("siteId" in parsed).toBe(false);
   });
 
   it("allows a worker without positions", () => {

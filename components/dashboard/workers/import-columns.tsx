@@ -36,10 +36,6 @@ export function createImportColumns() {
       header: () => <span>Name</span>,
       cell: ({ row }) => row.original.name,
     }),
-    columnHelper.accessor("siteName", {
-      header: () => <span>Site</span>,
-      cell: ({ row }) => row.original.siteName,
-    }),
     columnHelper.accessor("locationName", {
       header: () => <span>Location</span>,
       cell: ({ row }) => row.original.locationName,

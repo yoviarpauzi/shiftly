@@ -145,7 +145,7 @@ export function ImportWorkersDialog({ open, onOpenChange }: ImportWorkersDialogP
           <DialogHeader>
             <DialogTitle>Import workers</DialogTitle>
             <DialogDescription>
-              Upload an .xlsx file with the columns employee_id, name, site, location, positions
+              Upload an .xlsx file with the columns employee_id, name, location, positions
               (separated by commas), and end_contract (a date such as 2026-12-31, as an Excel date
               cell or text in YYYY-MM-DD). Up to {IMPORT_MAX_ROWS} rows and 1 MB. An employee ID that
               is already used updates that worker and replaces its positions and end of contract.

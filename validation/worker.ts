@@ -13,7 +13,6 @@ export const workerSchema = z.object({
     .trim()
     .min(1, "Name is required")
     .max(100, "Name must be 100 characters or fewer"),
-  siteId: z.string().uuid("Choose a site"),
   locationId: z.string().uuid("Choose a location"),
   positionIds: z.array(z.string().uuid()).transform((ids) => [...new Set(ids)]),
   // abort stops a blank value from also getting the date message.

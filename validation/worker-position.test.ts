@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseWorkerPosition } from "./worker-position";
 
 const POSITIONS = [
-  { id: "pos-a", siteId: "site-a", name: "Forklift Driver" },
-  { id: "pos-b", siteId: "site-a", name: "Helper" },
+  { id: "pos-a", name: "Forklift Driver" },
+  { id: "pos-b", name: "Helper" },
 ];
 
 describe("parseWorkerPosition", () => {
@@ -19,7 +19,7 @@ describe("parseWorkerPosition", () => {
     expect(parseWorkerPosition("pos-z", POSITIONS)).toBeNull();
   });
 
-  it("ignores every value when there are no choices, as for superadmin before it picks a site", () => {
+  it("ignores every value when there are no choices", () => {
     expect(parseWorkerPosition("pos-a", [])).toBeNull();
   });
 

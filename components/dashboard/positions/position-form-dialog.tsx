@@ -5,8 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { nameFieldError } from "@/app/dashboard/departments/department-rules";
 import { createPosition, updatePosition } from "@/app/dashboard/positions/actions";
-import type { SiteChoice } from "@/types/locations";
-import type { PositionFormDialogProps, PositionRow } from "@/types/positions";
+import type { PositionFormDialogProps } from "@/types/positions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,29 +22,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { positionNameSchema, positionSchema } from "@/validation/position";
-
-// A fixed site starts the form on it. An edit keeps the position's own site.
-function defaultSiteId(position: PositionRow | null, siteChoice: SiteChoice) {
-  if (position) {
-    return position.siteId;
-  }
-
-  return siteChoice.mode === "fixed" ? siteChoice.site.id : "";
-}
+import { positionSchema } from "@/validation/position";
 
 export function PositionFormDialog({
   position,
-  siteChoice,
   open,
   onOpenChange,
 }: PositionFormDialogProps) {
@@ -54,14 +35,10 @@ export function PositionFormDialog({
   const form = useForm({
     defaultValues: {
       name: position?.name ?? "",
-      siteId: defaultSiteId(position, siteChoice),
     },
-    // The site cannot change after creation, so an edit validates the name alone.
     validators: {
       onSubmit: ({ value }) => {
-        const parsed = position
-          ? positionNameSchema.safeParse(value)
-          : positionSchema.safeParse(value);
+        const parsed = positionSchema.safeParse(value);
 
         if (parsed.success) {
           return undefined;
@@ -81,7 +58,7 @@ export function PositionFormDialog({
       setFormError(null);
 
       const result = position
-        ? await updatePosition(position.id, { name: value.name })
+        ? await updatePosition(position.id, value)
         : await createPosition(value);
 
       if (!result.ok) {
@@ -91,7 +68,6 @@ export function PositionFormDialog({
             form: result.formError,
             fields: {
               name: nameFieldError(result.fieldErrors?.name),
-              siteId: nameFieldError(result.fieldErrors?.siteId),
             },
           },
         });
@@ -142,68 +118,6 @@ export function PositionFormDialog({
                             disabled={isSubmitting}
                             aria-invalid={isInvalid || undefined}
                           />
-                          {isInvalid && (
-                            <FieldError errors={field.state.meta.errors} />
-                          )}
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
-                  <form.Field name="siteId">
-                    {(field) => {
-                      if (position) {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{position.siteName}</p>
-                          </Field>
-                        );
-                      }
-
-                      if (siteChoice.mode === "fixed") {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{siteChoice.site.name}</p>
-                          </Field>
-                        );
-                      }
-
-                      const isInvalid = field.state.meta.errors.length > 0;
-
-                      return (
-                        <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(value) => {
-                              if (value) {
-                                field.handleChange(value);
-                              }
-                            }}
-                            items={siteChoice.sites.map((site) => ({
-                              value: site.id,
-                              label: site.name,
-                            }))}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={isInvalid || undefined}
-                              className="w-full"
-                            >
-                              <SelectValue placeholder="Choose a site" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {siteChoice.sites.map((site) => (
-                                  <SelectItem key={site.id} value={site.id}>
-                                    {site.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
                           {isInvalid && (
                             <FieldError errors={field.state.meta.errors} />
                           )}

@@ -1,9 +1,8 @@
-import type { SiteChoice } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { WorkDays } from "@/types/settings";
 import type { SortCriterion } from "@/types/sort";
 
-export type WorkerSortColumn = "employeeId" | "name" | "site" | "location" | "status";
+export type WorkerSortColumn = "employeeId" | "name" | "location" | "status";
 
 export type WorkerStatus = "active" | "deleted" | "all";
 
@@ -11,9 +10,7 @@ export type WorkerStatus = "active" | "deleted" | "all";
 export type WorkDaysChoice = "default" | "5" | "7";
 
 export type WorkerAccess = {
-  // null means every site, which only superadmin gets.
-  siteId: string | null;
-  // null means every location in the site. Only admin site is limited to one location.
+  // null means every location, which HO gets. Only admin site is limited to one location.
   locationId: string | null;
 };
 
@@ -23,8 +20,6 @@ export type WorkerRow = {
   id: string;
   employeeId: string;
   name: string;
-  siteId: string;
-  siteName: string;
   locationId: string;
   locationName: string;
   positions: WorkerPositionTag[];
@@ -44,8 +39,6 @@ export type WorkerPage = {
 
 export type WorkerListParams = PageParams & {
   status: WorkerStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   // null means every position. A worker matches when it has this position.
@@ -55,11 +48,10 @@ export type WorkerListParams = PageParams & {
   sort: SortCriterion<WorkerSortColumn>[];
 };
 
-export type WorkerFormOption = { id: string; siteId: string; name: string };
+export type WorkerFormOption = { id: string; name: string };
 
 // What the form can pick from. Every list is already limited to what the actor may write to.
 export type WorkerFormOptions = {
-  siteChoice: SiteChoice;
   locations: WorkerFormOption[];
   positions: WorkerFormOption[];
 };
@@ -67,7 +59,6 @@ export type WorkerFormOptions = {
 export type WorkerFieldErrors = {
   employeeId?: string;
   name?: string;
-  siteId?: string;
   locationId?: string;
   positionIds?: string;
   endContract?: string;
@@ -121,7 +112,7 @@ export type WorkersSelectFilterProps = {
   options: WorkerFilterOption[];
   ariaLabel: string;
   className: string;
-  // Other params to drop when this filter changes, such as a location that belongs to the old site.
+  // Other params to drop when this filter changes.
   resets?: string[];
 };
 

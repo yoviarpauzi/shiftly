@@ -2,7 +2,6 @@ import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker, workerPosition } from "@/database/schema/worker-schema";
 import type { WorkerAccess } from "@/types/workers";
 
@@ -20,7 +19,6 @@ type Call = {
 const fake = vi.hoisted(() => ({
   calls: [] as Call[],
   rows: {
-    site: [] as unknown[],
     location: [] as unknown[],
     position: [] as unknown[],
     worker: [] as unknown[],
@@ -30,7 +28,6 @@ const fake = vi.hoisted(() => ({
 
 function result(call: Call): unknown {
   if (call.op === "select") {
-    if (call.table === site) return fake.rows.site;
     if (call.table === location) return fake.rows.location;
     if (call.table === position) return fake.rows.position;
     if (call.table === worker) return fake.rows.worker;
@@ -81,6 +78,8 @@ const tx = {
 };
 
 vi.mock("server-only", () => ({}));
+// workers.ts reads the work rules for the detail page only. These tests never reach it.
+vi.mock("@/app/dashboard/rosters/roster-work-rules", () => ({ loadEngineRules: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("./worker-guard", () => ({
   requireWorkerManager: async () => fake.access,
@@ -91,18 +90,17 @@ vi.mock("@/lib/db", () => ({
 
 const { createWorker, deleteWorker, restoreWorker, updateWorker } = await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
+const LOCATION_B = "44444444-4444-4444-8444-444444444444";
 const POSITION_A = "88888888-8888-4888-8888-888888888888";
 const WORKER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const WORKER_NEW = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
-const superadmin: WorkerAccess = { siteId: null, locationId: null };
+const ho: WorkerAccess = { locationId: null };
 
 const input = {
   employeeId: "EMP-001",
   name: "Budi Santoso",
-  siteId: SITE_A,
   locationId: LOCATION_A,
   positionIds: [POSITION_A],
   endContract: " 2026-12-31 ",
@@ -115,12 +113,11 @@ beforeEach(() => {
   vi.mocked(revalidatePath).mockClear();
   fake.calls = [];
   fake.rows = {
-    site: [{ id: SITE_A }],
     location: [{ id: LOCATION_A }],
     position: [{ id: POSITION_A }],
     worker: [],
   };
-  fake.access = superadmin;
+  fake.access = ho;
 });
 
 describe("createWorker", () => {
@@ -135,7 +132,6 @@ describe("createWorker", () => {
         values: {
           employeeId: "EMP-001",
           name: "Budi Santoso",
-          siteId: SITE_A,
           locationId: LOCATION_A,
           endContract: "2026-12-31",
           workDaysPerWeek: null,
@@ -148,6 +144,27 @@ describe("createWorker", () => {
         values: [{ workerId: WORKER_NEW, positionId: POSITION_A }],
       },
     ]);
+  });
+
+  it("writes no site column, and lets HO create at any location", async () => {
+    await createWorker(input);
+
+    expect(writes()[0].values).not.toHaveProperty("siteId");
+  });
+
+  it("refuses an admin site creating a worker at another location, and writes nothing", async () => {
+    fake.access = { locationId: LOCATION_B } satisfies WorkerAccess;
+
+    const result = await createWorker(input);
+
+    expect(result).toEqual({ ok: false, fieldErrors: { locationId: "Location not found" } });
+    expect(writes()).toEqual([]);
+  });
+
+  it("lets an admin site create a worker at its own location", async () => {
+    fake.access = { locationId: LOCATION_A } satisfies WorkerAccess;
+
+    expect(await createWorker(input)).toEqual({ ok: true });
   });
 
   it("stores the working-days override", async () => {
@@ -186,7 +203,6 @@ describe("updateWorker", () => {
         set: {
           employeeId: "EMP-001",
           name: "Budi Santoso",
-          siteId: SITE_A,
           locationId: LOCATION_A,
           endContract: "2027-06-30",
           workDaysPerWeek: null,
@@ -199,6 +215,15 @@ describe("updateWorker", () => {
         values: [{ workerId: WORKER_ID, positionId: POSITION_A }],
       },
     ]);
+  });
+
+  it("refuses an admin site moving a worker to another location, and writes nothing", async () => {
+    fake.access = { locationId: LOCATION_B } satisfies WorkerAccess;
+
+    const result = await updateWorker(WORKER_ID, input);
+
+    expect(result).toEqual({ ok: false, fieldErrors: { locationId: "Location not found" } });
+    expect(writes()).toEqual([]);
   });
 
   it("sets the working-days override", async () => {
@@ -270,9 +295,8 @@ describe("revalidation of the worker pages", () => {
   });
 
   it("refreshes the list and the detail page after a restore", async () => {
-    // A deleted worker in a live site and location, which is what a restore needs to find.
-    fake.rows.worker = [{ siteId: SITE_A, locationId: LOCATION_A }];
-    fake.rows.site = [{ id: SITE_A, deletedAt: null }];
+    // A deleted worker in a live location, which is what a restore needs to find.
+    fake.rows.worker = [{ locationId: LOCATION_A }];
     fake.rows.location = [{ id: LOCATION_A, deletedAt: null }];
 
     const result = await restoreWorker(WORKER_ID);

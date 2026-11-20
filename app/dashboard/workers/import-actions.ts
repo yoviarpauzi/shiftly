@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type {
@@ -63,40 +62,31 @@ async function readUpload(
   return readImportSheet(bytes);
 }
 
-// Active sites, locations, and positions limited to what the actor may write to, like workerFormOptionsFor,
-// and every active worker whose employee ID is in the file. With lock the share locks conflict with the
-// update locks a site, location, or position delete takes, so none of them can be deleted before the
-// transaction ends.
+// Active locations limited to what the actor may write to, like workerFormOptionsFor, every active
+// position, and every active worker whose employee ID is in the file. With lock the share locks
+// conflict with the update locks a location or position delete takes, so none of them can be
+// deleted before the transaction ends.
 async function loadImportLookups(
   executor: Executor,
   access: WorkerAccess,
   employeeIds: string[],
   lock: boolean,
 ): Promise<ImportLookups> {
-  const sitesQuery = executor
-    .select({ id: site.id, name: site.name })
-    .from(site)
-    .where(and(isNull(site.deletedAt), access.siteId ? eq(site.id, access.siteId) : undefined));
-  const sites = await (lock ? sitesQuery.for("share") : sitesQuery);
-
   const locationsQuery = executor
-    .select({ id: location.id, siteId: location.siteId, name: location.name })
+    .select({ id: location.id, name: location.name })
     .from(location)
     .where(
       and(
         isNull(location.deletedAt),
-        access.siteId ? eq(location.siteId, access.siteId) : undefined,
         access.locationId ? eq(location.id, access.locationId) : undefined,
       ),
     );
   const locations = await (lock ? locationsQuery.for("share") : locationsQuery);
 
   const positionsQuery = executor
-    .select({ id: position.id, siteId: position.siteId, name: position.name })
+    .select({ id: position.id, name: position.name })
     .from(position)
-    .where(
-      and(isNull(position.deletedAt), access.siteId ? eq(position.siteId, access.siteId) : undefined),
-    );
+    .where(isNull(position.deletedAt));
   const positions = await (lock ? positionsQuery.for("share") : positionsQuery);
 
   const existing =
@@ -106,7 +96,6 @@ async function loadImportLookups(
           .select({
             id: worker.id,
             employeeId: worker.employeeId,
-            siteId: worker.siteId,
             locationId: worker.locationId,
           })
           .from(worker)
@@ -120,7 +109,7 @@ async function loadImportLookups(
             ),
           );
 
-  return { sites, locations, positions, existing };
+  return { locations, positions, existing };
 }
 
 export async function previewWorkerImport(formData: FormData): Promise<ImportPreviewResult> {
@@ -170,7 +159,6 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
             .values({
               employeeId: row.employeeId,
               name: row.name,
-              siteId: row.siteId,
               locationId: row.locationId,
               endContract: row.endContract,
               workDaysPerWeek: row.workDays,
@@ -184,7 +172,6 @@ export async function commitWorkerImport(formData: FormData): Promise<ImportComm
             .set({
               employeeId: row.employeeId,
               name: row.name,
-              siteId: row.siteId,
               locationId: row.locationId,
               endContract: row.endContract,
               // A blank cell keeps the override the worker has, so it is left out of the set.

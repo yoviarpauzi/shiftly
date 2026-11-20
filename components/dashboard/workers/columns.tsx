@@ -113,10 +113,6 @@ export function createWorkerColumns(
         </Link>
       ),
     }),
-    columnHelper.accessor("siteName", {
-      header: () => <SortHeader label="Site" column="site" sort={sort} onSort={onSort} />,
-      cell: ({ row }) => row.original.siteName,
-    }),
     columnHelper.accessor("locationName", {
       header: () => (
         <SortHeader label="Location" column="location" sort={sort} onSort={onSort} />

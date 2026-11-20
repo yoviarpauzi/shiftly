@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseWorkerLocation } from "./worker-location";
 
 const LOCATIONS = [
-  { id: "loc-a", siteId: "site-a", name: "Gate" },
-  { id: "loc-b", siteId: "site-b", name: "Warehouse" },
+  { id: "loc-a", name: "Gate" },
+  { id: "loc-b", name: "Warehouse" },
 ];
 
 describe("parseWorkerLocation", () => {

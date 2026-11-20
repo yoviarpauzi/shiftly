@@ -41,36 +41,23 @@ const WORK_DAYS_ITEMS: { value: WorkDaysChoice; label: string }[] = [
   { value: "7", label: "7 days" },
 ];
 
-// A fixed site starts the form on it. An edit starts on the worker's own site.
-function defaultSiteId(worker: WorkerRow | null, options: WorkerFormOptions) {
-  if (worker) {
-    return worker.siteId;
-  }
-
-  return options.siteChoice.mode === "fixed" ? options.siteChoice.site.id : "";
-}
-
 // Admin site can only pick one location, so the form starts on it.
-function defaultLocationId(worker: WorkerRow | null, options: WorkerFormOptions, siteId: string) {
+function defaultLocationId(worker: WorkerRow | null, options: WorkerFormOptions) {
   if (worker) {
     return worker.locationId;
   }
 
-  const inSite = options.locations.filter((location) => location.siteId === siteId);
-
-  return inSite.length === 1 ? inSite[0].id : "";
+  return options.locations.length === 1 ? options.locations[0].id : "";
 }
 
 export function WorkerFormDialog({ worker, options, open, onOpenChange }: WorkerFormDialogProps) {
   const [formError, setFormError] = useState<string | null>(null);
-  const initialSiteId = defaultSiteId(worker, options);
 
   const form = useForm({
     defaultValues: {
       employeeId: worker?.employeeId ?? "",
       name: worker?.name ?? "",
-      siteId: initialSiteId,
-      locationId: defaultLocationId(worker, options, initialSiteId),
+      locationId: defaultLocationId(worker, options),
       positionIds: worker?.positions.map((position) => position.id) ?? ([] as string[]),
       endContract: worker?.endContract ?? "",
       workDays: (worker?.workDaysPerWeek ? String(worker.workDaysPerWeek) : "default") as WorkDaysChoice,
@@ -108,7 +95,6 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
             fields: {
               employeeId: nameFieldError(result.fieldErrors?.employeeId),
               name: nameFieldError(result.fieldErrors?.name),
-              siteId: nameFieldError(result.fieldErrors?.siteId),
               locationId: nameFieldError(result.fieldErrors?.locationId),
               positionIds: nameFieldError(result.fieldErrors?.positionIds),
               endContract: nameFieldError(result.fieldErrors?.endContract),
@@ -188,34 +174,24 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                       );
                     }}
                   </form.Field>
-                  <form.Field name="siteId">
+                  <form.Field name="locationId">
                     {(field) => {
-                      if (options.siteChoice.mode === "fixed") {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">{options.siteChoice.site.name}</p>
-                          </Field>
-                        );
-                      }
-
-                      const sites = options.siteChoice.sites;
                       const isInvalid = field.state.meta.errors.length > 0;
 
                       return (
                         <Field data-invalid={isInvalid || undefined}>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
+                          <FieldLabel htmlFor={field.name}>Location</FieldLabel>
                           <Select
                             value={field.state.value}
                             onValueChange={(value) => {
-                              if (value && value !== field.state.value) {
+                              if (value) {
                                 field.handleChange(value);
-                                // Locations and positions belong to one site, so they start over.
-                                form.setFieldValue("locationId", "");
-                                form.setFieldValue("positionIds", []);
                               }
                             }}
-                            items={sites.map((site) => ({ value: site.id, label: site.name }))}
+                            items={options.locations.map((location) => ({
+                              value: location.id,
+                              label: location.name,
+                            }))}
                             disabled={isSubmitting}
                           >
                             <SelectTrigger
@@ -223,13 +199,13 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                               aria-invalid={isInvalid || undefined}
                               className="w-full"
                             >
-                              <SelectValue placeholder="Choose a site" />
+                              <SelectValue placeholder="Choose a location" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                {sites.map((site) => (
-                                  <SelectItem key={site.id} value={site.id}>
-                                    {site.name}
+                                {options.locations.map((location) => (
+                                  <SelectItem key={location.id} value={location.id}>
+                                    {location.name}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
@@ -240,91 +216,30 @@ export function WorkerFormDialog({ worker, options, open, onOpenChange }: Worker
                       );
                     }}
                   </form.Field>
-                  <form.Subscribe selector={(state) => state.values.siteId}>
-                    {(siteId) => {
-                      const locations = options.locations.filter(
-                        (location) => location.siteId === siteId,
-                      );
-                      const positions = options.positions.filter(
-                        (position) => position.siteId === siteId,
-                      );
+                  <form.Field name="positionIds">
+                    {(field) => {
+                      const isInvalid = field.state.meta.errors.length > 0;
 
                       return (
-                        <>
-                          <form.Field name="locationId">
-                            {(field) => {
-                              const isInvalid = field.state.meta.errors.length > 0;
-
-                              return (
-                                <Field data-invalid={isInvalid || undefined}>
-                                  <FieldLabel htmlFor={field.name}>Location</FieldLabel>
-                                  <Select
-                                    value={field.state.value}
-                                    onValueChange={(value) => {
-                                      if (value) {
-                                        field.handleChange(value);
-                                      }
-                                    }}
-                                    items={locations.map((location) => ({
-                                      value: location.id,
-                                      label: location.name,
-                                    }))}
-                                    disabled={isSubmitting || !siteId}
-                                  >
-                                    <SelectTrigger
-                                      id={field.name}
-                                      aria-invalid={isInvalid || undefined}
-                                      className="w-full"
-                                    >
-                                      <SelectValue
-                                        placeholder={siteId ? "Choose a location" : "Choose a site first"}
-                                      />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectGroup>
-                                        {locations.map((location) => (
-                                          <SelectItem key={location.id} value={location.id}>
-                                            {location.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                              );
-                            }}
-                          </form.Field>
-                          <form.Field name="positionIds">
-                            {(field) => {
-                              const isInvalid = field.state.meta.errors.length > 0;
-
-                              return (
-                                <Field data-invalid={isInvalid || undefined}>
-                                  <FieldLabel>Positions</FieldLabel>
-                                  {positions.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                      {siteId ? "No positions in this site yet" : "Choose a site first"}
-                                    </p>
-                                  ) : (
-                                    <WorkerPositionPicker
-                                      id={field.name}
-                                      positions={positions}
-                                      value={field.state.value}
-                                      onValueChange={field.handleChange}
-                                      disabled={isSubmitting}
-                                      invalid={isInvalid}
-                                    />
-                                  )}
-                                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                                </Field>
-                              );
-                            }}
-                          </form.Field>
-                        </>
+                        <Field data-invalid={isInvalid || undefined}>
+                          <FieldLabel>Positions</FieldLabel>
+                          {options.positions.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No positions yet</p>
+                          ) : (
+                            <WorkerPositionPicker
+                              id={field.name}
+                              positions={options.positions}
+                              value={field.state.value}
+                              onValueChange={field.handleChange}
+                              disabled={isSubmitting}
+                              invalid={isInvalid}
+                            />
+                          )}
+                          {isInvalid && <FieldError errors={field.state.meta.errors} />}
+                        </Field>
                       );
                     }}
-                  </form.Subscribe>
+                  </form.Field>
                   <form.Field name="endContract">
                     {(field) => {
                       const isInvalid = field.state.meta.errors.length > 0;

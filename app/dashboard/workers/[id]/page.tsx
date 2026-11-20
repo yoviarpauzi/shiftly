@@ -96,7 +96,7 @@ async function WorkerDetail({
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold break-words">{worker.name}</h1>
           <p className="text-sm text-muted-foreground">
-            {worker.employeeId} · {worker.siteName}, {worker.locationName}
+            {worker.employeeId} · {worker.locationName}
           </p>
         </div>
         {options ? <EditWorkerButton worker={worker} options={options} /> : null}

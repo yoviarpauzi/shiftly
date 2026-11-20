@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type {
@@ -28,7 +27,6 @@ import {
   isEmployeeIdConflict,
   LOCATION_NOT_FOUND_MESSAGE,
   POSITIONS_NOT_FOUND_MESSAGE,
-  SITE_NOT_FOUND_MESSAGE,
   WORKER_NOT_FOUND_MESSAGE,
   WORKER_RESTORE_CONFLICT_MESSAGE,
 } from "./worker-rules";
@@ -47,7 +45,6 @@ function revalidateWorkerPages(): void {
 const FIELD_KEYS: (keyof WorkerFieldErrors)[] = [
   "employeeId",
   "name",
-  "siteId",
   "locationId",
   "positionIds",
   "endContract",
@@ -71,50 +68,26 @@ function fieldErrorsOf(
   return errors;
 }
 
-// The site id, location id, and position ids come from the client. They are loaded and checked
-// against the caller's scope. The share lock on the site conflicts with the update lock a site
-// delete takes, so the site cannot be deleted between this check and the write.
+// The location id and position ids come from the client. They are loaded and checked against the
+// caller's scope. The share lock on the location conflicts with the update lock a location delete
+// takes, so the location cannot be deleted between this check and the write. A location outside the
+// caller's scope gets the same message as a missing one, so it does not reveal that it exists.
 async function checkTargets(
   tx: Transaction,
   access: WorkerAccess,
   data: WorkerData,
 ): Promise<WorkerActionResult> {
-  const [targetSite] = await tx
-    .select({ id: site.id })
-    .from(site)
-    .where(and(eq(site.id, data.siteId), isNull(site.deletedAt)))
-    .for("share");
-
-  if (!targetSite) {
-    return { ok: false, formError: SITE_NOT_FOUND_MESSAGE };
-  }
-
   const [targetLocation] = await tx
     .select({ id: location.id })
     .from(location)
-    .where(
-      and(
-        eq(location.id, data.locationId),
-        eq(location.siteId, targetSite.id),
-        isNull(location.deletedAt),
-      ),
-    )
+    .where(and(eq(location.id, data.locationId), isNull(location.deletedAt)))
     .for("share");
 
-  if (!targetLocation) {
+  if (!targetLocation || !canWriteWorker(access, { locationId: targetLocation.id })) {
     return {
       ok: false,
       fieldErrors: { locationId: LOCATION_NOT_FOUND_MESSAGE },
     };
-  }
-
-  if (
-    !canWriteWorker(access, {
-      siteId: targetSite.id,
-      locationId: targetLocation.id,
-    })
-  ) {
-    return { ok: false, formError: SITE_NOT_FOUND_MESSAGE };
   }
 
   if (data.positionIds.length > 0) {
@@ -123,13 +96,7 @@ async function checkTargets(
     const found = await tx
       .select({ id: position.id })
       .from(position)
-      .where(
-        and(
-          inArray(position.id, data.positionIds),
-          eq(position.siteId, targetSite.id),
-          isNull(position.deletedAt),
-        ),
-      )
+      .where(and(inArray(position.id, data.positionIds), isNull(position.deletedAt)))
       .for("share");
 
     if (found.length !== data.positionIds.length) {
@@ -169,7 +136,6 @@ export async function createWorker(
         .values({
           employeeId: data.employeeId,
           name: data.name,
-          siteId: data.siteId,
           locationId: data.locationId,
           endContract: data.endContract,
           workDaysPerWeek: data.workDays,
@@ -227,7 +193,6 @@ export async function updateWorker(
         .set({
           employeeId: data.employeeId,
           name: data.name,
-          siteId: data.siteId,
           locationId: data.locationId,
           endContract: data.endContract,
           workDaysPerWeek: data.workDays,
@@ -311,11 +276,11 @@ async function restoreOne(
   access: WorkerAccess,
 ): Promise<WorkerActionResult> {
   try {
-    // The share locks conflict with the update locks a site or location delete takes, so neither
-    // can be deleted between the check and the restore.
+    // The share lock conflicts with the update lock a location delete takes, so the location
+    // cannot be deleted between the check and the restore.
     return await db.transaction(async (tx) => {
       const [target] = await tx
-        .select({ siteId: worker.siteId, locationId: worker.locationId })
+        .select({ locationId: worker.locationId })
         .from(worker)
         .where(
           and(
@@ -329,22 +294,13 @@ async function restoreOne(
         return { ok: false as const, formError: WORKER_NOT_FOUND_MESSAGE };
       }
 
-      const [owner] = await tx
-        .select({ deletedAt: site.deletedAt })
-        .from(site)
-        .where(eq(site.id, target.siteId))
-        .for("share");
-
       const [place] = await tx
         .select({ deletedAt: location.deletedAt })
         .from(location)
         .where(eq(location.id, target.locationId))
         .for("share");
 
-      const verdict = canRestoreWorker({
-        siteDeleted: owner.deletedAt !== null,
-        locationDeleted: place.deletedAt !== null,
-      });
+      const verdict = canRestoreWorker({ locationDeleted: place.deletedAt !== null });
 
       if (!verdict.ok) {
         return { ok: false as const, formError: verdict.formError };

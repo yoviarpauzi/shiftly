@@ -3,24 +3,10 @@ import {
   bulkPositionDeleteMessage,
   bulkPositionRestoreMessage,
   canDeletePosition,
-  canRestorePosition,
   isPositionNameConflict,
 } from "./position-rules";
 
-const POSITION_INDEX = "position_siteId_lowerName_active_unique";
-
-describe("canRestorePosition", () => {
-  it("blocks restoring a position whose site is deleted", () => {
-    expect(canRestorePosition({ siteDeleted: true })).toEqual({
-      ok: false,
-      formError: "Restore the site first",
-    });
-  });
-
-  it("allows restoring a position whose site is active", () => {
-    expect(canRestorePosition({ siteDeleted: false })).toEqual({ ok: true });
-  });
-});
+const POSITION_INDEX = "position_lowerName_active_unique";
 
 describe("isPositionNameConflict", () => {
   it("detects the active-name unique violation", () => {

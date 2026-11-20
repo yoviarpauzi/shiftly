@@ -1,18 +1,11 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { findLocationSiteId } from "../positions/positions";
 import { workerAccessFor } from "./worker-access";
 
-// Worker pages and actions: superadmin, HO, and admin site. Other roles get notFound(), like requireSuperadmin.
-// An admin site user is scoped by location, so its site is read from that location.
+// Worker pages and actions: HO and admin site. Other roles get notFound().
 export async function requireWorkerManager() {
-  const user = await requireUser();
-  const locationSiteId =
-    user.role === "admin_site" && user.locationId
-      ? await findLocationSiteId(user.locationId)
-      : null;
-  const access = workerAccessFor(user, locationSiteId);
+  const access = workerAccessFor(await requireUser());
 
   if (!access) {
     notFound();

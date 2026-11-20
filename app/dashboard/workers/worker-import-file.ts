@@ -87,7 +87,6 @@ export function buildImportTemplate(): Promise<Buffer> {
     [
       { ...textCell, value: "EMP-001" },
       "Budi Santoso",
-      "Alpha",
       "Gudang",
       "Operator, Driver",
       { type: Date, value: new Date(Date.UTC(2026, 11, 31)), format: "yyyy-mm-dd" },

@@ -4,38 +4,27 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { position } from "@/database/schema/position-schema";
-import { site } from "@/database/schema/site-schema";
 import { worker, workerPosition } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type {
-  PositionAccess,
   PositionActionResult,
   PositionBulkDeleteResult,
   PositionBulkRestoreResult,
 } from "@/types/positions";
-import {
-  positionNameSchema,
-  positionSchema,
-  type PositionInput,
-  type PositionNameInput,
-} from "@/validation/position";
-import { canWriteToSite } from "./position-access";
+import { positionSchema, type PositionInput } from "@/validation/position";
 import { requirePositionManager } from "./position-guard";
 import {
   canDeletePosition,
-  canRestorePosition,
   DUPLICATE_POSITION_NAME_MESSAGE,
   isPositionNameConflict,
   POSITION_NOT_FOUND_MESSAGE,
   POSITION_RESTORE_CONFLICT_MESSAGE,
-  SITE_NOT_FOUND_MESSAGE,
 } from "./position-rules";
-import { positionScopeFilter } from "./positions";
 
 const POSITIONS_PATH = "/dashboard/positions";
 
 export async function createPosition(input: PositionInput): Promise<PositionActionResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
   const parsed = positionSchema.safeParse(input);
 
@@ -44,28 +33,7 @@ export async function createPosition(input: PositionInput): Promise<PositionActi
   }
 
   try {
-    // The share lock conflicts with the update lock a site delete takes, so the site cannot be
-    // deleted between this check and the insert. The site id comes from the client, so it is
-    // loaded and checked against the caller's scope.
-    const result = await db.transaction(async (tx) => {
-      const [target] = await tx
-        .select({ id: site.id })
-        .from(site)
-        .where(and(eq(site.id, parsed.data.siteId), isNull(site.deletedAt)))
-        .for("share");
-
-      if (!target || !canWriteToSite(access, target.id)) {
-        return { ok: false as const, formError: SITE_NOT_FOUND_MESSAGE };
-      }
-
-      await tx.insert(position).values({ name: parsed.data.name, siteId: target.id });
-
-      return { ok: true as const };
-    });
-
-    if (!result.ok) {
-      return result;
-    }
+    await db.insert(position).values({ name: parsed.data.name });
   } catch (error) {
     if (isPositionNameConflict(error)) {
       return { ok: false, fieldErrors: { name: DUPLICATE_POSITION_NAME_MESSAGE } };
@@ -79,14 +47,13 @@ export async function createPosition(input: PositionInput): Promise<PositionActi
   return { ok: true };
 }
 
-// Only the name changes. A position keeps its site after it is created.
 export async function updatePosition(
   id: string,
-  input: PositionNameInput,
+  input: PositionInput,
 ): Promise<PositionActionResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
-  const parsed = positionNameSchema.safeParse(input);
+  const parsed = positionSchema.safeParse(input);
 
   if (!parsed.success) {
     return { ok: false, fieldErrors: { name: parsed.error.issues[0].message } };
@@ -96,7 +63,7 @@ export async function updatePosition(
     const updated = await db
       .update(position)
       .set({ name: parsed.data.name })
-      .where(and(eq(position.id, id), isNull(position.deletedAt), positionScopeFilter(access)))
+      .where(and(eq(position.id, id), isNull(position.deletedAt)))
       .returning({ id: position.id });
 
     if (updated.length === 0) {
@@ -118,15 +85,12 @@ export async function updatePosition(
 // Soft-deletes one position unless an active worker still has it. The caller has already passed
 // requirePositionManager(). The row lock stops a worker from being given this position until the
 // check has run, because saving a worker takes a share lock on its positions.
-async function softDeletePosition(
-  id: string,
-  access: PositionAccess,
-): Promise<PositionActionResult> {
+async function softDeletePosition(id: string): Promise<PositionActionResult> {
   return db.transaction(async (tx) => {
     const [target] = await tx
       .select({ id: position.id })
       .from(position)
-      .where(and(eq(position.id, id), isNull(position.deletedAt), positionScopeFilter(access)))
+      .where(and(eq(position.id, id), isNull(position.deletedAt)))
       .for("update");
 
     if (!target) {
@@ -152,9 +116,9 @@ async function softDeletePosition(
 }
 
 export async function deletePosition(id: string): Promise<PositionActionResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
-  const result = await softDeletePosition(id, access);
+  const result = await softDeletePosition(id);
 
   if (result.ok) {
     revalidatePath(POSITIONS_PATH);
@@ -163,50 +127,21 @@ export async function deletePosition(id: string): Promise<PositionActionResult> 
   return result;
 }
 
-// Restores one position. The caller has already passed requirePositionManager().
-async function restoreOne(id: string, access: PositionAccess): Promise<PositionActionResult> {
+// Restores one position. The caller has already passed requirePositionManager(). The unique name
+// index refuses the restore when another active position took the name in the meantime.
+async function restoreOne(id: string): Promise<PositionActionResult> {
   try {
-    // The share lock on the site conflicts with the update lock a site delete takes, so the site
-    // cannot be deleted between the check and the restore. Without it a site delete could count
-    // this position as deleted, commit, and leave it active under a deleted site.
-    return await db.transaction(async (tx) => {
-      const [target] = await tx
-        .select({ id: position.id, siteId: position.siteId })
-        .from(position)
-        .where(
-          and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)),
-        );
+    const restored = await db
+      .update(position)
+      .set({ deletedAt: null })
+      .where(and(eq(position.id, id), isNotNull(position.deletedAt)))
+      .returning({ id: position.id });
 
-      if (!target) {
-        return { ok: false as const, formError: POSITION_NOT_FOUND_MESSAGE };
-      }
+    if (restored.length === 0) {
+      return { ok: false, formError: POSITION_NOT_FOUND_MESSAGE };
+    }
 
-      const [owner] = await tx
-        .select({ deletedAt: site.deletedAt })
-        .from(site)
-        .where(eq(site.id, target.siteId))
-        .for("share");
-
-      const verdict = canRestorePosition({ siteDeleted: owner.deletedAt !== null });
-
-      if (!verdict.ok) {
-        return { ok: false as const, formError: verdict.formError };
-      }
-
-      const restored = await tx
-        .update(position)
-        .set({ deletedAt: null })
-        .where(
-          and(eq(position.id, id), isNotNull(position.deletedAt), positionScopeFilter(access)),
-        )
-        .returning({ id: position.id });
-
-      if (restored.length === 0) {
-        return { ok: false as const, formError: POSITION_NOT_FOUND_MESSAGE };
-      }
-
-      return { ok: true as const };
-    });
+    return { ok: true };
   } catch (error) {
     if (isPositionNameConflict(error)) {
       return { ok: false, formError: POSITION_RESTORE_CONFLICT_MESSAGE };
@@ -217,9 +152,9 @@ async function restoreOne(id: string, access: PositionAccess): Promise<PositionA
 }
 
 export async function restorePosition(id: string): Promise<PositionActionResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
-  const result = await restoreOne(id, access);
+  const result = await restoreOne(id);
 
   if (result.ok) {
     revalidatePath(POSITIONS_PATH);
@@ -230,13 +165,13 @@ export async function restorePosition(id: string): Promise<PositionActionResult>
 
 // Each position is checked on its own, so some can be deleted while others are blocked.
 export async function deletePositions(ids: string[]): Promise<PositionBulkDeleteResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
   const deletedIds: string[] = [];
   const blocked: PositionBulkDeleteResult["blocked"] = [];
 
   for (const id of ids) {
-    const result = await softDeletePosition(id, access);
+    const result = await softDeletePosition(id);
 
     if (result.ok) {
       deletedIds.push(id);
@@ -254,13 +189,13 @@ export async function deletePositions(ids: string[]): Promise<PositionBulkDelete
 
 // Each position is checked on its own, so some can be restored while others are blocked.
 export async function restorePositions(ids: string[]): Promise<PositionBulkRestoreResult> {
-  const access = await requirePositionManager();
+  await requirePositionManager();
 
   const restoredIds: string[] = [];
   const blocked: PositionBulkRestoreResult["blocked"] = [];
 
   for (const id of ids) {
-    const result = await restoreOne(id, access);
+    const result = await restoreOne(id);
 
     if (result.ok) {
       restoredIds.push(id);

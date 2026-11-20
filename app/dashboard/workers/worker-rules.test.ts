@@ -5,25 +5,17 @@ import {
   canRestoreWorker,
   isEmployeeIdConflict,
   LOCATION_DELETED_MESSAGE,
-  SITE_DELETED_MESSAGE,
 } from "./worker-rules";
 
 const conflict = { code: "23505", constraint: "worker_lowerEmployeeId_active_unique" };
 
 describe("canRestoreWorker", () => {
-  it("allows a restore when the site and the location are active", () => {
-    expect(canRestoreWorker({ siteDeleted: false, locationDeleted: false })).toEqual({ ok: true });
-  });
-
-  it("blocks a restore under a deleted site first", () => {
-    expect(canRestoreWorker({ siteDeleted: true, locationDeleted: true })).toEqual({
-      ok: false,
-      formError: SITE_DELETED_MESSAGE,
-    });
+  it("allows a restore when the location is active", () => {
+    expect(canRestoreWorker({ locationDeleted: false })).toEqual({ ok: true });
   });
 
   it("blocks a restore under a deleted location", () => {
-    expect(canRestoreWorker({ siteDeleted: false, locationDeleted: true })).toEqual({
+    expect(canRestoreWorker({ locationDeleted: true })).toEqual({
       ok: false,
       formError: LOCATION_DELETED_MESSAGE,
     });

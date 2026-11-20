@@ -8,27 +8,22 @@ import {
   summarizeImport,
 } from "./worker-import";
 
-const EVERYWHERE: WorkerAccess = { siteId: null, locationId: null };
+const EVERYWHERE: WorkerAccess = { locationId: null };
 
 const lookups: ImportLookups = {
-  sites: [
-    { id: "s1", name: "Alpha" },
-    { id: "s2", name: "Beta" },
-  ],
   locations: [
-    { id: "l1", siteId: "s1", name: "Gudang" },
-    { id: "l2", siteId: "s1", name: "Kantor" },
-    { id: "l3", siteId: "s2", name: "Pabrik" },
+    { id: "l1", name: "Gudang" },
+    { id: "l2", name: "Kantor" },
+    { id: "l3", name: "Pabrik" },
   ],
   positions: [
-    { id: "p1", siteId: "s1", name: "Operator" },
-    { id: "p2", siteId: "s1", name: "Driver" },
-    { id: "p3", siteId: "s2", name: "Operator" },
+    { id: "p1", name: "Operator" },
+    { id: "p2", name: "Driver" },
   ],
   existing: [],
 };
 
-const existingWorker = { id: "w1", employeeId: "EMP-1", siteId: "s1", locationId: "l1" };
+const existingWorker = { id: "w1", employeeId: "EMP-1", locationId: "l1" };
 
 function row(
   rowNumber: number,
@@ -39,7 +34,6 @@ function row(
     cells: {
       employee_id: "EMP-1",
       name: "Budi",
-      site: "Alpha",
       location: "Gudang",
       positions: "",
       end_contract: "2026-12-31",
@@ -63,7 +57,6 @@ describe("resolveImportRows", () => {
     expect(result).toMatchObject({
       action: "create",
       workerId: null,
-      siteId: "s1",
       locationId: "l1",
       positionIds: ["p1", "p2"],
       errors: [],
@@ -71,11 +64,10 @@ describe("resolveImportRows", () => {
   });
 
   it("matches names ignoring case and padding", () => {
-    const result = resolveOne({ site: " alpha ", location: "GUDANG", positions: "operator" });
+    const result = resolveOne({ location: "GUDANG", positions: "operator" });
 
     expect(result).toMatchObject({
       action: "create",
-      siteId: "s1",
       locationId: "l1",
       positionIds: ["p1"],
     });
@@ -102,11 +94,11 @@ describe("resolveImportRows", () => {
     expect(first.flatMap((item) => item.errors)).toEqual([]);
   });
 
-  it("rejects an employee ID that belongs to a worker out of scope", () => {
+  it("rejects an employee ID that belongs to a worker at another location than an admin site's own", () => {
     const result = resolveOne(
-      { site: "Beta", location: "Pabrik" },
+      { location: "Kantor" },
       {
-        access: { siteId: "s2", locationId: null },
+        access: { locationId: "l2" },
         lookups: { ...lookups, existing: [existingWorker] },
       },
     );
@@ -134,55 +126,36 @@ describe("resolveImportRows", () => {
     expect(resolveOne({}).action).toBe("create");
   });
 
-  it("gives an out-of-scope site the same message as an unknown site", () => {
-    const limited = { ...lookups, sites: [{ id: "s2", name: "Beta" }] };
-    const outOfScope = resolveOne({ site: "Alpha" }, { lookups: limited });
-    const unknown = resolveOne({ site: "Nowhere" }, { lookups: limited });
-
-    expect(outOfScope.errors).toEqual(["Site not found"]);
-    expect(unknown.errors).toEqual(outOfScope.errors);
-  });
-
   it("rejects a location outside the list an admin site may use", () => {
-    const limited = { ...lookups, locations: [{ id: "l1", siteId: "s1", name: "Gudang" }] };
+    const limited = { ...lookups, locations: [{ id: "l1", name: "Gudang" }] };
     const result = resolveOne(
       { location: "Kantor" },
-      { lookups: limited, access: { siteId: "s1", locationId: "l1" } },
+      { lookups: limited, access: { locationId: "l1" } },
     );
 
-    expect(result.errors).toEqual(["Location not found in this site"]);
+    expect(result.errors).toEqual(["Location not found"]);
   });
 
   it("stops an admin site at the write guard when a lookup leaks another location", () => {
-    const result = resolveOne(
-      { location: "Kantor" },
-      { access: { siteId: "s1", locationId: "l1" } },
-    );
+    const result = resolveOne({ location: "Kantor" }, { access: { locationId: "l1" } });
 
     expect(result.action).toBe("error");
-    expect(result.errors).toContain("Site not found");
+    expect(result.errors).toContain("Location not found");
   });
 
-  it("does not let HO move a worker to another site", () => {
-    const result = resolveOne(
-      { site: "Beta", location: "Pabrik" },
-      {
-        access: { siteId: "s1", locationId: null },
-        lookups: {
-          ...lookups,
-          sites: [{ id: "s1", name: "Alpha" }],
-          existing: [existingWorker],
-        },
-      },
-    );
-
-    expect(result.errors).toEqual(["Site not found"]);
+  it("lets HO write a row to any location", () => {
+    expect(resolveOne({ location: "Pabrik" }, { access: { locationId: null } })).toMatchObject({
+      action: "create",
+      locationId: "l3",
+    });
   });
 
-  it("rejects a location that belongs to another site", () => {
-    const result = resolveOne({ site: "Alpha", location: "Pabrik" });
-
-    expect(result.errors).toEqual(["Location not found in this site"]);
+  it("resolves a named position without any site, ignoring case", () => {
+    expect(resolveOne({ positions: "oPeRaToR" })).toMatchObject({
+      action: "create",
+      positionIds: ["p1"],
+      errors: [],
+    });
   });
 
   it("dedupes positions and ignores blanks, keeping the first spelling", () => {
@@ -203,22 +176,16 @@ describe("resolveImportRows", () => {
   it("names the positions that are not available", () => {
     const result = resolveOne({ positions: "Operator, Ghost, Spare" });
 
-    expect(result.errors).toEqual(["Positions not available in this site: Ghost, Spare"]);
-  });
-
-  it("looks positions up inside the row's site", () => {
-    const result = resolveOne({ positions: "Operator" });
-
-    expect(result).toMatchObject({ positionIds: ["p1"] });
+    expect(result.errors).toEqual(["Positions not available: Ghost, Spare"]);
   });
 
   it("collects every error of a row", () => {
-    const result = resolveOne({ employee_id: "", name: "", site: "Nowhere" });
+    const result = resolveOne({ employee_id: "", name: "", location: "Nowhere" });
 
     expect(result.errors).toEqual([
       "Employee ID is required",
       "Name is required",
-      "Site not found",
+      "Location not found",
     ]);
   });
 
@@ -282,9 +249,9 @@ describe("resolveImportRows", () => {
     const message = "end_contract must be a date like 2026-12-31";
 
     expect(resolveOne({ end_contract: cell }).errors).toEqual([message]);
-    expect(resolveOne({ end_contract: cell, name: "", site: "Nowhere" })).toMatchObject({
+    expect(resolveOne({ end_contract: cell, name: "", location: "Nowhere" })).toMatchObject({
       action: "error",
-      errors: ["Name is required", message, "Site not found"],
+      errors: ["Name is required", message, "Location not found"],
     });
   });
 
@@ -321,7 +288,7 @@ describe("resolveImportRows", () => {
 describe("summarizeImport", () => {
   it("counts creates, updates, and errors", () => {
     const rows = resolveImportRows(
-      [row(2), row(3, { employee_id: "EMP-2", site: "Nowhere" }), row(4, { employee_id: "EMP-1" })],
+      [row(2), row(3, { employee_id: "EMP-2", location: "Nowhere" }), row(4, { employee_id: "EMP-1" })],
       { ...lookups, existing: [existingWorker] },
       EVERYWHERE,
     );
@@ -378,9 +345,9 @@ describe("work_days", () => {
   });
 
   it("reports the work_days error next to the other row errors", () => {
-    expect(resolveOne({ work_days: 6, site: "Nowhere" })).toMatchObject({
+    expect(resolveOne({ work_days: 6, location: "Nowhere" })).toMatchObject({
       action: "error",
-      errors: ["work_days must be 5 or 7", "Site not found"],
+      errors: ["work_days must be 5 or 7", "Location not found"],
     });
   });
 });

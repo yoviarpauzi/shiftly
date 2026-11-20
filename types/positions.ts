@@ -1,21 +1,16 @@
-import type { SiteChoice } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 
-export type PositionSortColumn = "name" | "site" | "status";
+export type PositionSortColumn = "name" | "status";
 
 export type PositionStatus = "active" | "deleted" | "all";
 
-export type PositionAccess = {
-  // null means every site, which only superadmin gets.
-  siteId: string | null;
-};
+// Positions are global. Both roles that manage them see every position.
+export type PositionAccess = { role: "ho" | "admin_site" };
 
 export type PositionRow = {
   id: string;
   name: string;
-  siteId: string;
-  siteName: string;
   deletedAt: Date | null;
 };
 
@@ -28,8 +23,6 @@ export type PositionPage = {
 
 export type PositionListParams = PageParams & {
   status: PositionStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
   sort: SortCriterion<PositionSortColumn>[];
 };
 
@@ -37,7 +30,7 @@ export type PositionActionResult =
   | { ok: true }
   | {
       ok: false;
-      fieldErrors?: { name?: string; siteId?: string };
+      fieldErrors?: { name?: string };
       formError?: string;
     };
 
@@ -59,7 +52,6 @@ export type PositionActions = {
 
 export type PositionFormDialogProps = {
   position: PositionRow | null;
-  siteChoice: SiteChoice;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };

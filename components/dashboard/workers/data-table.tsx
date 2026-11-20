@@ -56,7 +56,6 @@ export function WorkersDataTable({
   status,
   sort,
   options,
-  siteId,
   locations,
   locationId,
   positions,
@@ -66,7 +65,6 @@ export function WorkersDataTable({
   status: WorkerStatus;
   sort: SortCriterion<WorkerSortColumn>[];
   options: WorkerFormOptions;
-  siteId: string | null;
   locations: WorkerFormOption[];
   locationId: string | null;
   positions: WorkerFormOption[];
@@ -183,19 +181,6 @@ export function WorkersDataTable({
         <div className="flex flex-wrap items-center gap-2">
           <WorkersSearch />
           <WorkersStatusFilter status={status} />
-          {options.siteChoice.mode === "pick" && (
-            <WorkersSelectFilter
-              param="site"
-              value={siteId ?? "all"}
-              options={[
-                { value: "all", label: "All sites" },
-                ...options.siteChoice.sites.map((site) => ({ value: site.id, label: site.name })),
-              ]}
-              ariaLabel="Filter workers by site"
-              className="h-9 w-48"
-              resets={["location", "position"]}
-            />
-          )}
           {locations.length > 0 && (
             <WorkersSelectFilter
               param="location"
@@ -299,7 +284,7 @@ export function WorkersDataTable({
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   {query
                     ? `No workers match "${query}"`
-                    : siteId || locationId || positionId
+                    : locationId || positionId
                       ? "No workers match the filters"
                       : status === "deleted"
                         ? "No deleted workers"

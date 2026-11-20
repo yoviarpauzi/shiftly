@@ -47,7 +47,6 @@ describe("checkImportHeaders", () => {
     const result = checkImportHeaders([
       "Positions",
       " NAME ",
-      "site",
       "Location",
       "employee_id",
       "End_Contract",
@@ -58,25 +57,24 @@ describe("checkImportHeaders", () => {
       columnIndex: {
         positions: 0,
         name: 1,
-        site: 2,
-        location: 3,
-        employee_id: 4,
-        end_contract: 5,
+        location: 2,
+        employee_id: 3,
+        end_contract: 4,
         work_days: -1,
       },
     });
   });
 
   it("finds the optional work_days column, and does not report it missing", () => {
-    const base = ["employee_id", "name", "site", "location", "positions", "end_contract"];
+    const base = ["employee_id", "name", "location", "positions", "end_contract"];
     const without = checkImportHeaders(base);
     const withColumn = checkImportHeaders([...base, " Work_Days "]);
 
     expect(without.ok && without.columnIndex.work_days).toBe(-1);
-    expect(withColumn.ok && withColumn.columnIndex.work_days).toBe(6);
+    expect(withColumn.ok && withColumn.columnIndex.work_days).toBe(5);
     expect(checkImportHeaders(["employee_id"])).toEqual({
       ok: false,
-      formError: "Missing columns: name, site, location, positions, end_contract",
+      formError: "Missing columns: name, location, positions, end_contract",
     });
   });
 
@@ -86,11 +84,11 @@ describe("checkImportHeaders", () => {
     expect(result.ok).toBe(false);
 
     if (!result.ok) {
-      expect(result.formError).toContain("site, location, positions, end_contract");
+      expect(result.formError).toContain("location, positions, end_contract");
     }
   });
 
-  it("ignores extra unknown columns", () => {
+  it("ignores extra unknown columns, such as the site column of the old template", () => {
     const result = checkImportHeaders([
       "employee_id",
       "name",

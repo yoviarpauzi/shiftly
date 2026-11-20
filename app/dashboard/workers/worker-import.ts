@@ -14,7 +14,6 @@ import { canWriteWorker } from "./worker-access";
 import {
   DUPLICATE_EMPLOYEE_ID_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
-  SITE_NOT_FOUND_MESSAGE,
 } from "./worker-rules";
 
 function lower(value: string) {
@@ -115,12 +114,11 @@ export function resolveImportRows(
   lookups: ImportLookups,
   access: WorkerAccess,
 ): ImportRowResult[] {
-  const siteByName = new Map(lookups.sites.map((site) => [lower(site.name), site]));
   const locationByName = new Map(
-    lookups.locations.map((location) => [`${location.siteId}:${lower(location.name)}`, location]),
+    lookups.locations.map((location) => [lower(location.name), location]),
   );
   const positionByName = new Map(
-    lookups.positions.map((position) => [`${position.siteId}:${lower(position.name)}`, position]),
+    lookups.positions.map((position) => [lower(position.name), position]),
   );
   const existingById = new Map(lookups.existing.map((worker) => [lower(worker.employeeId), worker]));
   const firstRowOfId = new Map<string, number>();
@@ -140,7 +138,6 @@ export function resolveImportRows(
 
     const employeeId = read("employee_id");
     const name = read("name");
-    const siteCell = read("site");
     const locationCell = read("location");
     const positionsCell = read("positions");
 
@@ -178,50 +175,33 @@ export function resolveImportRows(
       rowNumber,
       employeeId: employeeId.text,
       name: name.text,
-      siteName: siteCell.text,
       locationName: locationCell.text,
       positionNames,
       endContract: endContract.text,
       workDays: workDays.value,
     };
 
-    if (!siteCell.typeError && siteCell.text === "") {
-      errors.push("Site is required");
-    }
-
     if (!locationCell.typeError && locationCell.text === "") {
       errors.push("Location is required");
     }
 
-    const site = siteCell.text ? siteByName.get(lower(siteCell.text)) : undefined;
+    const location = locationCell.text ? locationByName.get(lower(locationCell.text)) : undefined;
 
-    if (siteCell.text && !site) {
-      errors.push(SITE_NOT_FOUND_MESSAGE);
-    }
-
-    const location =
-      site && locationCell.text
-        ? locationByName.get(`${site.id}:${lower(locationCell.text)}`)
-        : undefined;
-
-    if (site && locationCell.text && !location) {
+    if (locationCell.text && !location) {
       errors.push(LOCATION_NOT_FOUND_MESSAGE);
     }
 
-    const positions = site
-      ? positionNames.map((positionName) => positionByName.get(`${site.id}:${lower(positionName)}`))
-      : [];
+    const positions = positionNames.map((positionName) => positionByName.get(lower(positionName)));
+    const missing = positionNames.filter((_, index) => !positions[index]);
 
-    if (site) {
-      const missing = positionNames.filter((_, index) => !positions[index]);
-
-      if (missing.length > 0) {
-        errors.push(`Positions not available in this site: ${missing.join(", ")}`);
-      }
+    if (missing.length > 0) {
+      errors.push(`Positions not available: ${missing.join(", ")}`);
     }
 
-    if (site && location && !canWriteWorker(access, { siteId: site.id, locationId: location.id })) {
-      errors.push(SITE_NOT_FOUND_MESSAGE);
+    // A location the actor may not write to is reported like a missing one. The lookups are already
+    // limited to the actor's scope, so this is a second guard.
+    if (location && !canWriteWorker(access, { locationId: location.id })) {
+      errors.push(LOCATION_NOT_FOUND_MESSAGE);
     }
 
     const idKey = lower(employeeId.text);
@@ -242,7 +222,7 @@ export function resolveImportRows(
       errors.push(DUPLICATE_EMPLOYEE_ID_MESSAGE);
     }
 
-    if (errors.length > 0 || !site || !location) {
+    if (errors.length > 0 || !location) {
       return { ...base, action: "error", errors };
     }
 
@@ -251,7 +231,6 @@ export function resolveImportRows(
       action: existing ? "update" : "create",
       errors: [],
       workerId: existing?.id ?? null,
-      siteId: site.id,
       locationId: location.id,
       positionIds: positions.flatMap((position) => (position ? [position.id] : [])),
     };

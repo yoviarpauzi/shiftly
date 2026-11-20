@@ -1,34 +1,24 @@
 export const WORKER_NOT_FOUND_MESSAGE = "Worker not found";
 
-export const SITE_NOT_FOUND_MESSAGE = "Site not found";
+export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 
-export const LOCATION_NOT_FOUND_MESSAGE = "Location not found in this site";
-
-export const POSITIONS_NOT_FOUND_MESSAGE = "Some positions are not available in this site";
+export const POSITIONS_NOT_FOUND_MESSAGE = "Some positions are not available";
 
 export const DUPLICATE_EMPLOYEE_ID_MESSAGE = "Employee ID is already used by another worker";
 
 export const WORKER_RESTORE_CONFLICT_MESSAGE =
   "Another active worker already uses this employee ID. Change it before restoring.";
 
-export const SITE_DELETED_MESSAGE = "Restore the site first";
-
 export const LOCATION_DELETED_MESSAGE = "Restore the location first";
 
 const EMPLOYEE_ID_CONSTRAINT = "worker_lowerEmployeeId_active_unique";
 
-// A worker lives under a site and a location, so it cannot come back while either is deleted.
+// A worker lives under a location, so it cannot come back while that location is deleted.
 export function canRestoreWorker({
-  siteDeleted,
   locationDeleted,
 }: {
-  siteDeleted: boolean;
   locationDeleted: boolean;
 }): { ok: true } | { ok: false; formError: string } {
-  if (siteDeleted) {
-    return { ok: false, formError: SITE_DELETED_MESSAGE };
-  }
-
   return locationDeleted ? { ok: false, formError: LOCATION_DELETED_MESSAGE } : { ok: true };
 }
 

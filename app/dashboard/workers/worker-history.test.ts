@@ -40,12 +40,10 @@ vi.mock("@/lib/db", () => ({
 const { loadWorkerMonth, workerHasHistory } = await import("./worker-history");
 
 const WORKER = "99999999-9999-4999-8999-999999999999";
-const SITE = "11111111-1111-4111-8111-111111111111";
 const LOCATION = "33333333-3333-4333-8333-333333333331";
 
-const SUPERADMIN: WorkerAccess = { siteId: null, locationId: null };
-const HO: WorkerAccess = { siteId: SITE, locationId: null };
-const ADMIN_SITE: WorkerAccess = { siteId: SITE, locationId: LOCATION };
+const HO: WorkerAccess = { locationId: null };
+const ADMIN_SITE: WorkerAccess = { locationId: LOCATION };
 
 const BOUNDS = { from: "2026-11-01", to: "2026-11-12" };
 
@@ -78,7 +76,7 @@ beforeEach(() => {
 
 describe("loadWorkerMonth", () => {
   it("asks for the worker, the date range, a confirmed roster, and an approved request", async () => {
-    await loadWorkerMonth(SUPERADMIN, WORKER, BOUNDS);
+    await loadWorkerMonth(HO, WORKER, BOUNDS);
 
     const { params } = whereQuery();
 
@@ -87,28 +85,20 @@ describe("loadWorkerMonth", () => {
     );
   });
 
-  it("adds no site or location condition for a superadmin", async () => {
-    await loadWorkerMonth(SUPERADMIN, WORKER, BOUNDS);
-
-    expect(whereQuery().params).not.toContain(SITE);
-    expect(whereQuery().params).not.toContain(LOCATION);
-  });
-
-  it("limits an HO to its site", async () => {
+  it("adds no location condition for an HO", async () => {
     await loadWorkerMonth(HO, WORKER, BOUNDS);
 
-    expect(whereQuery().params).toContain(SITE);
     expect(whereQuery().params).not.toContain(LOCATION);
   });
 
-  it("limits an admin site to its site and location", async () => {
+  it("limits an admin site to its location", async () => {
     await loadWorkerMonth(ADMIN_SITE, WORKER, BOUNDS);
 
-    expect(whereQuery().params).toEqual(expect.arrayContaining([SITE, LOCATION]));
+    expect(whereQuery().params).toContain(LOCATION);
   });
 
   it("keeps a department, sub-department, or shift that was deleted after the day", async () => {
-    await loadWorkerMonth(SUPERADMIN, WORKER, BOUNDS);
+    await loadWorkerMonth(HO, WORKER, BOUNDS);
 
     const text = whereQuery().sql;
 
@@ -120,7 +110,7 @@ describe("loadWorkerMonth", () => {
   it("returns the rows as history rows, with a work day without a record not marked", async () => {
     fake.rows = [joined];
 
-    const [result] = await loadWorkerMonth(SUPERADMIN, WORKER, BOUNDS);
+    const [result] = await loadWorkerMonth(HO, WORKER, BOUNDS);
 
     expect(result.attendance).toBe("not-marked");
     expect(result.shift?.startTime).toBe("07:00");
@@ -133,28 +123,27 @@ describe("workerHasHistory", () => {
   it("is true when the worker has a confirmed assignment", async () => {
     fake.rows = [{ id: "a-1" }];
 
-    expect(await workerHasHistory(SUPERADMIN, WORKER, TODAY)).toBe(true);
+    expect(await workerHasHistory(HO, WORKER, TODAY)).toBe(true);
     expect(whereQuery().params).toEqual(expect.arrayContaining([WORKER, "confirmed", "approved"]));
   });
 
   it("is false when the worker has none, as with a draft roster only", async () => {
-    expect(await workerHasHistory(SUPERADMIN, WORKER, TODAY)).toBe(false);
+    expect(await workerHasHistory(HO, WORKER, TODAY)).toBe(false);
   });
 
   it("only counts days up to today, so a roster that starts later is not history yet", async () => {
-    await workerHasHistory(SUPERADMIN, WORKER, TODAY);
+    await workerHasHistory(HO, WORKER, TODAY);
 
     expect(whereQuery().params).toContain(TODAY);
     expect(whereQuery().sql).toContain('"roster_assignment"."work_date" <=');
   });
 
-  it("limits an HO to its site and an admin site to its site and location", async () => {
+  it("adds no location condition for an HO and limits an admin site to its location", async () => {
     await workerHasHistory(HO, WORKER, TODAY);
-    expect(whereQuery().params).toContain(SITE);
     expect(whereQuery().params).not.toContain(LOCATION);
 
     fake.wheres = [];
     await workerHasHistory(ADMIN_SITE, WORKER, TODAY);
-    expect(whereQuery().params).toEqual(expect.arrayContaining([SITE, LOCATION]));
+    expect(whereQuery().params).toContain(LOCATION);
   });
 });

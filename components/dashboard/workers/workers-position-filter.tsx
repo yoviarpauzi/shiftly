@@ -12,7 +12,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 
-// A search box, since a site can have many positions. Clearing it removes the param, so the URL only
+// A search box, since there can be many positions. Clearing it removes the param, so the URL only
 // carries filters that are set.
 export function WorkersPositionFilter({ positions, value }: WorkersPositionFilterProps) {
   const router = useRouter();

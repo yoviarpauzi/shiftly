@@ -924,7 +924,7 @@ export function confirmedWorkQuery(
 
 // The confirmed work rows of the workers in the window around a roster, grouped into histories.
 // A caller reading an existing roster passes its id so the roster is not part of its own history.
-async function loadHistories(
+export async function loadHistories(
   reader: Reader,
   workerIds: string[],
   days: string[],
@@ -955,7 +955,7 @@ async function loadHistories(
   );
 }
 
-async function loadWorkerPositions(reader: Reader, workerIds: string[]) {
+export async function loadWorkerPositions(reader: Reader, workerIds: string[]) {
   const positions = new Map<string, { ids: string[]; names: string[] }>();
 
   if (workerIds.length === 0) {

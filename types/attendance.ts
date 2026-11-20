@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { AppRole } from "@/types/roles";
+import type { EngineHistory } from "@/types/rosters";
 import type { LocationTimezone } from "@/validation/location";
 
 export type AttendanceStatus = "present" | "absent";
@@ -178,3 +179,39 @@ export type AttendanceActionResult =
 export type SubstituteActionResult =
   | { ok: true; warnings: string[] }
   | { ok: false; formError: string };
+
+// The scheduled row an absent worker's replacement would cover, with what the eligibility check and
+// the scheduled-work rule need. attendanceId and status are null while the row is Not marked.
+// timezone is the raw column value, to be parsed by the caller.
+export type SubstituteTarget = {
+  assignmentId: string;
+  attendanceId: string | null;
+  status: AttendanceStatus | null;
+  workerId: string;
+  date: string;
+  locationId: string;
+  timezone: string;
+  rosterStatus: string;
+  requestStatus: string;
+  kind: string;
+  shiftOrder: number;
+  position: { id: string; name: string };
+  departmentId: string;
+  subDepartmentId: string | null;
+};
+
+// One worker of the target's location as a possible replacement, with the facts checkSubstitute
+// reads. alreadyCovering ignores the target's own replacement, so choosing it again is allowed.
+export type SubstituteCandidateContext = {
+  id: string;
+  employeeId: string;
+  name: string;
+  positionIds: string[];
+  positionNames: string[];
+  endContract: string;
+  deleted: false;
+  locationId: string;
+  workDatesToday: boolean;
+  alreadyCovering: boolean;
+  history: EngineHistory;
+};

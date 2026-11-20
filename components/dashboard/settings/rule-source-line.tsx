@@ -19,12 +19,7 @@ export function RuleSourceLine({
   return (
     <div className="flex min-h-6 items-center justify-between gap-3">
       <p className="text-xs text-muted-foreground">
-        {ruleSourceText({
-          scope,
-          source: rules.resolved.sources[ruleKey],
-          own,
-          siteName: rules.siteName,
-        })}
+        {ruleSourceText({ scope, source: rules.resolved.sources[ruleKey], own })}
       </p>
       {own && canEdit && scope !== "global" && (
         <Button

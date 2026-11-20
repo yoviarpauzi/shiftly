@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { ZodType } from "zod";
-import type { SiteChoice } from "@/types/locations";
 import type { AppRole } from "@/types/roles";
 
 export type WorkDays = 5 | 7;
@@ -24,7 +23,7 @@ export type WorkRuleKey = keyof WorkRuleValues;
 export type WorkRuleRow = { [K in WorkRuleKey]: WorkRuleValues[K] | null };
 
 // Where an effective value came from.
-export type WorkRuleSource = "location" | "site" | "global" | "default";
+export type WorkRuleSource = "location" | "global" | "default";
 
 export type PasswordField = "currentPassword" | "newPassword" | "confirmPassword";
 
@@ -34,27 +33,23 @@ export type PasswordActionResult =
 
 export type WorkRulesActionResult = { ok: true } | { ok: false; formError: string };
 
-// siteId null means every site (superadmin only). locationId is set for admin site only.
+// locationId is set for admin site only. HO has none and reaches every location.
 export type SettingsAccess = {
   userId: string;
   role: AppRole;
-  siteId: string | null;
   locationId: string | null;
 };
 
-export type SettingsLocation = { id: string; name: string; siteId: string };
+export type SettingsLocation = { id: string; name: string };
 
-// Admin site gets its own location as fixed text. Superadmin and HO pick one.
+// Admin site gets its own location as fixed text. HO picks one.
 export type LocationChoice =
   | { mode: "fixed"; location: SettingsLocation }
   | { mode: "pick"; locations: SettingsLocation[] };
 
-// locationSiteId is the site that owns the location, for location scope.
 export type WorkRuleAccessTarget = {
   scope: WorkRuleScope;
-  siteId: string | null;
   locationId: string | null;
-  locationSiteId: string | null;
 };
 
 export type WorkRulesResolved = {
@@ -65,8 +60,6 @@ export type WorkRulesResolved = {
 // own[key] is true when the value is set at the chosen scope.
 export type LocationWorkRules = {
   scope: WorkRuleScope;
-  siteId: string | null;
-  siteName: string | null;
   locationId: string | null;
   locationName: string | null;
   resolved: WorkRulesResolved;
@@ -76,7 +69,6 @@ export type LocationWorkRules = {
 // The level the Work rules section shows, as read from the URL after the access checks.
 export type SettingsTarget = {
   scope: WorkRuleScope;
-  siteId: string | null;
   locationId: string | null;
 };
 
@@ -84,24 +76,20 @@ export type RuleSourceInput = {
   scope: WorkRuleScope;
   source: WorkRuleSource;
   own: boolean;
-  siteName: string | null;
 };
 
-export type WorkRulesEmpty = "no-site" | "no-location";
+export type WorkRulesEmpty = "no-location";
 
 export type SettingsSearchParams = Record<string, string | string[] | undefined>;
 
 // The role-scoped choice lists, passed in so the target can be resolved without a database.
 export type SettingsTargetLoaders = {
-  siteChoiceFor: (access: SettingsAccess) => Promise<SiteChoice>;
-  locationChoiceFor: (access: SettingsAccess, siteId: string) => Promise<LocationChoice>;
+  locationChoiceFor: (access: SettingsAccess) => Promise<LocationChoice>;
 };
 
 // load is the level to read with workRulesFor, or null when empty says why there is none.
 export type ResolvedSettingsTarget = {
   scope: WorkRuleScope;
-  siteChoice: SiteChoice;
-  siteId: string | null;
   locationChoice: LocationChoice | null;
   locationId: string | null;
   empty: WorkRulesEmpty | null;
@@ -111,8 +99,6 @@ export type ResolvedSettingsTarget = {
 // canEdit comes from canEditWorkRule for the chosen target.
 export type WorkRulesView = {
   scope: WorkRuleScope;
-  siteChoice: SiteChoice;
-  siteId: string | null;
   locationChoice: LocationChoice | null;
   rules: LocationWorkRules | null;
   canEdit: boolean;
@@ -121,13 +107,9 @@ export type WorkRulesView = {
 
 export type WorkRulesProps = WorkRulesView;
 
-// siteId is the chosen site. It is kept apart from rules.siteId, which is null at global scope,
-// so switching from Global back to Site or Location stays on the same site.
 export type WorkRulesScope = {
   scope: WorkRuleScope;
-  siteChoice: SiteChoice;
   locationChoice: LocationChoice | null;
-  siteId: string | null;
 };
 
 export type WorkRuleCardProps = {
@@ -137,7 +119,7 @@ export type WorkRuleCardProps = {
   readOnlyNote: string | null;
 };
 
-// noLocation shows only the scope control and, for a superadmin, the Site select.
+// noLocation shows only the scope control.
 export type WorkRulesScopeFieldsProps = WorkRulesScope & {
   locationId: string | null;
   noLocation?: boolean;

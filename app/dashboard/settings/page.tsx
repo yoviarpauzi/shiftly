@@ -3,41 +3,25 @@ import { WorkRules } from "@/components/dashboard/settings/work-rules";
 import type { SettingsAccess, SettingsSearchParams, WorkRulesView } from "@/types/settings";
 import { canEditWorkRule, workRuleAccessTargetFor } from "./settings-access";
 import { requireSettingsAccess } from "./settings-guard";
-import {
-  settingsLocationChoiceFor,
-  settingsSiteChoiceFor,
-  workRulesFor,
-} from "./settings";
+import { settingsLocationChoiceFor, workRulesFor } from "./settings";
 import { resolveSettingsTarget } from "./settings-target";
 
 async function workRulesViewFor(
   access: SettingsAccess,
   params: SettingsSearchParams,
 ): Promise<WorkRulesView> {
-  const { scope, siteChoice, siteId, locationChoice, empty, load } = await resolveSettingsTarget(
-    access,
-    params,
-    { siteChoiceFor: settingsSiteChoiceFor, locationChoiceFor: settingsLocationChoiceFor },
-  );
+  const { scope, locationChoice, empty, load } = await resolveSettingsTarget(access, params, {
+    locationChoiceFor: settingsLocationChoiceFor,
+  });
   const rules = load ? await workRulesFor(load) : null;
 
   if (!rules) {
-    // Either nothing resolved, or the site or location was deleted since it was listed.
-    return {
-      scope,
-      siteChoice,
-      siteId,
-      locationChoice,
-      rules: null,
-      canEdit: false,
-      empty: empty ?? (scope === "location" ? "no-location" : "no-site"),
-    };
+    // Either nothing resolved, or the location was deleted since it was listed.
+    return { scope, locationChoice, rules: null, canEdit: false, empty: empty ?? "no-location" };
   }
 
   return {
     scope,
-    siteChoice,
-    siteId,
     locationChoice,
     rules,
     canEdit: canEditWorkRule(access, workRuleAccessTargetFor(rules)),
@@ -68,7 +52,7 @@ export default async function Page({
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold">Work rules</h2>
             <p className="text-sm text-muted-foreground">
-              The rules rosters follow, set at global, site, or location level.
+              The rules rosters follow, set at global or location level.
             </p>
           </div>
           <WorkRules {...workRules} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2Icon, MapPinIcon } from "lucide-react";
+import { MapPinIcon } from "lucide-react";
 import { readOnlyNoteFor, workRuleCardKey } from "@/app/dashboard/settings/settings-rules";
 import { AnnualOffCard } from "@/components/dashboard/settings/annual-off-card";
 import { BreakCard } from "@/components/dashboard/settings/break-card";
@@ -18,16 +18,11 @@ import type {
 } from "@/types/settings";
 
 const EMPTY_COPY = {
-  "no-site": {
-    Icon: Building2Icon,
-    title: "No active site to configure",
-    description: "Create a site first, then come back to set its work rules.",
-  },
   "no-location": {
     Icon: MapPinIcon,
     title: "No active location to configure",
     description:
-      "Create a location in this site first, then set its work rules. Global and Site rules are still available.",
+      "Create a location first, then set its work rules. Global rules are still available.",
   },
 } as const;
 
@@ -47,29 +42,19 @@ function WorkRulesEmptyState({ empty }: WorkRulesEmptyStateProps) {
 
 export function WorkRules({
   scope,
-  siteChoice,
-  siteId,
   locationChoice,
   rules,
   canEdit,
   empty,
 }: WorkRulesProps) {
-  const scopeProps: WorkRulesScope = { scope, siteChoice, locationChoice, siteId };
+  const scopeProps: WorkRulesScope = { scope, locationChoice };
 
-  // No location still lets the user switch to Global or Site. No site leaves nothing to switch to.
-  if (empty === "no-location") {
+  // No location still lets the user switch to Global.
+  if (empty === "no-location" || !rules) {
     return (
       <section className="flex flex-col gap-5 rounded-lg border bg-card p-4 sm:p-6">
         <WorkRulesScopeFields {...scopeProps} locationId={null} noLocation />
         <WorkRulesEmptyState empty="no-location" />
-      </section>
-    );
-  }
-
-  if (empty === "no-site" || !rules) {
-    return (
-      <section className="rounded-lg border bg-card p-4 sm:p-6">
-        <WorkRulesEmptyState empty="no-site" />
       </section>
     );
   }

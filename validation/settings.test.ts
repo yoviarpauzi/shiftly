@@ -17,17 +17,15 @@ import {
   workRuleTargetSchema,
 } from "./settings";
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_ID = "22222222-2222-4222-8222-222222222222";
 
 const targets = {
   global: { scope: "global" },
-  site: { scope: "site", siteId: SITE_ID },
   location: { scope: "location", locationId: LOCATION_ID },
 } as const;
 
-const inheritingScopes = ["site", "location"] as const;
-const allScopes = ["global", "site", "location"] as const;
+const inheritingScopes = ["location"] as const;
+const allScopes = ["global", "location"] as const;
 
 describe("WORK_DAYS", () => {
   it("allows 5 and 7", () => {
@@ -117,31 +115,31 @@ describe("workRuleTargetSchema", () => {
     expect(workRuleTargetSchema.safeParse(targets.global).success).toBe(true);
   });
 
-  it("accepts a site target and a location target", () => {
-    expect(workRuleTargetSchema.safeParse(targets.site).success).toBe(true);
+  it("accepts a location target", () => {
     expect(workRuleTargetSchema.safeParse(targets.location).success).toBe(true);
   });
 
-  it("rejects a site id that is not a uuid", () => {
-    expect(messages({ scope: "site", siteId: "nope" })).toEqual(["Choose a site"]);
+  it("rejects a site target, a level that no longer exists", () => {
+    const siteId = "11111111-1111-4111-8111-111111111111";
+
+    expect(workRuleTargetSchema.safeParse({ scope: "site", siteId }).success).toBe(false);
+    expect(workRuleTargetSchema.safeParse({ scope: "site" }).success).toBe(false);
   });
 
   it("rejects a location id that is not a uuid", () => {
     expect(messages({ scope: "location", locationId: "nope" })).toEqual(["Choose a location"]);
   });
 
-  it("rejects a site target without a site id", () => {
-    expect(messages({ scope: "site" })).toEqual(["Choose a site"]);
-  });
-
-  it("rejects a site target that also carries a location id", () => {
-    expect(workRuleTargetSchema.safeParse({ ...targets.site, locationId: LOCATION_ID }).success).toBe(
-      false,
-    );
+  it("rejects a location target that carries a site id", () => {
+    expect(
+      workRuleTargetSchema.safeParse({ ...targets.location, siteId: LOCATION_ID }).success,
+    ).toBe(false);
   });
 
   it("rejects a global target that carries an id", () => {
-    expect(workRuleTargetSchema.safeParse({ scope: "global", siteId: SITE_ID }).success).toBe(false);
+    expect(workRuleTargetSchema.safeParse({ scope: "global", siteId: LOCATION_ID }).success).toBe(
+      false,
+    );
     expect(workRuleTargetSchema.safeParse({ scope: "global", locationId: LOCATION_ID }).success).toBe(
       false,
     );
@@ -364,14 +362,14 @@ describe("toWholeNumber", () => {
 describe("workRuleFormErrors", () => {
   it("keeps the first message per field and moves target issues to the form", () => {
     const parsed = breakRuleSchema.safeParse({
-      target: { scope: "site", siteId: "not-a-uuid" },
+      target: { scope: "location", locationId: "not-a-uuid" },
       breakDays: toWholeNumber("x"),
       breakCycleMonths: 13,
     });
 
     expect(parsed.success).toBe(false);
     expect(workRuleFormErrors(parsed.error?.issues ?? [])).toEqual({
-      form: "Choose a site",
+      form: "Choose a location",
       fields: {
         breakDays: { message: "Enter a whole number" },
         breakCycleMonths: { message: "Enter a number from 1 to 12" },
@@ -383,19 +381,20 @@ describe("workRuleFormErrors", () => {
 describe("parseSettingsScope", () => {
   it("keeps a known scope", () => {
     expect(parseSettingsScope("global")).toBe("global");
-    expect(parseSettingsScope(["site", "global"])).toBe("site");
+    expect(parseSettingsScope(["location", "global"])).toBe("location");
     expect(parseSettingsScope("location")).toBe("location");
   });
 
   it("returns null for anything else", () => {
     expect(parseSettingsScope(undefined)).toBeNull();
     expect(parseSettingsScope("all")).toBeNull();
+    expect(parseSettingsScope("site")).toBeNull();
     expect(parseSettingsScope([])).toBeNull();
   });
 });
 
 describe("parseSettingsLocation", () => {
-  const locations = [{ id: LOCATION_ID, name: "Gudang Utara", siteId: SITE_ID }];
+  const locations = [{ id: LOCATION_ID, name: "Gudang Utara" }];
 
   it("keeps a listed location id", () => {
     expect(parseSettingsLocation(LOCATION_ID, locations)).toBe(LOCATION_ID);
@@ -404,7 +403,7 @@ describe("parseSettingsLocation", () => {
 
   it("returns null for an unlisted or missing id", () => {
     expect(parseSettingsLocation("not-a-uuid", locations)).toBeNull();
-    expect(parseSettingsLocation(SITE_ID, locations)).toBeNull();
+    expect(parseSettingsLocation("11111111-1111-4111-8111-111111111111", locations)).toBeNull();
     expect(parseSettingsLocation(undefined, locations)).toBeNull();
     expect(parseSettingsLocation(LOCATION_ID, [])).toBeNull();
   });

@@ -10,7 +10,6 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 
 const { loadEngineRules } = await import("./roster-work-rules");
 
-const SITE_ID = "11111111-1111-4111-8111-111111111111";
 const LOCATION_ID = "33333333-3333-4333-8333-333333333333";
 
 const NOTHING_SET: WorkRuleRow = {
@@ -29,9 +28,9 @@ const row = (set: Partial<WorkRuleRow>): WorkRuleRow => ({ ...NOTHING_SET, ...se
 const dialect = new PgDialect();
 
 // Each select is answered by the scope its WHERE asks for, read from the rendered SQL, so the
-// test also pins which three rows are read.
-const stored = { global: null, site: null, location: null } as Record<
-  "global" | "site" | "location",
+// test also pins which two rows are read.
+const stored = { global: null, location: null } as Record<
+  "global" | "location",
   WorkRuleRow | null
 >;
 const calls: { table: unknown; sql: string; params: unknown[] }[] = [];
@@ -52,11 +51,10 @@ const reader = {
   }),
 } as unknown as Reader;
 
-const target = { locationId: LOCATION_ID, siteId: SITE_ID };
+const target = { locationId: LOCATION_ID };
 
 beforeEach(() => {
   stored.global = null;
-  stored.site = null;
   stored.location = null;
   calls.length = 0;
 });
@@ -72,26 +70,22 @@ describe("loadEngineRules", () => {
     });
   });
 
-  it("reads the global row, the site's row, and the location's row from work_rule", async () => {
+  it("reads the global row and the location's row from work_rule, and nothing else", async () => {
     await loadEngineRules(reader, target);
 
-    expect(calls.map((call) => call.table)).toEqual([workRule, workRule, workRule]);
-    expect(calls.map((call) => call.params)).toEqual([
-      ["global"],
-      ["site", SITE_ID],
-      ["location", LOCATION_ID],
-    ]);
+    expect(calls.map((call) => call.table)).toEqual([workRule, workRule]);
+    expect(calls.map((call) => call.params)).toEqual([["global"], ["location", LOCATION_ID]]);
+    expect(calls.map((call) => call.sql).join(" ")).not.toContain("site");
   });
 
-  it("lets the location win over the site, and the site over global, rule by rule", async () => {
+  it("lets the location win over global, rule by rule", async () => {
     stored.global = row({
       workDaysPerWeek: 7,
       shiftExceptionDays: 2,
       requirePositionMatch: false,
       maxWorkingDaysPerMonth: 30,
     });
-    stored.site = row({ workDaysPerWeek: 5, shiftExceptionDays: 3, requirePositionMatch: true });
-    stored.location = row({ shiftExceptionDays: 4 });
+    stored.location = row({ workDaysPerWeek: 5, shiftExceptionDays: 4, requirePositionMatch: true });
 
     expect(await loadEngineRules(reader, target)).toEqual({
       workDaysPerWeek: 5,
@@ -99,6 +93,15 @@ describe("loadEngineRules", () => {
       requirePositionMatch: true,
       keepPreviousPlacement: false,
       maxWorkingDaysPerMonth: 30,
+    });
+  });
+
+  it("inherits global when the location has no row of its own", async () => {
+    stored.global = row({ workDaysPerWeek: 7, keepPreviousPlacement: true });
+
+    expect(await loadEngineRules(reader, target)).toMatchObject({
+      workDaysPerWeek: 7,
+      keepPreviousPlacement: true,
     });
   });
 

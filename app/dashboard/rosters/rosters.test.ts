@@ -4,8 +4,6 @@ import type { EvalCell, RosterWarning } from "@/types/rosters";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: {} }));
-// The saved work rules are read by roster-work-rules, which these pure helpers never reach.
-vi.mock("./roster-work-rules", () => ({ loadEngineRules: async () => ({}) }));
 
 const {
   busyWorkersQuery,

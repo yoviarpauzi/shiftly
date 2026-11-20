@@ -49,10 +49,6 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export const workRuleTargetSchema = z.discriminatedUnion("scope", [
   z.strictObject({ scope: z.literal("global") }),
   z.strictObject({
-    scope: z.literal("site"),
-    siteId: z.string({ error: "Choose a site" }).uuid("Choose a site"),
-  }),
-  z.strictObject({
     scope: z.literal("location"),
     locationId: z.string({ error: "Choose a location" }).uuid("Choose a location"),
   }),
@@ -180,7 +176,7 @@ export function workRuleFormErrors(
   return { form, fields };
 }
 
-const SETTINGS_SCOPES: readonly WorkRuleScope[] = ["global", "site", "location"];
+const SETTINGS_SCOPES: readonly WorkRuleScope[] = ["global", "location"];
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;

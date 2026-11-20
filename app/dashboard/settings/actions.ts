@@ -6,7 +6,6 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { location } from "@/database/schema/location-schema";
-import { site } from "@/database/schema/site-schema";
 import { workRule } from "@/database/schema/work-rule-schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -44,7 +43,6 @@ import {
   INCORRECT_PASSWORD_MESSAGE,
   LOCATION_NOT_FOUND_MESSAGE,
   READ_ONLY_MESSAGE,
-  SITE_NOT_FOUND_MESSAGE,
 } from "./settings-rules";
 
 const SETTINGS_PATH = "/dashboard/settings";
@@ -85,10 +83,12 @@ export async function changePassword(input: ChangePasswordInput): Promise<Passwo
   return { ok: true };
 }
 
-function notFoundFor(target: WorkRuleTarget): WorkRulesActionResult {
+// No access to the target looks the same as a missing target, so a location the caller may not
+// see is not revealed. Global has no such secret, so it answers with the read-only message.
+function refusedFor(target: WorkRuleTarget): WorkRulesActionResult {
   return {
     ok: false,
-    formError: target.scope === "location" ? LOCATION_NOT_FOUND_MESSAGE : SITE_NOT_FOUND_MESSAGE,
+    formError: target.scope === "location" ? LOCATION_NOT_FOUND_MESSAGE : READ_ONLY_MESSAGE,
   };
 }
 
@@ -96,69 +96,39 @@ function invalid(issues: { message: string }[]): WorkRulesActionResult {
   return { ok: false, formError: issues[0].message };
 }
 
-// The one write path for the six cards. It loads the site or location, checks the caller against
-// it, then upserts the row of that level with only the card's columns. The share lock conflicts
-// with the update lock a delete takes, so the target cannot be deleted between check and write.
-// updatedAt is set by hand because $onUpdate does not run inside onConflictDoUpdate.
+// The one write path for the seven cards. It loads the location, checks the caller against it,
+// then upserts the row of that level with only the card's columns. The target is the parsed
+// input, never a flag from the client. The share lock conflicts with the update lock a delete
+// takes, so the location cannot be deleted between check and write. updatedAt is set by hand
+// because $onUpdate does not run inside onConflictDoUpdate.
 async function saveWorkRule(
   access: SettingsAccess | null,
   target: WorkRuleTarget,
   columns: Partial<WorkRuleRow>,
 ): Promise<WorkRulesActionResult> {
   if (!access) {
-    return notFoundFor(target);
+    return refusedFor(target);
   }
 
   const result = await db.transaction(async (tx) => {
-    let checked: WorkRuleAccessTarget = {
-      scope: "global",
-      siteId: null,
-      locationId: null,
-      locationSiteId: null,
-    };
-
-    if (target.scope === "site") {
-      const [found] = await tx
-        .select({ id: site.id })
-        .from(site)
-        .where(and(eq(site.id, target.siteId), isNull(site.deletedAt)))
-        .for("share");
-
-      if (!found) {
-        return notFoundFor(target);
-      }
-
-      checked = { scope: "site", siteId: found.id, locationId: null, locationSiteId: null };
-    }
+    let checked: WorkRuleAccessTarget = { scope: "global", locationId: null };
 
     if (target.scope === "location") {
       const [found] = await tx
-        .select({ id: location.id, siteId: location.siteId })
+        .select({ id: location.id })
         .from(location)
-        .innerJoin(site, eq(site.id, location.siteId))
-        .where(
-          and(
-            eq(location.id, target.locationId),
-            isNull(location.deletedAt),
-            isNull(site.deletedAt),
-          ),
-        )
+        .where(and(eq(location.id, target.locationId), isNull(location.deletedAt)))
         .for("share");
 
       if (!found) {
-        return notFoundFor(target);
+        return refusedFor(target);
       }
 
-      checked = {
-        scope: "location",
-        siteId: null,
-        locationId: found.id,
-        locationSiteId: found.siteId,
-      };
+      checked = { scope: "location", locationId: found.id };
     }
 
     if (!canViewWorkRule(access, checked)) {
-      return notFoundFor(target);
+      return refusedFor(target);
     }
 
     if (!canEditWorkRule(access, checked)) {
@@ -167,16 +137,7 @@ async function saveWorkRule(
 
     const set = { ...columns, updatedBy: access.userId, updatedAt: new Date() };
 
-    if (checked.scope === "site") {
-      await tx
-        .insert(workRule)
-        .values({ scope: "site", siteId: checked.siteId, ...set })
-        .onConflictDoUpdate({
-          target: workRule.siteId,
-          targetWhere: sql`scope = 'site'`,
-          set,
-        });
-    } else if (checked.scope === "location") {
+    if (checked.scope === "location") {
       await tx
         .insert(workRule)
         .values({ scope: "location", locationId: checked.locationId, ...set })

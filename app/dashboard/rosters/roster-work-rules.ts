@@ -12,22 +12,18 @@ async function ruleRow(reader: Reader, where: SQL | undefined) {
   return row ?? null;
 }
 
-// The work rules that apply to one location: its own saved rules, then its site's, then the global
-// ones, then the built-in defaults, resolved rule by rule. It reads through the given reader, so
-// generating a roster sees the same rows inside its transaction.
+// The work rules that apply to one location: its own saved rules, then the global ones, then the
+// built-in defaults, resolved rule by rule. It reads through the given reader, so generating a
+// roster sees the same rows inside its transaction.
 export async function loadEngineRules(
   reader: Reader,
-  target: { locationId: string; siteId: string },
+  target: { locationId: string },
 ): Promise<EngineRules> {
   const global = await ruleRow(reader, eq(workRule.scope, "global"));
-  const site = await ruleRow(
-    reader,
-    and(eq(workRule.scope, "site"), eq(workRule.siteId, target.siteId)),
-  );
   const location = await ruleRow(
     reader,
     and(eq(workRule.scope, "location"), eq(workRule.locationId, target.locationId)),
   );
 
-  return toEngineRules(resolveWorkRules({ global, site, location }));
+  return toEngineRules(resolveWorkRules({ global, location }));
 }

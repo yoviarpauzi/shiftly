@@ -5,7 +5,6 @@ import {
   count,
   eq,
   ilike,
-  inArray,
   isNotNull,
   isNull,
   type SQL,
@@ -15,7 +14,6 @@ import {
 import { notFound } from "next/navigation";
 import { department, subDepartment } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
-import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
@@ -54,17 +52,10 @@ const SUB_DEPARTMENT_SORT_EXPRESSIONS: Record<SubDepartmentSortColumn, SQLWrappe
   status: sql`(${subDepartment.deletedAt} is not null)`,
 };
 
-// Superadmin sees every department. Admin site sees its own location. HO sees the locations of its own site.
+// HO sees every department. Admin site sees its own location.
 export function departmentScopeFilter(access: DepartmentAccess): SQL | undefined {
   if (access.locationId) {
     return eq(department.locationId, access.locationId);
-  }
-
-  if (access.siteId) {
-    return inArray(
-      department.locationId,
-      db.select({ id: location.id }).from(location).where(eq(location.siteId, access.siteId)),
-    );
   }
 
   return undefined;
@@ -75,19 +66,12 @@ function departmentFilter(
   access: DepartmentAccess,
   query: string,
   status: DepartmentStatus,
-  siteId: string | null,
   locationId: string | null,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     departmentScopeFilter(access),
-    siteId
-      ? inArray(
-          department.locationId,
-          db.select({ id: location.id }).from(location).where(eq(location.siteId, siteId)),
-        )
-      : undefined,
     locationId ? eq(department.locationId, locationId) : undefined,
     status === "active" ? isNull(department.deletedAt) : undefined,
     status === "deleted" ? isNotNull(department.deletedAt) : undefined,
@@ -97,9 +81,9 @@ function departmentFilter(
 
 export async function listDepartments(
   access: DepartmentAccess,
-  { page, pageSize, query, status, siteId, locationId, sort }: DepartmentListParams,
+  { page, pageSize, query, status, locationId, sort }: DepartmentListParams,
 ): Promise<DepartmentPage> {
-  const filter = departmentFilter(access, query, status, siteId, locationId);
+  const filter = departmentFilter(access, query, status, locationId);
   const criteria = sort.length > 0 ? sort : DEFAULT_SORT;
 
   // Counted from the department table alone, so the location join does not inflate the total.
@@ -134,15 +118,14 @@ export async function listDepartments(
   return { rows, total, page: currentPage, pageSize };
 }
 
-// Admin site gets its own location as fixed text. HO and superadmin pick from the active locations they can see.
+// Admin site gets its own location as fixed text. HO picks from every active location.
 export async function departmentLocationChoiceFor(
   access: DepartmentAccess,
 ): Promise<DepartmentLocationChoice> {
   if (access.locationId) {
     const [own] = await db
-      .select({ id: location.id, name: location.name, siteId: site.id, siteName: site.name })
+      .select({ id: location.id, name: location.name })
       .from(location)
-      .innerJoin(site, eq(site.id, location.siteId))
       .where(and(eq(location.id, access.locationId), isNull(location.deletedAt)));
 
     if (!own) {
@@ -153,16 +136,10 @@ export async function departmentLocationChoiceFor(
   }
 
   const locations = await db
-    .select({ id: location.id, name: location.name, siteId: site.id, siteName: site.name })
+    .select({ id: location.id, name: location.name })
     .from(location)
-    .innerJoin(site, eq(site.id, location.siteId))
-    .where(
-      and(
-        isNull(location.deletedAt),
-        access.siteId ? eq(location.siteId, access.siteId) : undefined,
-      ),
-    )
-    .orderBy(asc(site.name), asc(location.name), asc(location.id));
+    .where(isNull(location.deletedAt))
+    .orderBy(asc(location.name), asc(location.id));
 
   return { mode: "pick", locations };
 }
@@ -170,9 +147,9 @@ export async function departmentLocationChoiceFor(
 // The row that canWriteToLocation checks. A deleted location is not a valid target for a write.
 export async function findLocationForWrite(
   locationId: string,
-): Promise<{ id: string; siteId: string } | undefined> {
+): Promise<{ id: string } | undefined> {
   const [row] = await db
-    .select({ id: location.id, siteId: location.siteId })
+    .select({ id: location.id })
     .from(location)
     .where(and(eq(location.id, locationId), isNull(location.deletedAt)));
 

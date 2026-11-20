@@ -1,14 +1,9 @@
 import { DepartmentsDataTable } from "@/components/dashboard/departments/data-table";
 import { requireDepartmentManager } from "./department-guard";
 import { parseDepartmentLocation } from "@/validation/department-location";
-import { parseDepartmentSite } from "@/validation/department-site";
 import { parseDepartmentStatus } from "@/validation/department-status";
 import { parsePageParams } from "@/validation/pagination";
 import { parseSortParam } from "@/validation/sort";
-import {
-  departmentLocationsFor,
-  departmentSitesFrom,
-} from "./department-rules";
 import { departmentLocationChoiceFor, listDepartments } from "./departments";
 
 const DEPARTMENT_SORT_COLUMNS = ["name", "location", "status"] as const;
@@ -24,16 +19,12 @@ export default async function Page({
   const status = parseDepartmentStatus(params.status);
   const sort = parseSortParam(params.sort, DEPARTMENT_SORT_COLUMNS);
   const locationChoice = await departmentLocationChoiceFor(access);
-  // Only superadmin and HO pick a location, so a location manager gets no site or location filter.
-  const choices = locationChoice.mode === "pick" ? locationChoice.locations : [];
-  const pickSite = access.siteId === null && access.locationId === null;
-  const siteId = parseDepartmentSite(params.site, pickSite ? departmentSitesFrom(choices) : []);
-  const locations = departmentLocationsFor(choices, siteId, pickSite);
+  // Only HO picks a location, so a location manager gets no location filter.
+  const locations = locationChoice.mode === "pick" ? locationChoice.locations : [];
   const locationId = parseDepartmentLocation(params.location, locations);
   const departments = await listDepartments(access, {
     ...parsePageParams(params),
     status,
-    siteId,
     locationId,
     sort,
   });
@@ -49,9 +40,6 @@ export default async function Page({
       <DepartmentsDataTable
         data={departments}
         status={status}
-        pickSite={pickSite}
-        siteId={siteId}
-        locations={locations}
         locationId={locationId}
         locationChoice={locationChoice}
         sort={sort}

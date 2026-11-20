@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -8,16 +8,11 @@ import {
   updateDepartment,
 } from "@/app/dashboard/departments/actions";
 import {
-  departmentLocationAfterSiteChange,
-  departmentLocationsFor,
-  departmentSiteDefault,
-  departmentSitesFrom,
+  departmentLocationDefault,
   nameFieldError,
 } from "@/app/dashboard/departments/department-rules";
 import type {
   DepartmentFormDialogProps,
-  DepartmentLocationChoice,
-  DepartmentRow,
 } from "@/types/departments";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,22 +44,6 @@ import {
   departmentSchema,
 } from "@/validation/department";
 
-// A location manager's location is fixed, so the form starts on it. An edit keeps the department's own
-// location. Otherwise the form starts on the location of the starting site, if that site has just one.
-function defaultLocationId(
-  department: DepartmentRow | null,
-  locationChoice: DepartmentLocationChoice,
-  siteId: string,
-) {
-  if (department) {
-    return department.locationId;
-  }
-
-  return locationChoice.mode === "fixed"
-    ? locationChoice.location.id
-    : departmentLocationAfterSiteChange(locationChoice.locations, siteId);
-}
-
 export function DepartmentFormDialog({
   department,
   locationChoice,
@@ -72,19 +51,15 @@ export function DepartmentFormDialog({
   onOpenChange,
 }: DepartmentFormDialogProps) {
   const [formError, setFormError] = useState<string | null>(null);
-  // The site only narrows the locations. It is not sent, because the server reads the site from the location.
-  const initialSiteId = department ? "" : departmentSiteDefault(locationChoice);
-  const sites =
-    locationChoice.mode === "pick"
-      ? departmentSitesFrom(locationChoice.locations)
-      : [];
-  const pickSite = sites.length > 1;
 
   const form = useForm({
     defaultValues: {
       name: department?.name ?? "",
-      siteId: initialSiteId,
-      locationId: defaultLocationId(department, locationChoice, initialSiteId),
+      // An edit keeps the department's own location. A location manager's location is fixed, so the
+      // form starts on it. An HO with a single location to pick starts on that one.
+      locationId: department
+        ? department.locationId
+        : departmentLocationDefault(locationChoice),
     },
     // The location cannot change after creation, so an edit validates the name alone.
     validators: {
@@ -136,13 +111,6 @@ export function DepartmentFormDialog({
     },
   });
 
-  const siteId = useStore(form.store, (state) => state.values.siteId);
-  const siteLocations = departmentLocationsFor(
-    locationChoice.mode === "pick" ? locationChoice.locations : [],
-    siteId,
-    pickSite,
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -191,76 +159,6 @@ export function DepartmentFormDialog({
                       );
                     }}
                   </form.Field>
-                  <form.Field name="siteId">
-                    {(field) => {
-                      // An edit keeps the department's own location, which is shown below.
-                      if (department) {
-                        return null;
-                      }
-
-                      if (locationChoice.mode === "fixed") {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">
-                              {locationChoice.location.siteName}
-                            </p>
-                          </Field>
-                        );
-                      }
-
-                      // HO has one site, already set in the default values.
-                      if (!pickSite) {
-                        return (
-                          <Field>
-                            <FieldLabel>Site</FieldLabel>
-                            <p className="text-sm">
-                              {sites[0]?.name ?? "No site available"}
-                            </p>
-                          </Field>
-                        );
-                      }
-
-                      return (
-                        <Field>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
-                          <Select
-                            value={field.state.value}
-                            onValueChange={(value) => {
-                              if (value && value !== field.state.value) {
-                                field.handleChange(value);
-                                form.setFieldValue(
-                                  "locationId",
-                                  departmentLocationAfterSiteChange(
-                                    locationChoice.locations,
-                                    value,
-                                  ),
-                                );
-                              }
-                            }}
-                            items={sites.map((site) => ({
-                              value: site.id,
-                              label: site.name,
-                            }))}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger id={field.name} className="w-full">
-                              <SelectValue placeholder="Choose a site" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {sites.map((site) => (
-                                  <SelectItem key={site.id} value={site.id}>
-                                    {site.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        </Field>
-                      );
-                    }}
-                  </form.Field>
                   <form.Field name="locationId">
                     {(field) => {
                       if (department) {
@@ -295,28 +193,22 @@ export function DepartmentFormDialog({
                                 field.handleChange(value);
                               }
                             }}
-                            items={siteLocations.map((location) => ({
+                            items={locationChoice.locations.map((location) => ({
                               value: location.id,
                               label: location.name,
                             }))}
-                            disabled={isSubmitting || !siteId}
+                            disabled={isSubmitting}
                           >
                             <SelectTrigger
                               id={field.name}
                               aria-invalid={isInvalid || undefined}
                               className="w-full"
                             >
-                              <SelectValue
-                                placeholder={
-                                  siteId
-                                    ? "Choose a location"
-                                    : "Choose a site first"
-                                }
-                              />
+                              <SelectValue placeholder="Choose a location" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                {siteLocations.map((location) => (
+                                {locationChoice.locations.map((location) => (
                                   <SelectItem
                                     key={location.id}
                                     value={location.id}

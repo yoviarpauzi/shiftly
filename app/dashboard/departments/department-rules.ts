@@ -2,10 +2,8 @@ import type {
   BulkNoun,
   BulkSelectionMode,
   DepartmentLocationChoice,
-  DepartmentLocationOption,
   SoftDeletable,
 } from "@/types/departments";
-import type { SiteOption } from "@/types/locations";
 
 export const DEPARTMENT_NOT_FOUND_MESSAGE = "Department not found";
 
@@ -165,52 +163,12 @@ export function bulkSelectionMode<T extends SoftDeletable>(selected: T[]): BulkS
   return deleted === selected.length ? "deleted" : "mixed";
 }
 
-// The sites that own the locations the actor can pick, so the site filter never offers a site with nothing to show.
-export function departmentSitesFrom(locations: DepartmentLocationOption[]): SiteOption[] {
-  const sites = new Map<string, SiteOption>();
-
-  for (const location of locations) {
-    if (!sites.has(location.siteId)) {
-      sites.set(location.siteId, { id: location.siteId, name: location.siteName });
-    }
-  }
-
-  return [...sites.values()];
-}
-
-// The site the add form starts on: a fixed location's own site, or the only site a picker offers.
-// An actor who can pick between several sites starts with none chosen.
-export function departmentSiteDefault(choice: DepartmentLocationChoice): string {
+// A fixed location starts the add form on itself. A picker that offers a single location starts on
+// it too. An actor who can pick between several starts with none chosen.
+export function departmentLocationDefault(choice: DepartmentLocationChoice): string {
   if (choice.mode === "fixed") {
-    return choice.location.siteId;
+    return choice.location.id;
   }
 
-  const sites = departmentSitesFrom(choice.locations);
-
-  return sites.length === 1 ? sites[0].id : "";
-}
-
-// A site with one location needs no choice, so the form starts on it. Otherwise the location is
-// cleared, because the one chosen before may belong to another site.
-export function departmentLocationAfterSiteChange(
-  locations: DepartmentLocationOption[],
-  siteId: string,
-): string {
-  const inSite = locations.filter((location) => location.siteId === siteId);
-
-  return inSite.length === 1 ? inSite[0].id : "";
-}
-
-// Superadmin picks a site first, so until then there are no locations to filter by. HO has one site,
-// so its locations are listed as they are.
-export function departmentLocationsFor(
-  locations: DepartmentLocationOption[],
-  siteId: string | null,
-  pickSite: boolean,
-): DepartmentLocationOption[] {
-  if (pickSite && !siteId) {
-    return [];
-  }
-
-  return locations.filter((location) => !siteId || location.siteId === siteId);
+  return choice.locations.length === 1 ? choice.locations[0].id : "";
 }

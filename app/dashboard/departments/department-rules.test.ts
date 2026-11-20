@@ -15,10 +15,7 @@ import {
   canDeleteDepartment,
   canRestoreDepartment,
   canRestoreSubDepartment,
-  departmentLocationAfterSiteChange,
-  departmentLocationsFor,
-  departmentSiteDefault,
-  departmentSitesFrom,
+  departmentLocationDefault,
   isDepartmentNameConflict,
   isSubDepartmentNameConflict,
   nameFieldError,
@@ -267,77 +264,27 @@ describe("bulkSubDepartmentRestoreMessage", () => {
   });
 });
 
-const locationOption = (id: string, siteId: string, siteName: string): DepartmentLocationOption => ({
+const locationOption = (id: string): DepartmentLocationOption => ({
   id,
   name: `Location ${id}`,
-  siteId,
-  siteName,
 });
 
-const LOCATIONS = [
-  locationOption("loc-1", "site-a", "Site A"),
-  locationOption("loc-2", "site-a", "Site A"),
-  locationOption("loc-3", "site-b", "Site B"),
-];
+const LOCATIONS = [locationOption("loc-1"), locationOption("loc-2"), locationOption("loc-3")];
 
-describe("departmentSitesFrom", () => {
-  it("lists each site once, in the order its first location appears", () => {
-    expect(departmentSitesFrom(LOCATIONS)).toEqual([
-      { id: "site-a", name: "Site A" },
-      { id: "site-b", name: "Site B" },
-    ]);
+describe("departmentLocationDefault", () => {
+  it("starts a fixed location on itself", () => {
+    expect(departmentLocationDefault({ mode: "fixed", location: LOCATIONS[2] })).toBe("loc-3");
   });
 
-  it("returns no sites when there are no locations", () => {
-    expect(departmentSitesFrom([])).toEqual([]);
-  });
-});
-
-describe("departmentSiteDefault", () => {
-  it("starts a fixed location on its own site", () => {
-    expect(departmentSiteDefault({ mode: "fixed", location: LOCATIONS[2] })).toBe("site-b");
+  it("starts a picker that holds a single location on that location", () => {
+    expect(departmentLocationDefault({ mode: "pick", locations: [LOCATIONS[1]] })).toBe("loc-2");
   });
 
-  it("starts a picker that holds a single site on that site", () => {
-    expect(
-      departmentSiteDefault({ mode: "pick", locations: [LOCATIONS[0], LOCATIONS[1]] }),
-    ).toBe("site-a");
+  it("leaves the location empty when the actor can pick between several", () => {
+    expect(departmentLocationDefault({ mode: "pick", locations: LOCATIONS })).toBe("");
   });
 
-  it("leaves the site empty when the actor can pick between several sites", () => {
-    expect(departmentSiteDefault({ mode: "pick", locations: LOCATIONS })).toBe("");
-  });
-
-  it("leaves the site empty when there are no locations", () => {
-    expect(departmentSiteDefault({ mode: "pick", locations: [] })).toBe("");
-  });
-});
-
-describe("departmentLocationAfterSiteChange", () => {
-  it("presets the location when the site has exactly one", () => {
-    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-b")).toBe("loc-3");
-  });
-
-  it("leaves the location empty when the site has several", () => {
-    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-a")).toBe("");
-  });
-
-  it("leaves the location empty for an unknown or empty site", () => {
-    expect(departmentLocationAfterSiteChange(LOCATIONS, "site-z")).toBe("");
-    expect(departmentLocationAfterSiteChange(LOCATIONS, "")).toBe("");
-  });
-});
-
-describe("departmentLocationsFor", () => {
-  it("offers no locations to a site picker until a site is chosen", () => {
-    expect(departmentLocationsFor(LOCATIONS, null, true)).toEqual([]);
-  });
-
-  it("offers only the locations of the chosen site", () => {
-    expect(departmentLocationsFor(LOCATIONS, "site-b", true)).toEqual([LOCATIONS[2]]);
-  });
-
-  it("offers every location when the actor has no site to pick", () => {
-    expect(departmentLocationsFor(LOCATIONS, null, false)).toEqual(LOCATIONS);
+  it("leaves the location empty when there are no locations", () => {
+    expect(departmentLocationDefault({ mode: "pick", locations: [] })).toBe("");
   });
 });

@@ -6,17 +6,14 @@ export type ShiftSortColumn = "order" | "name" | "location" | "status";
 export type ShiftStatus = "active" | "deleted" | "all";
 
 export type ShiftAccess = {
-  // Both null means every location, which only superadmin gets. A site id limits access to the
-  // locations of that site (HO). A location id limits it to that one location (admin site).
-  siteId: string | null;
+  // null means every location, which only HO gets. A location id limits access to that one
+  // location (admin site).
   locationId: string | null;
 };
 
 export type ShiftLocationOption = {
   id: string;
   name: string;
-  siteId: string;
-  siteName: string;
 };
 
 // The form either lets the actor pick a location or has one fixed for them.
@@ -33,7 +30,6 @@ export type ShiftRow = {
   endTime: string;
   locationId: string;
   locationName: string;
-  siteName: string;
   deletedAt: Date | null;
 };
 
@@ -46,8 +42,6 @@ export type ShiftPage = {
 
 export type ShiftListParams = PageParams & {
   status: ShiftStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<ShiftSortColumn>[];

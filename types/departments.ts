@@ -6,8 +6,7 @@ export type DepartmentSortColumn = "name" | "location" | "status";
 export type DepartmentStatus = "active" | "deleted" | "all";
 
 export type DepartmentAccess = {
-  // null means every site or location, which only superadmin gets.
-  siteId: string | null;
+  // null means every location, which only HO gets.
   locationId: string | null;
 };
 
@@ -29,8 +28,6 @@ export type DepartmentPage = {
 
 export type DepartmentListParams = PageParams & {
   status: DepartmentStatus;
-  // null means every site the actor can see.
-  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<DepartmentSortColumn>[];
@@ -39,11 +36,9 @@ export type DepartmentListParams = PageParams & {
 export type DepartmentLocationOption = {
   id: string;
   name: string;
-  siteId: string;
-  siteName: string;
 };
 
-// Superadmin and HO pick a location. A location manager gets its own location as fixed text.
+// HO picks a location. A location manager gets its own location as fixed text.
 export type DepartmentLocationChoice =
   | { mode: "pick"; locations: DepartmentLocationOption[] }
   | { mode: "fixed"; location: DepartmentLocationOption };
@@ -179,6 +174,6 @@ export type DepartmentsSelectFilterProps = {
   options: DepartmentFilterOption[];
   ariaLabel: string;
   className: string;
-  // Other params to drop when this filter changes, such as a location that belongs to the old site.
+  // Other params to drop when this filter changes, for a filter that depends on this one.
   resets?: string[];
 };

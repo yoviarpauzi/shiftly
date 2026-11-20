@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { shiftAccessFor } from "./shift-access";
 
-// Shift pages and actions: superadmin, HO, and admin site. Other roles get notFound(), like requireSuperadmin.
+// Shift pages and actions: HO and admin site. Other roles get notFound().
 export async function requireShiftManager() {
   const access = shiftAccessFor(await requireUser());
 

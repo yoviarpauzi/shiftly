@@ -14,10 +14,8 @@ import { bulkShiftRestoreMessage } from "@/app/dashboard/shifts/shift-rules";
 import { nextSort } from "@/lib/sort";
 import { serializeSort } from "@/validation/sort";
 import type { SortCriterion } from "@/types/sort";
-import type { SiteOption } from "@/types/locations";
 import type {
   ShiftLocationChoice,
-  ShiftLocationOption,
   ShiftPage,
   ShiftRow,
   ShiftSortColumn,
@@ -57,20 +55,12 @@ async function restoreWithToast(shift: ShiftRow) {
 export function ShiftsDataTable({
   data,
   status,
-  sites,
-  siteId,
-  locations,
   locationId,
   locationChoice,
   sort,
 }: {
   data: ShiftPage;
   status: ShiftStatus;
-  // null when the actor has no site to pick, which is every role except superadmin.
-  sites: SiteOption[] | null;
-  siteId: string | null;
-  // The locations the location filter lists.
-  locations: ShiftLocationOption[];
   locationId: string | null;
   locationChoice: ShiftLocationChoice;
   sort: SortCriterion<ShiftSortColumn>[];
@@ -181,26 +171,13 @@ export function ShiftsDataTable({
         <div className="flex items-center gap-2">
           <ShiftsSearch />
           <ShiftsStatusFilter status={status} />
-          {sites && (
-            <SelectFilter
-              param="site"
-              value={siteId ?? "all"}
-              options={[
-                { value: "all", label: "All sites" },
-                ...sites.map((site) => ({ value: site.id, label: site.name })),
-              ]}
-              ariaLabel="Filter shifts by site"
-              className="h-9 w-48"
-              resets={["location"]}
-            />
-          )}
-          {locationChoice.mode === "pick" && (!sites || siteId !== null) && (
+          {locationChoice.mode === "pick" && (
             <SelectFilter
               param="location"
               value={locationId ?? "all"}
               options={[
                 { value: "all", label: "All locations" },
-                ...locations.map((location) => ({
+                ...locationChoice.locations.map((location) => ({
                   value: location.id,
                   label: location.name,
                 })),

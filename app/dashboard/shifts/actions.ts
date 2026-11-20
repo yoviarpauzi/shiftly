@@ -61,7 +61,7 @@ export async function createShift(input: ShiftInput): Promise<ShiftActionResult>
     // loaded and checked against the caller's scope.
     const result = await db.transaction(async (tx) => {
       const [target] = await tx
-        .select({ id: location.id, siteId: location.siteId })
+        .select({ id: location.id })
         .from(location)
         .where(and(eq(location.id, parsed.data.locationId), isNull(location.deletedAt)))
         .for("share");
@@ -163,7 +163,11 @@ async function softDeleteShift(id: string, access: ShiftAccess): Promise<ShiftAc
       return { ok: false as const, formError: verdict.formError };
     }
 
-    await tx.update(shift).set({ deletedAt: new Date() }).where(eq(shift.id, id));
+    // The scope is repeated on the write, so a row outside it matches nothing even if the lock read changes.
+    await tx
+      .update(shift)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(shift.id, id), shiftScopeFilter(access)));
 
     return { ok: true as const };
   });

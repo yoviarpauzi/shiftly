@@ -32,10 +32,7 @@ const fake = vi.hoisted(() => ({
   targets: [] as unknown[][],
   locations: [] as unknown[][],
   statuses: [] as unknown[][],
-  access: { siteId: null, locationId: null } as {
-    siteId: string | null;
-    locationId: string | null;
-  },
+  access: { locationId: null } as { locationId: string | null },
 }));
 
 const dialect = new PgDialect();
@@ -108,11 +105,10 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const { revalidatePath } = await import("next/cache");
-const { createShift, deleteShift, deleteShifts, restoreShift } = await import("./actions");
+const { createShift, deleteShift, deleteShifts, restoreShift, updateShift } = await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
 const LOCATION_A = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const LOCATION_B = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const SHIFT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const SHIFT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -131,7 +127,7 @@ beforeEach(() => {
   fake.targets = [];
   fake.locations = [];
   fake.statuses = [];
-  fake.access = { siteId: null, locationId: null };
+  fake.access = { locationId: null };
   vi.mocked(revalidatePath).mockClear();
 });
 
@@ -157,17 +153,18 @@ describe("deleteShift", () => {
     );
   });
 
-  it("scopes the shift to the site's locations for an HO manager", async () => {
-    fake.access = { siteId: SITE_A, locationId: null };
+  it("adds no location condition for an HO manager", async () => {
+    fake.access = { locationId: null };
     fake.targets = [[{ id: SHIFT_A }]];
 
     await deleteShift(SHIFT_A);
 
-    expect(whereParams(targetSelect()?.where)).toContain(SITE_A);
+    expect(whereParams(targetSelect()?.where)).not.toContain(LOCATION_A);
+    expect(updates()).toHaveLength(1);
   });
 
   it("scopes the shift to the one location for an admin site manager", async () => {
-    fake.access = { siteId: null, locationId: LOCATION_A };
+    fake.access = { locationId: LOCATION_A };
     fake.targets = [[{ id: SHIFT_A }]];
 
     await deleteShift(SHIFT_A);
@@ -271,19 +268,29 @@ describe("createShift", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("refuses a location of another site for an HO manager, and writes nothing", async () => {
-    fake.access = { siteId: SITE_A, locationId: null };
-    fake.locations = [[{ id: LOCATION_A, siteId: SITE_B }]];
+  it("lets an HO manager create in any location", async () => {
+    fake.access = { locationId: null };
+    fake.locations = [[{ id: LOCATION_B }]];
+
+    const res = await createShift({ ...shiftInput, locationId: LOCATION_B });
+
+    expect(res).toEqual({ ok: true });
+    expect(inserts()[0].values).toMatchObject({ locationId: LOCATION_B });
+  });
+
+  it("lets an admin site manager create in its own location", async () => {
+    fake.access = { locationId: LOCATION_A };
+    fake.locations = [[{ id: LOCATION_A }]];
 
     const res = await createShift(shiftInput);
 
-    expect(res).toEqual({ ok: false, formError: LOCATION_NOT_FOUND_MESSAGE });
-    expect(inserts()).toEqual([]);
+    expect(res).toEqual({ ok: true });
+    expect(inserts()).toHaveLength(1);
   });
 
   it("refuses a location other than the admin site manager's own", async () => {
-    fake.access = { siteId: null, locationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" };
-    fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
+    fake.access = { locationId: LOCATION_B };
+    fake.locations = [[{ id: LOCATION_A }]];
 
     const res = await createShift(shiftInput);
 
@@ -292,7 +299,7 @@ describe("createShift", () => {
   });
 
   it("reads the location under a share lock", async () => {
-    fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
+    fake.locations = [[{ id: LOCATION_A }]];
 
     await createShift(shiftInput);
 
@@ -300,7 +307,7 @@ describe("createShift", () => {
   });
 
   it("selects the requested location only while it is not deleted", async () => {
-    fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
+    fake.locations = [[{ id: LOCATION_A }]];
 
     await createShift(shiftInput);
 
@@ -309,9 +316,9 @@ describe("createShift", () => {
     expect(where && dialect.sqlToQuery(where).sql).toContain('"location"."deleted_at" is null');
   });
 
-  it("inserts the location id, not a site id", async () => {
-    fake.access = { siteId: SITE_A, locationId: null };
-    fake.locations = [[{ id: LOCATION_A, siteId: SITE_A }]];
+  it("inserts the location id", async () => {
+    fake.access = { locationId: null };
+    fake.locations = [[{ id: LOCATION_A }]];
 
     const res = await createShift(shiftInput);
 
@@ -319,7 +326,6 @@ describe("createShift", () => {
     expect(inserts()).toHaveLength(1);
     expect(inserts()[0].table).toBe(shift);
     expect(inserts()[0].values).toMatchObject({ locationId: LOCATION_A, name: "Morning" });
-    expect(inserts()[0].values).not.toHaveProperty("siteId");
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard/shifts");
   });
 });
@@ -358,20 +364,19 @@ describe("restoreShift", () => {
     expect(whereParams(locationSelect()?.where)).toEqual([LOCATION_A]);
   });
 
-  it("scopes the shift select and the restore to the site's locations for an HO manager", async () => {
-    fake.access = { siteId: SITE_A, locationId: null };
+  it("adds no location condition to the restore for an HO manager", async () => {
+    fake.access = { locationId: null };
     fake.targets = [[{ id: SHIFT_A, locationId: LOCATION_A }]];
     fake.locations = [[{ deletedAt: null }]];
 
     await restoreShift(SHIFT_A);
 
-    expect(whereParams(targetSelect()?.where)).toContain(SITE_A);
+    expect(whereParams(targetSelect()?.where)).not.toContain(LOCATION_B);
     expect(updates()).toHaveLength(1);
-    expect(whereParams(updates()[0].where)).toContain(SITE_A);
   });
 
   it("scopes the shift select and the restore to the one location for an admin site manager", async () => {
-    fake.access = { siteId: null, locationId: LOCATION_A };
+    fake.access = { locationId: LOCATION_A };
     fake.targets = [[{ id: SHIFT_A, locationId: LOCATION_A }]];
     fake.locations = [[{ deletedAt: null }]];
 
@@ -380,5 +385,76 @@ describe("restoreShift", () => {
     expect(whereParams(targetSelect()?.where)).toContain(LOCATION_A);
     expect(updates()).toHaveLength(1);
     expect(whereParams(updates()[0].where)).toContain(LOCATION_A);
+  });
+});
+
+// Review focus: with no site check left, the location condition is the only wall between an admin
+// site and another location's shifts. The recorder cannot run a WHERE clause, so a target the
+// select does not return stands for a row outside the scope, and the bound parameters prove the
+// location id sits in every statement that reads or writes the row.
+describe("admin site manager and another location's shift", () => {
+  beforeEach(() => {
+    fake.access = { locationId: LOCATION_A };
+  });
+
+  it("updateShift binds the manager's location in the update", async () => {
+    const res = await updateShift(SHIFT_B, {
+      order: 2,
+      name: "Evening",
+      startTime: "14:00",
+      endTime: "22:00",
+    });
+
+    expect(res).toEqual({ ok: true });
+    expect(updates()).toHaveLength(1);
+    expect(whereParams(updates()[0].where)).toEqual(expect.arrayContaining([SHIFT_B, LOCATION_A]));
+  });
+
+  it("deleteShift binds the manager's location in the delete write too, not only in the lock read", async () => {
+    fake.targets = [[{ id: SHIFT_A }]];
+
+    const res = await deleteShift(SHIFT_A);
+
+    expect(res).toEqual({ ok: true });
+    expect(updates()).toHaveLength(1);
+    expect(whereParams(updates()[0].where)).toEqual(expect.arrayContaining([SHIFT_A, LOCATION_A]));
+  });
+
+  it("deleteShift reads a shift outside the location as missing, and writes nothing", async () => {
+    const res = await deleteShift(SHIFT_B);
+
+    expect(res).toEqual({ ok: false, formError: SHIFT_NOT_FOUND_MESSAGE });
+    expect(whereParams(targetSelect()?.where)).toEqual(expect.arrayContaining([SHIFT_B, LOCATION_A]));
+    expect(updates()).toEqual([]);
+  });
+
+  it("deleteShifts blocks every shift outside the location", async () => {
+    const res = await deleteShifts([SHIFT_A, SHIFT_B]);
+
+    expect(res).toEqual({
+      deletedIds: [],
+      blocked: [
+        { id: SHIFT_A, formError: SHIFT_NOT_FOUND_MESSAGE },
+        { id: SHIFT_B, formError: SHIFT_NOT_FOUND_MESSAGE },
+      ],
+    });
+    expect(updates()).toEqual([]);
+  });
+
+  it("restoreShift reads a shift outside the location as missing, and writes nothing", async () => {
+    const res = await restoreShift(SHIFT_B);
+
+    expect(res).toEqual({ ok: false, formError: SHIFT_NOT_FOUND_MESSAGE });
+    expect(whereParams(targetSelect()?.where)).toEqual(expect.arrayContaining([SHIFT_B, LOCATION_A]));
+    expect(updates()).toEqual([]);
+  });
+
+  it("createShift refuses another location and never inserts", async () => {
+    fake.locations = [[{ id: LOCATION_B }]];
+
+    const res = await createShift({ ...shiftInput, locationId: LOCATION_B });
+
+    expect(res).toEqual({ ok: false, formError: LOCATION_NOT_FOUND_MESSAGE });
+    expect(inserts()).toEqual([]);
   });
 });

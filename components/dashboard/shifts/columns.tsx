@@ -99,7 +99,7 @@ export function createShiftColumns(
           onSort={onSort}
         />
       ),
-      cell: ({ row }) => `${row.original.siteName} / ${row.original.locationName}`,
+      cell: ({ row }) => row.original.locationName,
     }),
     columnHelper.accessor("deletedAt", {
       header: () => (

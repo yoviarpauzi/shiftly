@@ -1,5 +1,4 @@
-import type { SiteOption } from "@/types/locations";
-import type { ShiftField, ShiftFieldErrors, ShiftLocationOption } from "@/types/shifts";
+import type { ShiftField, ShiftFieldErrors } from "@/types/shifts";
 
 export const SHIFT_NOT_FOUND_MESSAGE = "Shift not found";
 
@@ -40,31 +39,6 @@ export function canRestoreShift({
   locationDeleted: boolean;
 }): { ok: true } | { ok: false; formError: string } {
   return locationDeleted ? { ok: false, formError: LOCATION_DELETED_MESSAGE } : { ok: true };
-}
-
-// A location name alone can repeat across sites, so the label leads with the site.
-export function shiftLocationLabel(option: Pick<ShiftLocationOption, "id" | "name" | "siteName">): string {
-  return `${option.siteName} / ${option.name}`;
-}
-
-// The sites the location options belong to, each once, in the order their first location appears.
-export function shiftSitesOf(locations: ShiftLocationOption[]): SiteOption[] {
-  const sites = new Map<string, SiteOption>();
-
-  for (const location of locations) {
-    if (!sites.has(location.siteId)) {
-      sites.set(location.siteId, { id: location.siteId, name: location.siteName });
-    }
-  }
-
-  return [...sites.values()];
-}
-
-export function shiftLocationsForSite(
-  locations: ShiftLocationOption[],
-  siteId: string,
-): ShiftLocationOption[] {
-  return locations.filter((location) => location.siteId === siteId);
 }
 
 function conflictFieldOf(value: unknown): "order" | "name" | null {

@@ -7,7 +7,6 @@ import { nameFieldError } from "@/app/dashboard/departments/department-rules";
 import { createShift, updateShift } from "@/app/dashboard/shifts/actions";
 import {
   shiftFieldErrors,
-  shiftLocationLabel,
 } from "@/app/dashboard/shifts/shift-rules";
 import type {
   ShiftFormDialogProps,
@@ -268,11 +267,7 @@ export function ShiftFormDialog({
                           <Field>
                             <FieldLabel>Location</FieldLabel>
                             <p className="text-sm">
-                              {shiftLocationLabel({
-                                id: shift.locationId,
-                                name: shift.locationName,
-                                siteName: shift.siteName,
-                              })}
+                              {shift.locationName}
                             </p>
                           </Field>
                         );
@@ -283,7 +278,7 @@ export function ShiftFormDialog({
                           <Field>
                             <FieldLabel>Location</FieldLabel>
                             <p className="text-sm">
-                              {shiftLocationLabel(locationChoice.location)}
+                              {locationChoice.location.name}
                             </p>
                           </Field>
                         );
@@ -303,7 +298,7 @@ export function ShiftFormDialog({
                             }}
                             items={locationChoice.locations.map((location) => ({
                               value: location.id,
-                              label: shiftLocationLabel(location),
+                              label: location.name,
                             }))}
                             disabled={isSubmitting}
                           >
@@ -321,7 +316,7 @@ export function ShiftFormDialog({
                                     key={location.id}
                                     value={location.id}
                                   >
-                                    {shiftLocationLabel(location)}
+                                    {location.name}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>

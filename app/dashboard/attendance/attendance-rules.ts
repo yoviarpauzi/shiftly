@@ -184,6 +184,18 @@ export function canReplace(
   return !disabled && row.status === "absent" && row.draftStatus === "absent";
 }
 
+export const SAVE_FIRST_HINT = "Save your changes first";
+
+// The hint beside a Replace or Change button that is off only because of unsaved changes. A
+// replacement refreshes the page, which resets the form and would drop those changes. Null for a row
+// that is not a saved Absent one, while the page is locked or saving, and when nothing is unsaved.
+export function replaceHint(
+  row: { status: AttendanceStatus | null; draftStatus: AttendanceStatus | null },
+  { disabled, hasUnsavedChanges }: { disabled: boolean; hasUnsavedChanges: boolean },
+): string | null {
+  return hasUnsavedChanges && canReplace(row, disabled) ? SAVE_FIRST_HINT : null;
+}
+
 // The rows that have a replacement but whose draft status is no longer Absent. Saving them removes
 // the replacement, so the admin is asked first.
 export function rowsLosingReplacement(rows: AttendanceFormRow[]): AttendanceFormRow[] {

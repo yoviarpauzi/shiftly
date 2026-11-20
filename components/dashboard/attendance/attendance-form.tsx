@@ -162,6 +162,7 @@ export function AttendanceForm({
           errorIds,
           changedIds,
           disabled,
+          replaceDisabled: disabled || changed.length > 0,
           locationView,
         };
 
@@ -297,8 +298,16 @@ type RowsViewProps = {
 
 // The table from md up and the cards below it, both bound to the same rows.
 function RowsView({ rows, actions }: RowsViewProps) {
-  const { onStatusChange, onReasonChange, onReplace, errorIds, changedIds, disabled, locationView } =
-    actions;
+  const {
+    onStatusChange,
+    onReasonChange,
+    onReplace,
+    errorIds,
+    changedIds,
+    disabled,
+    replaceDisabled,
+    locationView,
+  } = actions;
   const columns = React.useMemo(
     () =>
       createAttendanceColumns({
@@ -308,9 +317,19 @@ function RowsView({ rows, actions }: RowsViewProps) {
         errorIds,
         changedIds,
         disabled,
+        replaceDisabled,
         locationView,
       }),
-    [onStatusChange, onReasonChange, onReplace, errorIds, changedIds, disabled, locationView],
+    [
+      onStatusChange,
+      onReasonChange,
+      onReplace,
+      errorIds,
+      changedIds,
+      disabled,
+      replaceDisabled,
+      locationView,
+    ],
   );
 
   const table = useTable({

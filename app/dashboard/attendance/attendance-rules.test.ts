@@ -16,7 +16,9 @@ import {
   markAllPresent,
   NOT_SCHEDULED_MESSAGE,
   replacementConfirmText,
+  replaceHint,
   rowsLosingReplacement,
+  SAVE_FIRST_HINT,
   scheduledWorkError,
   substituteLabel,
   summarize,
@@ -412,5 +414,32 @@ describe("a replacement in the form key", () => {
 
   it("is the same for a row without the field and one with null", () => {
     expect(rowsSignature([base])).toBe(rowsSignature([{ ...base, substitute: null }]));
+  });
+});
+
+describe("replaceHint", () => {
+  const saved = { status: "absent", draftStatus: "absent" } as const;
+
+  it("asks to save first for a saved Absent row while other changes are unsaved", () => {
+    expect(replaceHint(saved, { disabled: false, hasUnsavedChanges: true })).toBe(SAVE_FIRST_HINT);
+    expect(SAVE_FIRST_HINT).toBe("Save your changes first");
+  });
+
+  it("gives no hint while the day is locked or saving", () => {
+    expect(replaceHint(saved, { disabled: true, hasUnsavedChanges: true })).toBeNull();
+    expect(replaceHint(saved, { disabled: true, hasUnsavedChanges: false })).toBeNull();
+  });
+
+  it("gives no hint for a row that is not a saved Absent row", () => {
+    const options = { disabled: false, hasUnsavedChanges: true };
+
+    expect(replaceHint({ status: null, draftStatus: null }, options)).toBeNull();
+    expect(replaceHint({ status: "present", draftStatus: "present" }, options)).toBeNull();
+    expect(replaceHint({ status: "absent", draftStatus: "present" }, options)).toBeNull();
+    expect(replaceHint({ status: null, draftStatus: "absent" }, options)).toBeNull();
+  });
+
+  it("gives no hint when nothing is unsaved", () => {
+    expect(replaceHint(saved, { disabled: false, hasUnsavedChanges: false })).toBeNull();
   });
 });

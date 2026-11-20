@@ -22,7 +22,9 @@ export function createAttendanceColumns({
   onReasonChange,
   onReplace,
   errorIds,
+  changedIds,
   disabled,
+  replaceDisabled,
   locationView,
 }: AttendanceRowActions) {
   return columnHelper.columns([
@@ -71,7 +73,13 @@ export function createAttendanceColumns({
             disabled={disabled}
             invalid={errorIds.has(row.original.assignmentId)}
           />
-          <ReplaceControl row={row.original} disabled={disabled} onReplace={onReplace} />
+          <ReplaceControl
+            row={row.original}
+            disabled={disabled}
+            replaceDisabled={replaceDisabled}
+            hasUnsavedChanges={changedIds.size > 0}
+            onReplace={onReplace}
+          />
         </div>
       ),
       enableHiding: false,

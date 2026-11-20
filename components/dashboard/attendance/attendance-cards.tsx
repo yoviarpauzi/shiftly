@@ -22,6 +22,7 @@ export function AttendanceCards({
   errorIds,
   changedIds,
   disabled,
+  replaceDisabled,
   locationView,
 }: AttendanceCardsProps) {
   return (
@@ -65,7 +66,13 @@ export function AttendanceCards({
               </Button>
             ))}
           </div>
-          <ReplaceControl row={row} disabled={disabled} onReplace={onReplace} />
+          <ReplaceControl
+            row={row}
+            disabled={disabled}
+            replaceDisabled={replaceDisabled}
+            hasUnsavedChanges={changedIds.size > 0}
+            onReplace={onReplace}
+          />
           <Input
             value={row.draftReason}
             onChange={(event) => onReasonChange(row.assignmentId, event.target.value)}

@@ -173,6 +173,10 @@ export type AttendanceRowActions = {
   errorIds: ReadonlySet<string>;
   changedIds: ReadonlySet<string>;
   disabled: boolean;
+  // Replace and Change are off while the day is locked or saving, and also while any row has an
+  // unsaved change, since a replacement refreshes the page and resets the form. The status inputs
+  // stay on in that case, so this is separate from `disabled`.
+  replaceDisabled: boolean;
   locationView: AttendanceLocationView;
 };
 
@@ -185,7 +189,11 @@ export type SubstituteDialogProps = {
 // The Replace button of a saved Absent row, or the name of who covers it with a Change button.
 export type ReplaceControlProps = {
   row: AttendanceFormRow;
+  // The day is locked or the form is saving.
   disabled: boolean;
+  // Also true while any row has an unsaved change.
+  replaceDisabled: boolean;
+  hasUnsavedChanges: boolean;
   onReplace: (row: AttendanceFormRow) => void;
 };
 

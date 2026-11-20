@@ -4,7 +4,7 @@ process.loadEnvFile(".env");
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./database/schema/*.ts",
+  schema: "./database/schema/*-schema.ts",
   out: "./database/migration",
   dbCredentials: {
     host: process.env.DB_HOST!,

@@ -183,6 +183,13 @@
       "when": 1795158982744,
       "tag": "0025_attendance_two_statuses",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795160551858,
+      "tag": "0026_attendance_substitute",
+      "breakpoints": true
     }
   ]
 }

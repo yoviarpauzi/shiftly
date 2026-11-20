@@ -142,4 +142,4 @@ ALTER TABLE "worker" DROP COLUMN "site_id";--> statement-breakpoint
 ALTER TABLE "work_rule" ADD CONSTRAINT "work_rule_scope_check" CHECK ("work_rule"."scope" in ('global', 'location'));--> statement-breakpoint
 ALTER TABLE "work_rule" ADD CONSTRAINT "work_rule_target_check" CHECK (("work_rule"."scope" = 'global' and "work_rule"."location_id" is null)
         or ("work_rule"."scope" = 'location' and "work_rule"."location_id" is not null));--> statement-breakpoint
-DROP TABLE "site" CASCADE;
+DROP TABLE "site";

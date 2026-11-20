@@ -1,9 +1,8 @@
 import type { AppRole } from "@/types/roles";
 
-export const ALLOWED_ROLES = ["superadmin", "ho", "admin_site"] as const satisfies readonly AppRole[];
+export const ALLOWED_ROLES = ["ho", "admin_site"] as const satisfies readonly AppRole[];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  superadmin: "Superadmin",
   ho: "HO",
   admin_site: "Admin site",
 };

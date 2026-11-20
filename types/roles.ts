@@ -1,1 +1,1 @@
-export type AppRole = "superadmin" | "ho" | "admin_site";
+export type AppRole = "ho" | "admin_site";

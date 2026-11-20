@@ -32,9 +32,8 @@ const { getCurrentUser } = await import("./session");
 
 const activeUser = {
   id: "user-1",
-  role: "superadmin",
+  role: "ho",
   banned: false,
-  siteId: null,
   locationId: null,
 };
 
@@ -84,10 +83,24 @@ describe("getCurrentUser", () => {
     expect(fake.seenHeaders?.has("cookie")).toBe(false);
   });
 
-  it("still refuses a user whose site or location was deleted", async () => {
+  it("still refuses a user whose location was deleted", async () => {
     fake.storeCookies = "better-auth.session_token=new.sig";
     fake.session = { user: activeUser };
     fake.scopeActive = false;
+
+    expect(await getCurrentUser()).toBeNull();
+  });
+});
+
+describe("role checks", () => {
+  it("refuses a session whose role is superadmin", async () => {
+    fake.session = { user: { ...activeUser, role: "superadmin" } };
+
+    expect(await getCurrentUser()).toBeNull();
+  });
+
+  it("refuses a session without a role", async () => {
+    fake.session = { user: { ...activeUser, role: null } };
 
     expect(await getCurrentUser()).toBeNull();
   });

@@ -15,8 +15,7 @@ export type RequestTypeFilter = RequestType | "all";
 export type RequestSortColumn = "po" | "type" | "date" | "location" | "status";
 
 export type RequestAccess = {
-  // null means every site, or every location of the site, depending on the field.
-  siteId: string | null;
+  // null means every location.
   locationId: string | null;
 };
 

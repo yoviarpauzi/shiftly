@@ -13,7 +13,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   baseURL: process.env.BETTER_AUTH_URL,
   // Accounts are created and changed through the Users menu, never by public sign-up
-  // or the admin plugin's own endpoints. Those skip the self, last-superadmin, and session rules.
+  // or the admin plugin's own endpoints. Those skip the self and session rules.
   disabledPaths: [
     "/sign-up/email",
     "/admin/create-user",
@@ -31,13 +31,12 @@ export const auth = betterAuth({
   databaseHooks: {
     session: {
       create: {
-        // A user whose site or location was deleted cannot start a session.
+        // An admin site whose location was deleted cannot start a session.
         before: async (session) => {
           const [account] = await db
             .select({
               id: schema.user.id,
               role: schema.user.role,
-              siteId: schema.user.siteId,
               locationId: schema.user.locationId,
             })
             .from(schema.user)
@@ -45,7 +44,7 @@ export const auth = betterAuth({
 
           if (account && !(await userScopeIsActive(account))) {
             throw new APIError("FORBIDDEN", {
-              message: "Your site or location is no longer active",
+              message: "Your location is no longer active",
             });
           }
         },
@@ -54,11 +53,6 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      siteId: {
-        type: "string",
-        required: false,
-        input: false,
-      },
       locationId: {
         type: "string",
         required: false,
@@ -69,10 +63,9 @@ export const auth = betterAuth({
   plugins: [
     admin({
       defaultRole: "admin_site",
-      adminRoles: ["superadmin"],
+      adminRoles: ["ho"],
       roles: {
-        superadmin: adminAc,
-        ho: userAc,
+        ho: adminAc,
         admin_site: userAc,
       },
     }),

@@ -6,15 +6,12 @@ import type { AppRole } from "@/types/roles";
 export type UserScope = {
   id: string;
   role?: string | null;
-  siteId?: string | null;
   locationId?: string | null;
 };
 
-// siteId null means every site.
 export type UserAccess = {
   id: string;
-  role: "superadmin" | "ho";
-  siteId: string | null;
+  role: "ho";
 };
 
 export type ManagedUser = {

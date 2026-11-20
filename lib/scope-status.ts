@@ -1,22 +1,14 @@
 import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import { location } from "@/database/schema/location-schema";
-import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import type { UserScope } from "@/types/users";
 
-// HO stays active only while its site is active, and admin site only while its location is.
-// A deleted site or location therefore cuts off every user assigned to it, at sign-in and on each request.
-export function isScopeActive(
-  user: UserScope,
-  activity: { siteActive: boolean; locationActive: boolean },
-): boolean {
-  if (user.role === "superadmin") {
-    return true;
-  }
-
+// HO sees every location, so it has none assigned. Admin site stays active only while its location is.
+// A deleted location therefore cuts off every admin site assigned to it, at sign-in and on each request.
+export function isScopeActive(user: UserScope, activity: { locationActive: boolean }): boolean {
   if (user.role === "ho") {
-    return Boolean(user.siteId) && activity.siteActive;
+    return !user.locationId;
   }
 
   if (user.role === "admin_site") {
@@ -26,15 +18,8 @@ export function isScopeActive(
   return false;
 }
 
-// Reads whether the user's assigned site or location is still active, then applies the rule.
+// Reads whether the user's assigned location is still active, then applies the rule.
 export async function userScopeIsActive(user: UserScope): Promise<boolean> {
-  const [activeSite] = user.siteId
-    ? await db
-        .select({ id: site.id })
-        .from(site)
-        .where(and(eq(site.id, user.siteId), isNull(site.deletedAt)))
-    : [];
-
   const [activeLocation] = user.locationId
     ? await db
         .select({ id: location.id })
@@ -42,8 +27,5 @@ export async function userScopeIsActive(user: UserScope): Promise<boolean> {
         .where(and(eq(location.id, user.locationId), isNull(location.deletedAt)))
     : [];
 
-  return isScopeActive(user, {
-    siteActive: Boolean(activeSite),
-    locationActive: Boolean(activeLocation),
-  });
+  return isScopeActive(user, { locationActive: Boolean(activeLocation) });
 }

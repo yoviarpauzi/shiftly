@@ -37,7 +37,7 @@ export const getCurrentUser = cache(async () => {
     return null;
   }
 
-  // A session issued before its site or location was deleted ends here, not at expiry.
+  // A session issued before its location was deleted ends here, not at expiry.
   if (!(await userScopeIsActive(session.user))) {
     return null;
   }
@@ -55,11 +55,11 @@ export async function requireUser() {
   return user;
 }
 
-// Superadmin-only pages and actions answer with notFound(), matching app/dashboard/sites/page.tsx.
-export async function requireSuperadmin() {
+// HO-only pages and actions answer with notFound(), so the page looks missing to admin site.
+export async function requireHo() {
   const user = await requireUser();
 
-  if (user.role !== "superadmin") {
+  if (user.role !== "ho") {
     notFound();
   }
 

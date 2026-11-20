@@ -15,7 +15,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { coverRowsQuery } from "@/app/dashboard/attendance/attendance-cover";
+import { coverBusyRows, coverRowsQuery } from "@/app/dashboard/attendance/attendance-cover";
 import { toHourMinute } from "@/app/dashboard/shifts/shift-rules";
 import { user } from "@/database/schema/auth-schema";
 import { department, subDepartment } from "@/database/schema/department-schema";
@@ -865,14 +865,19 @@ export function busyWorkersQuery(reader: Reader, requestId: string, firstDay: st
     );
 }
 
-// The days the workers work in the other rosters of the same approved requests.
-export function otherRosterWorkQuery(
+// The days the workers work in the other rosters of the same approved requests, and the days they
+// cover for an absent worker. A cover is not a cell of any roster, so rosterId never leaves one out.
+export async function otherRosterWorkQuery(
   reader: Reader,
   rosterId: string,
   workerIds: string[],
   dates: string[],
-) {
-  return reader
+): Promise<{ workerId: string; date: string }[]> {
+  if (workerIds.length === 0 || dates.length === 0) {
+    return [];
+  }
+
+  const work = await reader
     .select({ workerId: rosterAssignment.workerId, date: rosterAssignment.workDate })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
@@ -886,6 +891,8 @@ export function otherRosterWorkQuery(
         inArray(rosterAssignment.workDate, dates),
       ),
     );
+
+  return [...work, ...(await coverBusyRows(reader, workerIds, dates))];
 }
 
 // The confirmed work rows of the workers between two dates, each with the department and
@@ -1039,7 +1046,20 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
     )
     .orderBy(asc(worker.employeeId), asc(worker.id));
 
-  const workerIds = workers.map((row) => row.id);
+  // busy above is a subquery on roster_assignment only. A replacement works the day he covers, so
+  // a worker with a live cover on one of the days is left out of the pool the same way.
+  const covered = new Set(
+    (
+      await coverBusyRows(
+        tx,
+        workers.map((row) => row.id),
+        days,
+      )
+    ).map((row) => row.workerId),
+  );
+  const pool = workers.filter((row) => !covered.has(row.id));
+
+  const workerIds = pool.map((row) => row.id);
   const positions = await loadWorkerPositions(tx, workerIds);
   const rules = await loadEngineRules(tx, { locationId: request.locationId });
 
@@ -1053,7 +1073,7 @@ export async function loadEngineInput(tx: Reader, requestId: string): Promise<Lo
         subDepartmentId: line.subDepartmentId,
       })),
       shifts,
-      workers: workers.map((row) => ({
+      workers: pool.map((row) => ({
         ...row,
         positionIds: positions.get(row.id)?.ids ?? [],
       })),

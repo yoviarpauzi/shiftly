@@ -11,7 +11,6 @@ const {
   buildGenerateLines,
   buildLineViews,
   confirmedWorkQuery,
-  otherRosterWorkQuery,
   lineTitle,
   rosterCounts,
   shapeRosterRow,
@@ -86,18 +85,15 @@ describe("shapeRosterRow", () => {
 });
 
 // A roster whose request was cancelled stays on record, but its work days must not block or
-// count against anyone in another roster. Each of the three reads that look at other rosters is
+// count against anyone in another roster. Each of the reads that look at other rosters is
 // rendered to SQL here, since the recorder in the action tests cannot run a WHERE clause.
+// otherRosterWorkQuery is async and is checked in rosters-loaders.test.ts.
 describe("reads of other rosters leave out a request that is no longer approved", () => {
   const reader = drizzle.mock();
   const ID = "11111111-1111-4111-8111-111111111111";
 
   const cases: [string, () => { toSQL: () => { sql: string; params: unknown[] } }][] = [
     ["the workers busy in another roster", () => busyWorkersQuery(reader, ID, "2026-11-09", "2026-11-15")],
-    [
-      "another roster's work days for a candidate",
-      () => otherRosterWorkQuery(reader, ID, [ID], ["2026-11-09"]),
-    ],
     [
       "the confirmed work a history is built from",
       () => confirmedWorkQuery(reader, [ID], "2026-11-09", "2026-11-15"),

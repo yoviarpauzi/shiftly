@@ -22,7 +22,7 @@ vi.mock("./roster-work-rules", () => ({
   },
 }));
 
-const { getRoster, loadCellContext, loadEngineInput, loadHistories, loadReplacementContext } =
+const { getRoster, loadCellContext, loadEngineInput, loadHistories, loadReplacementContext, otherRosterWorkQuery } =
   await import("./rosters");
 
 const LOCATION_ID = "33333333-3333-4333-8333-333333333333";
@@ -418,5 +418,83 @@ describe("loadHistories covers", () => {
     expect(await loadHistories(reader, [], DAYS)).toEqual([]);
     expect(await loadHistories(reader, [W1], [])).toEqual([]);
     expect(fake.calls).toEqual([]);
+  });
+});
+
+// A replacement works the day he covers, so the roster side must see him as busy that day. The
+// cover is not a cell of any roster, so the roster being read never leaves it out.
+describe("a cover makes the replacement busy", () => {
+  const DAY = "2026-11-10";
+  const OTHER_ROSTER_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  const coverRead = () => fake.calls.find((call) => call.table === attendanceSubstitute);
+  const coverParams = () => dialect.sqlToQuery(coverRead()?.where as SQL).params;
+
+  describe("otherRosterWorkQuery", () => {
+    it("adds the covered days after the work in other rosters", async () => {
+      fake.rows.set(rosterAssignment, [{ workerId: W1, date: "2026-11-09" }]);
+      fake.rows.set(attendanceSubstitute, [{ workerId: W2, date: DAY }]);
+
+      const rows = await otherRosterWorkQuery(reader, ROSTER_ID, [W1, W2], ["2026-11-09", DAY]);
+
+      expect(rows).toEqual([
+        { workerId: W1, date: "2026-11-09" },
+        { workerId: W2, date: DAY },
+      ]);
+    });
+
+    it("asks for the live covers of those workers and dates, never leaving out the roster", async () => {
+      await otherRosterWorkQuery(reader, ROSTER_ID, [W1, W2], ["2026-11-09", DAY]);
+
+      expect(coverParams()).toEqual(
+        expect.arrayContaining([W1, W2, "2026-11-09", DAY, "absent", "work", "confirmed", "approved"]),
+      );
+      expect(coverParams()).not.toContain(ROSTER_ID);
+    });
+
+    it("still leaves out the roster itself and a request that is no longer approved for the work rows", async () => {
+      await otherRosterWorkQuery(reader, ROSTER_ID, [W1], [DAY]);
+
+      const workRead = fake.calls.find((call) => call.table === rosterAssignment);
+      const params = dialect.sqlToQuery(workRead?.where as SQL).params;
+
+      expect(params).toEqual(expect.arrayContaining([ROSTER_ID, "approved", "work", W1, DAY]));
+    });
+
+    it("returns the work rows unchanged when nobody covers", async () => {
+      fake.rows.set(rosterAssignment, [{ workerId: W1, date: "2026-11-09" }]);
+
+      expect(await otherRosterWorkQuery(reader, OTHER_ROSTER_ID, [W1], ["2026-11-09"])).toEqual([
+        { workerId: W1, date: "2026-11-09" },
+      ]);
+    });
+
+    it("queries nothing without workers or without dates", async () => {
+      expect(await otherRosterWorkQuery(reader, ROSTER_ID, [], [DAY])).toEqual([]);
+      expect(await otherRosterWorkQuery(reader, ROSTER_ID, [W1], [])).toEqual([]);
+      expect(fake.calls).toEqual([]);
+    });
+  });
+
+  describe("the engine's pool", () => {
+    it("leaves out a worker who covers on one of the request's days", async () => {
+      seedEngineInput();
+      fake.rows.set(attendanceSubstitute, [{ workerId: W2, date: "2026-11-10" }]);
+
+      const { input } = await loadEngineInput(reader, REQUEST_ID);
+
+      expect(input.workers.map((entry) => entry.id)).toEqual([W1, W3]);
+      expect(coverParams()).toEqual(
+        expect.arrayContaining([W1, W2, W3, "2026-11-09", "2026-11-15", "absent", "work", "confirmed", "approved"]),
+      );
+    });
+
+    it("keeps every worker when nobody covers", async () => {
+      seedEngineInput();
+
+      const { input } = await loadEngineInput(reader, REQUEST_ID);
+
+      expect(input.workers.map((entry) => entry.id)).toEqual([W1, W2, W3]);
+    });
   });
 });

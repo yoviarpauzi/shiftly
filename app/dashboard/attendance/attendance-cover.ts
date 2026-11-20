@@ -79,6 +79,37 @@ export async function coverRowsQuery(
     .orderBy(asc(attendanceSubstitute.workDate), asc(attendanceSubstitute.id));
 }
 
+// The live covers of the workers on the dates, as the days they are busy: one { workerId, date } per
+// replacement. A cover is live under the same rule as coverRowsQuery. It is not a cell of any
+// roster, so a roster read never leaves it out. With no workerIds or no dates nothing is queried.
+export async function coverBusyRows(
+  reader: Reader,
+  workerIds: string[],
+  dates: string[],
+): Promise<{ workerId: string; date: string }[]> {
+  if (workerIds.length === 0 || dates.length === 0) {
+    return [];
+  }
+
+  return reader
+    .select({ workerId: attendanceSubstitute.substituteWorkerId, date: attendanceSubstitute.workDate })
+    .from(attendanceSubstitute)
+    .innerJoin(attendance, eq(attendance.id, attendanceSubstitute.attendanceId))
+    .innerJoin(rosterAssignment, eq(rosterAssignment.id, attendance.rosterAssignmentId))
+    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .where(
+      and(
+        inArray(attendanceSubstitute.substituteWorkerId, workerIds),
+        inArray(attendanceSubstitute.workDate, dates),
+        eq(attendance.status, "absent"),
+        eq(rosterAssignment.kind, "work"),
+        eq(roster.status, "confirmed"),
+        eq(rosterRequest.status, "approved"),
+      ),
+    );
+}
+
 // How many replacements cover a shift on each date, for the shifts of the given locations, between
 // from and to (YYYY-MM-DD, inclusive). One row per date with at least one. The dashboard adds it
 // to the day's Present. It applies the same live rule as coverRowsQuery: the absent worker's work

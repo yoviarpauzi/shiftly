@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  UNKNOWN_POSITION_MESSAGE,
   UNKNOWN_SHIFT_MESSAGE,
   DAILY_HEADCOUNT_MESSAGE,
   HEADCOUNT_LENGTH_MESSAGE,
@@ -13,8 +14,6 @@ import {
   lineScopeError,
   linesHeadcountsError,
   requestFieldErrors,
-  requestLocationsFor,
-  siteCodeMissingMessage,
   statusAfterEdit,
 } from "./request-rules";
 import type { RequestStatus } from "@/types/requests";
@@ -51,7 +50,7 @@ const line = (fields: {
 
 describe("lineScopeError shifts", () => {
   it("returns the unknown shift message for a shift outside the location", () => {
-    expect(lineScopeError([line({ shiftId: "other-site-shift" })], valid)).toBe(
+    expect(lineScopeError([line({ shiftId: "other-location-shift" })], valid)).toBe(
       UNKNOWN_SHIFT_MESSAGE,
     );
     expect(UNKNOWN_SHIFT_MESSAGE).toBe("Choose a shift of this location");
@@ -63,6 +62,15 @@ describe("lineScopeError shifts", () => {
 
   it("accepts a shift of the location", () => {
     expect(lineScopeError([line({ shiftId: SHIFT })], valid)).toBeNull();
+  });
+});
+
+describe("lineScopeError positions", () => {
+  it("refuses a position that is not active", () => {
+    expect(lineScopeError([line({ positionId: "other-position" })], valid)).toBe(
+      UNKNOWN_POSITION_MESSAGE,
+    );
+    expect(UNKNOWN_POSITION_MESSAGE).toBe("Choose an active position");
   });
 });
 
@@ -190,39 +198,6 @@ describe("requestFieldErrors", () => {
         { path: ["lines", 0, "headcounts", 0], message: "lines message" },
       ]),
     ).toEqual({ startDate: "first", lines: "lines message" });
-  });
-});
-
-describe("siteCodeMissingMessage", () => {
-  it("names the site and asks for a code", () => {
-    const message = siteCodeMissingMessage("Nestle Kejayan");
-
-    expect(message).toContain("Nestle Kejayan");
-    expect(message).toContain("Add a code to the site before creating requests");
-  });
-});
-
-describe("requestLocationsFor", () => {
-  const LOCATIONS = [
-    { id: "loc-1", name: "Gate 1", siteId: "site-a" },
-    { id: "loc-2", name: "Gate 2", siteId: "site-a" },
-    { id: "loc-3", name: "Pier", siteId: "site-b" },
-  ];
-
-  it("offers no locations to a site picker until a site is chosen", () => {
-    expect(requestLocationsFor(LOCATIONS, null, true)).toEqual([]);
-  });
-
-  it("offers only the locations of the chosen site", () => {
-    expect(requestLocationsFor(LOCATIONS, "site-a", true)).toEqual([
-      LOCATIONS[0],
-      LOCATIONS[1],
-    ]);
-    expect(requestLocationsFor(LOCATIONS, "site-b", true)).toEqual([LOCATIONS[2]]);
-  });
-
-  it("offers every location when the actor has no site to pick", () => {
-    expect(requestLocationsFor(LOCATIONS, null, false)).toEqual(LOCATIONS);
   });
 });
 

@@ -22,7 +22,6 @@ import {
   rosterRequestLine,
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
-import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { clampPage, escapeLikePattern } from "@/lib/pagination";
 import { sortTerms } from "@/lib/sort";
@@ -53,25 +52,20 @@ const REQUEST_SORT_EXPRESSIONS: Record<RequestSortColumn, SQLWrapper> = {
   status: rosterRequest.status,
 };
 
-// Superadmin sees every request. HO sees the requests of its own site. Admin site sees its own location.
+// HO sees every request. Admin site sees the requests of its own location.
 export function requestScopeFilter(access: RequestAccess): SQL | undefined {
-  if (access.locationId) {
-    return eq(rosterRequest.locationId, access.locationId);
-  }
-
-  return access.siteId ? eq(rosterRequest.siteId, access.siteId) : undefined;
+  return access.locationId ? eq(rosterRequest.locationId, access.locationId) : undefined;
 }
 
 // Matches the PO number case-insensitively. An empty query matches every request in the filters.
 function requestFilter(
   access: RequestAccess,
-  { query, status, type, siteId, locationId }: RequestListParams,
+  { query, status, type, locationId }: RequestListParams,
 ): SQL | undefined {
   const pattern = `%${escapeLikePattern(query)}%`;
 
   return and(
     requestScopeFilter(access),
-    siteId ? eq(rosterRequest.siteId, siteId) : undefined,
     locationId ? eq(rosterRequest.locationId, locationId) : undefined,
     status !== "all" ? eq(rosterRequest.status, status) : undefined,
     type !== "all" ? eq(rosterRequest.type, type) : undefined,
@@ -111,7 +105,6 @@ export async function listRequests(
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
       status: rosterRequest.status,
-      siteId: rosterRequest.siteId,
       locationId: rosterRequest.locationId,
       locationName: location.name,
       lineCount: sql<number>`coalesce(${lineCounts.lineCount}, 0)`.mapWith(Number),
@@ -155,15 +148,12 @@ export async function getRequest(
       type: rosterRequest.type,
       startDate: rosterRequest.startDate,
       status: rosterRequest.status,
-      siteId: rosterRequest.siteId,
-      siteName: site.name,
       locationId: rosterRequest.locationId,
       locationName: location.name,
       createdByName: user.name,
       rejectReason: rosterRequest.rejectReason,
     })
     .from(rosterRequest)
-    .innerJoin(site, eq(site.id, rosterRequest.siteId))
     .innerJoin(location, eq(location.id, rosterRequest.locationId))
     .innerJoin(user, eq(user.id, rosterRequest.createdBy))
     .where(and(eq(rosterRequest.id, id), requestScopeFilter(access)));
@@ -240,40 +230,29 @@ export async function getRequest(
   };
 }
 
-// The active locations the actor can write to, the active sites that hold them, their active
-// departments and sub-departments, the active positions of those sites and the active shifts of
-// those locations.
+// The active locations the actor can write to, their active departments and sub-departments, the
+// active positions (global master data) and the active shifts of those locations.
 export async function requestChoicesFor(access: RequestAccess): Promise<RequestChoices> {
   const locations = await db
     .select({
       id: location.id,
       name: location.name,
-      siteId: location.siteId,
       timezone: location.timezone,
     })
     .from(location)
     .where(
       and(
         isNull(location.deletedAt),
-        access.siteId ? eq(location.siteId, access.siteId) : undefined,
         access.locationId ? eq(location.id, access.locationId) : undefined,
       ),
     )
     .orderBy(asc(location.name), asc(location.id));
 
   if (locations.length === 0) {
-    return { sites: [], locations, departments: [], subDepartments: [], positions: [], shifts: [] };
+    return { locations, departments: [], subDepartments: [], positions: [], shifts: [] };
   }
 
   const locationIds = locations.map((row) => row.id);
-  const siteIds = [...new Set(locations.map((row) => row.siteId))];
-
-  const sites = await db
-    .select({ id: site.id, name: site.name })
-    .from(site)
-    .where(and(inArray(site.id, siteIds), isNull(site.deletedAt)))
-    .orderBy(asc(site.name), asc(site.id));
-
   const departments = await db
     .select({
       id: department.id,
@@ -305,9 +284,9 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
           .orderBy(asc(subDepartment.name), asc(subDepartment.id));
 
   const positions = await db
-    .select({ id: position.id, name: position.name, siteId: position.siteId })
+    .select({ id: position.id, name: position.name })
     .from(position)
-    .where(and(inArray(position.siteId, siteIds), isNull(position.deletedAt)))
+    .where(isNull(position.deletedAt))
     .orderBy(asc(position.name), asc(position.id));
 
   const shifts = await db
@@ -324,7 +303,6 @@ export async function requestChoicesFor(access: RequestAccess): Promise<RequestC
     .orderBy(asc(shift.locationId), asc(shift.order));
 
   return {
-    sites,
     locations,
     departments,
     subDepartments,

@@ -2,14 +2,13 @@ import { RequestsDataTable } from "@/components/dashboard/requests/data-table";
 import type { RequestSortColumn } from "@/types/requests";
 import { parsePageParams } from "@/validation/pagination";
 import { parseRequestLocation } from "@/validation/request-location";
-import { parseRequestSite } from "@/validation/request-site";
 import {
   parseRequestStatus,
   parseRequestType,
 } from "@/validation/request-status";
 import { parseSortParam } from "@/validation/sort";
+import { canDecideRequest } from "./request-access";
 import { requireRequestUser } from "./request-guard";
-import { requestLocationsFor } from "./request-rules";
 import { listRequests, requestChoicesFor } from "./requests";
 
 const REQUEST_SORT_COLUMNS = [
@@ -32,18 +31,13 @@ export default async function Page({
   const type = parseRequestType(params.type);
   const sort = parseSortParam(params.sort, REQUEST_SORT_COLUMNS);
   const choices = await requestChoicesFor(access);
-  // Only a superadmin with several sites picks a site. HO and admin site are already scoped.
-  const pickSite =
-    access.siteId === null && access.locationId === null && choices.sites.length > 1;
-  const siteId = parseRequestSite(params.site, pickSite ? choices.sites : []);
-  const locations = requestLocationsFor(choices.locations, siteId, pickSite);
-  // Only locations of the chosen site count, so a ?location= outside it is ignored.
+  const locations = choices.locations;
+  // Only locations the actor can see count, so a ?location= outside them is ignored.
   const locationId = parseRequestLocation(params.location, locations);
   const requests = await listRequests(access, {
     ...parsePageParams(params),
     status,
     type,
-    siteId,
     locationId,
     sort,
   });
@@ -60,15 +54,12 @@ export default async function Page({
         data={requests}
         status={status}
         type={type}
-        pickSite={pickSite}
-        siteId={siteId}
-        sites={choices.sites.map(({ id, name }) => ({ id, name }))}
         pickLocation={access.locationId === null}
         locationId={locationId}
         locations={locations.map(({ id, name }) => ({ id, name }))}
         sort={sort}
-        // HO is scoped to its own site, so every row it sees is one it may decide.
-        canDecide={user.role === "superadmin" || user.role === "ho"}
+        // HO sees every location, so every row it sees is one it may decide.
+        canDecide={canDecideRequest(user)}
       />
     </div>
   );

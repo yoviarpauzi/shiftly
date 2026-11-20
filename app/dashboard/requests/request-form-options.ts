@@ -1,8 +1,6 @@
 import type {
   RequestChoices,
   RequestDetail,
-  RequestFieldErrors,
-  RequestFormFieldErrors,
   RequestFormLine,
   RequestFormValues,
   RequestLineInput,
@@ -43,15 +41,13 @@ export function minStartDateFor(
   return dateInZone(zone, now);
 }
 
-export function locationsFor(choices: RequestChoices, siteId: string): RequestOption[] {
-  return choices.locations.filter((row) => row.siteId === siteId).map(toOption);
+export function locationsFor(choices: RequestChoices): RequestOption[] {
+  return choices.locations.map(toOption);
 }
 
-// A site with one location needs no choice, so the form starts on it.
-function onlyLocationId(choices: RequestChoices, siteId: string): string {
-  const inSite = locationsFor(choices, siteId);
-
-  return inSite.length === 1 ? inSite[0].id : "";
+// An actor with one location needs no choice, so the form starts on it.
+function onlyLocationId(choices: RequestChoices): string {
+  return choices.locations.length === 1 ? choices.locations[0].id : "";
 }
 
 export function departmentsFor(choices: RequestChoices, locationId: string): RequestOption[] {
@@ -65,15 +61,9 @@ export function subDepartmentsFor(
   return choices.subDepartments.filter((row) => row.departmentId === departmentId).map(toOption);
 }
 
-// Positions belong to a site, so the location's site decides which ones apply.
-export function positionsFor(choices: RequestChoices, locationId: string): RequestOption[] {
-  const siteId = choices.locations.find((row) => row.id === locationId)?.siteId;
-
-  if (!siteId) {
-    return [];
-  }
-
-  return choices.positions.filter((row) => row.siteId === siteId).map(toOption);
+// Positions are global master data, so every location offers the same ones.
+export function positionsFor(choices: RequestChoices): RequestOption[] {
+  return choices.positions.map(toOption);
 }
 
 // Shifts belong to a location. They keep the order the choices came in, which is by shift order.
@@ -182,14 +172,6 @@ export function linesAfterLocationChange(): RequestFormLine[] {
   return [blankLine()];
 }
 
-// The locations depend on the site, so a new site clears the location and starts the lines over.
-export function afterSiteChange(
-  choices: RequestChoices,
-  siteId: string,
-): { locationId: string; lines: RequestFormLine[] } {
-  return { locationId: onlyLocationId(choices, siteId), lines: linesAfterLocationChange() };
-}
-
 // A sub-department belongs to one department, so a new department clears it.
 export function lineAfterDepartmentChange(
   line: RequestFormLine,
@@ -206,8 +188,8 @@ export function canRemoveLine(count: number): boolean {
   return count > 1;
 }
 
-// An actor with a single site starts on it, and a site with a single location starts on that, so
-// HO and admin site never have to choose what they have no choice about.
+// An actor with a single location starts on it, so admin site never has to choose what it has no
+// choice about.
 export function requestFormDefaults(
   request: RequestDetail | null,
   choices: RequestChoices,
@@ -216,7 +198,6 @@ export function requestFormDefaults(
     return {
       type: request.type,
       startDate: request.startDate,
-      siteId: request.siteId,
       locationId: request.locationId,
       lines: request.lines.map((line) => {
         const formLine = formLineFromInput(line);
@@ -230,36 +211,12 @@ export function requestFormDefaults(
     };
   }
 
-  const siteId = choices.sites.length === 1 ? choices.sites[0].id : "";
-
   return {
     type: "",
     startDate: "",
-    siteId,
-    locationId: onlyLocationId(choices, siteId),
+    locationId: onlyLocationId(choices),
     lines: [blankLine()],
   };
-}
-
-export const SITE_REQUIRED_MESSAGE = "Choose a site";
-
-// With no site chosen the location select is disabled, so its error would sit under a field the
-// user cannot use. When the site picker shows, that error moves onto the site. A fixed-text site
-// has no place for an error, so nothing moves then.
-export function withSiteError(
-  errors: RequestFieldErrors,
-  siteId: string,
-  pickSite: boolean,
-): RequestFormFieldErrors {
-  if (!pickSite || siteId !== "" || !errors.locationId) {
-    return errors;
-  }
-
-  const moved: RequestFormFieldErrors = { ...errors, siteId: SITE_REQUIRED_MESSAGE };
-
-  delete moved.locationId;
-
-  return moved;
 }
 
 export function returnsToPending(request: Pick<RequestDetail, "type" | "status">): boolean {

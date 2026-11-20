@@ -16,10 +16,6 @@ export const LOCATION_NOT_FOUND_MESSAGE = "Location not found";
 export const INVALID_TIMEZONE_MESSAGE =
   "This location has no valid time zone. Set one on the Locations page first.";
 
-export function siteCodeMissingMessage(siteName: string): string {
-  return `${siteName} has no code yet. Add a code to the site before creating requests.`;
-}
-
 export const NOT_PENDING_MESSAGE = "Only a pending request can be approved or rejected";
 
 export const NOT_EDITABLE_MESSAGE = "A rejected or cancelled request cannot be edited";
@@ -35,7 +31,7 @@ const UNKNOWN_DEPARTMENT_MESSAGE = "Choose a department from this location";
 
 const UNKNOWN_SUB_DEPARTMENT_MESSAGE = "Choose a sub-department of the selected department";
 
-const UNKNOWN_POSITION_MESSAGE = "Choose a position from this site";
+export const UNKNOWN_POSITION_MESSAGE = "Choose an active position";
 
 export const UNKNOWN_SHIFT_MESSAGE = "Choose a shift of this location";
 
@@ -174,7 +170,7 @@ export function dayLabels(startDate: string): string[] {
 }
 
 // Checks every line against the choices the actor may use: departments of the location (with their
-// sub-departments) and positions of the site. Returns the first problem, or null when all is valid.
+// sub-departments), the active positions, and the shifts of the location. Returns the first problem, or null when all is valid.
 export function lineScopeError(
   lines: RequestLineInput[],
   valid: {
@@ -219,18 +215,4 @@ export function requestFieldErrors(
   }
 
   return errors;
-}
-
-// Superadmin picks a site first, so until then there are no locations to filter by. HO has one
-// site, so its locations are listed as they are.
-export function requestLocationsFor(
-  locations: { id: string; name: string; siteId: string }[],
-  siteId: string | null,
-  pickSite: boolean,
-): { id: string; name: string; siteId: string }[] {
-  if (pickSite && !siteId) {
-    return [];
-  }
-
-  return locations.filter((location) => !siteId || location.siteId === siteId);
 }

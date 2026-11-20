@@ -19,15 +19,15 @@ describe("poPeriod", () => {
 });
 
 describe("formatPoNumber", () => {
-  it("pads the sequence to 4 digits", () => {
-    expect(formatPoNumber("NSL", "202611", 1)).toBe("PO-NSL-202611-0001");
+  it("has no site code and pads the sequence to 4 digits", () => {
+    expect(formatPoNumber("202611", 3)).toBe("PO-202611-0003");
   });
 
   it("keeps 9999 at 4 digits", () => {
-    expect(formatPoNumber("NSL", "202611", 9999)).toBe("PO-NSL-202611-9999");
+    expect(formatPoNumber("202611", 9999)).toBe("PO-202611-9999");
   });
 
   it("grows past 9999 without a cap", () => {
-    expect(formatPoNumber("NSL", "202611", 10000)).toBe("PO-NSL-202611-10000");
+    expect(formatPoNumber("202611", 10000)).toBe("PO-202611-10000");
   });
 });

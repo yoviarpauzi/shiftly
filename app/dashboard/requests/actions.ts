@@ -14,7 +14,6 @@ import {
 } from "@/database/schema/request-schema";
 import { roster } from "@/database/schema/roster-schema";
 import { shift } from "@/database/schema/shift-schema";
-import { site } from "@/database/schema/site-schema";
 import { db } from "@/lib/db";
 import { dateInZone } from "@/lib/indonesia-date";
 import type {
@@ -52,7 +51,6 @@ import {
   REQUEST_HAS_ROSTER_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
   requestFieldErrors,
-  siteCodeMissingMessage,
   statusAfterEdit,
 } from "./request-rules";
 import { requestScopeFilter } from "./requests";
@@ -67,10 +65,11 @@ function revalidateRequest(id: string) {
 }
 
 // The active departments of the location with their active sub-departments, the active positions
-// of the site and the active shifts of the location, in the shape lineScopeError checks against.
+// (global master data) and the active shifts of the location, in the shape lineScopeError checks
+// against.
 // The shifts are read under a share lock, which conflicts with the update lock a shift delete
 // takes, so a shift cannot be deleted between this check and the insert.
-async function lineChoices(tx: Transaction, locationId: string, siteId: string) {
+async function lineChoices(tx: Transaction, locationId: string) {
   const departments = await tx
     .select({ id: department.id })
     .from(department)
@@ -91,7 +90,7 @@ async function lineChoices(tx: Transaction, locationId: string, siteId: string) 
   const positions = await tx
     .select({ id: position.id })
     .from(position)
-    .where(and(eq(position.siteId, siteId), isNull(position.deletedAt)));
+    .where(isNull(position.deletedAt));
 
   const shifts = await tx
     .select({ id: shift.id })
@@ -166,33 +165,20 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
     return { ok: false, fieldErrors: { lines: headcountError } };
   }
 
-  // The share lock conflicts with the update lock a location or site delete takes, so neither can
-  // be deleted between this check and the insert. The location id comes from the client, so it is
-  // loaded and checked against the caller's access, and the site id is taken from the row.
+  // The share lock conflicts with the update lock a location delete takes, so it cannot be deleted
+  // between this check and the insert. The location id comes from the client, so the row is loaded
+  // and the caller's access is checked against that row.
   const result = await db.transaction(async (tx): Promise<RequestActionResult> => {
     const now = new Date();
 
     const [target] = await tx
-      .select({
-        id: location.id,
-        siteId: location.siteId,
-        siteName: site.name,
-        siteCode: site.code,
-        timezone: location.timezone,
-      })
+      .select({ id: location.id, timezone: location.timezone })
       .from(location)
-      .innerJoin(site, eq(site.id, location.siteId))
-      .where(
-        and(eq(location.id, data.locationId), isNull(location.deletedAt), isNull(site.deletedAt)),
-      )
+      .where(and(eq(location.id, data.locationId), isNull(location.deletedAt)))
       .for("share");
 
-    if (!target || !canWriteToLocation(access, { id: target.id, siteId: target.siteId })) {
+    if (!target || !canWriteToLocation(access, { id: target.id })) {
       return { ok: false, formError: LOCATION_NOT_FOUND_MESSAGE };
-    }
-
-    if (!target.siteCode) {
-      return { ok: false, formError: siteCodeMissingMessage(target.siteName) };
     }
 
     // The column is not checked by the database, so a hand edit can leave an unknown zone.
@@ -205,10 +191,7 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
     // Both field errors come back together, so the user does not fix one and then meet the other.
     const startDateError =
       data.startDate < dateInZone(zone.data, now) ? START_DATE_PAST_MESSAGE : undefined;
-    const lineError = lineScopeError(
-      data.lines,
-      await lineChoices(tx, target.id, target.siteId),
-    );
+    const lineError = lineScopeError(data.lines, await lineChoices(tx, target.id));
 
     if (startDateError || lineError) {
       return {
@@ -222,8 +205,8 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
 
     // Issued inside this transaction, so a failed insert rolls the number back with it.
     const period = poPeriod(now, zone.data);
-    const sequence = await nextPoSequence(tx, target.siteId, period);
-    const poNumber = formatPoNumber(target.siteCode, period, sequence);
+    const sequence = await nextPoSequence(tx, period);
+    const poNumber = formatPoNumber(period, sequence);
 
     const [created] = await tx
       .insert(rosterRequest)
@@ -231,7 +214,6 @@ export async function createRequest(input: RequestInput): Promise<RequestActionR
         poNumber,
         type: data.type,
         startDate: data.startDate,
-        siteId: target.siteId,
         locationId: target.id,
         status: initialStatus(data.type),
         createdBy: user.id,
@@ -272,7 +254,6 @@ export async function updateRequest(
         type: rosterRequest.type,
         status: rosterRequest.status,
         startDate: rosterRequest.startDate,
-        siteId: rosterRequest.siteId,
         locationId: rosterRequest.locationId,
         timezone: location.timezone,
       })
@@ -331,10 +312,7 @@ export async function updateRequest(
       return { ok: false, fieldErrors: { lines: headcountError } };
     }
 
-    const lineError = lineScopeError(
-      data.lines,
-      await lineChoices(tx, current.locationId, current.siteId),
-    );
+    const lineError = lineScopeError(data.lines, await lineChoices(tx, current.locationId));
 
     if (lineError) {
       return { ok: false, fieldErrors: { lines: lineError } };
@@ -375,7 +353,7 @@ async function findScopedRequest(access: RequestAccess, id: string) {
   }
 
   const [row] = await db
-    .select({ id: rosterRequest.id, siteId: rosterRequest.siteId })
+    .select({ id: rosterRequest.id })
     .from(rosterRequest)
     .where(and(eq(rosterRequest.id, id), requestScopeFilter(access)));
 
@@ -422,7 +400,7 @@ async function decideRequest(
 ): Promise<RequestActionResult> {
   const target = await findScopedRequest(access, id);
 
-  if (!target || !canDecideRequest(user, { siteId: target.siteId })) {
+  if (!target || !canDecideRequest(user)) {
     return { ok: false, formError: REQUEST_NOT_FOUND_MESSAGE };
   }
 

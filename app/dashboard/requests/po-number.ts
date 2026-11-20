@@ -6,7 +6,7 @@ export function poPeriod(now: Date, timeZone: LocationTimezone): string {
   return dateInZone(timeZone, now).slice(0, 7).replace("-", "");
 }
 
-// The sequence is padded to 4 digits and grows past 9999 without a cap.
-export function formatPoNumber(code: string, period: string, sequence: number): string {
-  return `PO-${code}-${period}-${String(sequence).padStart(4, "0")}`;
+// PO-{YYYYMM}-{sequence}. The sequence is padded to 4 digits and grows past 9999 without a cap.
+export function formatPoNumber(period: string, sequence: number): string {
+  return `PO-${period}-${String(sequence).padStart(4, "0")}`;
 }

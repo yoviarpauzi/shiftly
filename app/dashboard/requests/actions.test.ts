@@ -26,7 +26,6 @@ import {
   REASON_REQUIRED_MESSAGE,
   REQUEST_HAS_ROSTER_MESSAGE,
   REQUEST_NOT_FOUND_MESSAGE,
-  siteCodeMissingMessage,
   WEEKLY_HEADCOUNT_MESSAGE,
 } from "./request-rules";
 
@@ -43,6 +42,7 @@ type Call = {
   lock?: string;
   where?: SQL;
   tx?: unknown;
+  inTx?: boolean;
 };
 
 const fake = vi.hoisted(() => ({
@@ -60,6 +60,7 @@ const fake = vi.hoisted(() => ({
   access: null as unknown,
   sequence: 1,
   tx: null as unknown,
+  inTx: false,
 }));
 
 const dialect = new PgDialect();
@@ -99,6 +100,7 @@ function result(call: Call): unknown {
 }
 
 function builder(call: Call) {
+  call.inTx = fake.inTx;
   fake.calls.push(call);
 
   const chain = {
@@ -146,18 +148,40 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("./request-guard", () => ({
   requireRequestUser: async () => ({ user: fake.actor, access: fake.access }),
 }));
-vi.mock("./po-counter", () => ({
-  nextPoSequence: async (tx: unknown, siteId: string, period: string) => {
-    fake.calls.push({ op: "counter", tx, values: { siteId, period } });
-    return fake.sequence;
-  },
-}));
 vi.mock("@/lib/db", () => {
-  const tx = { ...query, inTransaction: true };
+  // The real po-counter runs against this fake: its one tx.execute is the upsert on po_counter.
+  // It answers with the current sequence and then moves on, like the stored counter would.
+  const tx = {
+    ...query,
+    inTransaction: true,
+    execute: async (statement: SQL) => {
+      fake.calls.push({
+        op: "counter",
+        tx: fake.tx,
+        inTx: fake.inTx,
+        values: dialect.sqlToQuery(statement),
+      });
+      const lastValue = fake.sequence;
+      fake.sequence += 1;
+
+      return { rows: [{ last_value: lastValue }] };
+    },
+  };
   fake.tx = tx;
 
   return {
-    db: { ...query, transaction: async (run: (t: typeof tx) => unknown) => run(tx) },
+    db: {
+      ...query,
+      transaction: async (run: (t: typeof tx) => unknown) => {
+        fake.inTx = true;
+
+        try {
+          return await run(tx);
+        } finally {
+          fake.inTx = false;
+        }
+      },
+    },
   };
 });
 
@@ -165,8 +189,6 @@ const { revalidatePath } = await import("next/cache");
 const { createRequest, updateRequest, cancelRequest, approveRequest, rejectRequest } =
   await import("./actions");
 
-const SITE_A = "11111111-1111-4111-8111-111111111111";
-const SITE_B = "22222222-2222-4222-8222-222222222222";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
 const LOCATION_B = "44444444-4444-4444-8444-444444444444";
 const DEPT_A = "55555555-5555-4555-8555-555555555555";
@@ -180,21 +202,17 @@ const REQUEST_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 type Role = { actor: RequestActor; access: RequestAccess };
 
-const superadmin: Role = {
-  actor: { id: "super-1", name: "Super", role: "superadmin", siteId: null, locationId: null },
-  access: { siteId: null, locationId: null },
-};
 const hoA: Role = {
-  actor: { id: "ho-a", name: "HO A", role: "ho", siteId: SITE_A, locationId: null },
-  access: { siteId: SITE_A, locationId: null },
-};
-const hoB: Role = {
-  actor: { id: "ho-b", name: "HO B", role: "ho", siteId: SITE_B, locationId: null },
-  access: { siteId: SITE_B, locationId: null },
+  actor: { id: "ho-a", name: "HO A", role: "ho", locationId: null },
+  access: { locationId: null },
 };
 const adminA: Role = {
-  actor: { id: "admin-a", name: "Admin A", role: "admin_site", siteId: null, locationId: LOCATION_A },
-  access: { siteId: SITE_A, locationId: LOCATION_A },
+  actor: { id: "admin-a", name: "Admin A", role: "admin_site", locationId: LOCATION_A },
+  access: { locationId: LOCATION_A },
+};
+const adminB: Role = {
+  actor: { id: "admin-b", name: "Admin B", role: "admin_site", locationId: LOCATION_B },
+  access: { locationId: LOCATION_B },
 };
 
 function actAs(role: Role) {
@@ -235,7 +253,7 @@ const dailyUpdateInput = { startDate: FUTURE, lines: [line] };
 
 function seedLocationChoices(timezone = "Asia/Jakarta") {
   fake.rows.location = [
-    { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "NSL", timezone },
+    { id: LOCATION_A, timezone },
   ];
   fake.rows.departments = [{ id: DEPT_A }];
   fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
@@ -249,7 +267,6 @@ function storedRequest(overrides: Record<string, unknown> = {}) {
     type: "weekly",
     status: "pending",
     startDate: FUTURE,
-    siteId: SITE_A,
     locationId: LOCATION_A,
     timezone: "Asia/Jakarta",
     ...overrides,
@@ -259,6 +276,8 @@ function storedRequest(overrides: Record<string, unknown> = {}) {
 const writes = () =>
   fake.calls.filter((call) => call.op !== "select" && call.op !== "counter");
 const counterCalls = () => fake.calls.filter((call) => call.op === "counter");
+const counterParams = () =>
+  counterCalls().map((call) => (call.values as { params: unknown[] }).params);
 const requestUpdate = () =>
   fake.calls.find((call) => call.op === "update" && call.table === rosterRequest);
 
@@ -282,7 +301,7 @@ beforeEach(() => {
     roster: [],
   };
   fake.sequence = 1;
-  actAs(superadmin);
+  actAs(hoA);
   vi.mocked(revalidatePath).mockClear();
 });
 
@@ -335,7 +354,6 @@ describe("createRequest shifts", () => {
 
     expect(read?.lock).toBe("share");
     expect(whereParams(read?.where)).toContain(LOCATION_A);
-    expect(whereParams(read?.where)).not.toContain(SITE_A);
   });
 });
 
@@ -378,14 +396,12 @@ describe("createRequest", () => {
 
     const res = await createRequest(createInput);
 
-    expect(res).toEqual({ ok: true, id: "request-new", poNumber: `PO-NSL-${period}-0001` });
+    expect(res).toEqual({ ok: true, id: "request-new", poNumber: `PO-${period}-0001` });
 
     const locked = fake.calls.find((c) => c.op === "select" && c.table === location);
     expect(locked?.lock).toBe("share");
 
-    expect(counterCalls()).toEqual([
-      { op: "counter", tx: fake.tx, values: { siteId: SITE_A, period } },
-    ]);
+    expect(counterParams()).toEqual([[period]]);
 
     expect(writes().map((c) => c.table)).toEqual([
       rosterRequest,
@@ -393,10 +409,9 @@ describe("createRequest", () => {
       rosterRequestLineDay,
     ]);
     expect(writes()[0].values).toEqual({
-      poNumber: `PO-NSL-${period}-0001`,
+      poNumber: `PO-${period}-0001`,
       type: "daily",
       startDate: FUTURE,
-      siteId: SITE_A,
       locationId: LOCATION_A,
       status: "approved",
       createdBy: "admin-a",
@@ -468,42 +483,15 @@ describe("createRequest", () => {
 
     expect(res).toMatchObject({
       ok: true,
-      poNumber: formatPoNumber("NSL", poPeriod(new Date(), "Asia/Jakarta"), 12),
+      poNumber: formatPoNumber(poPeriod(new Date(), "Asia/Jakarta"), 12),
     });
     expect(writes()[0].values).toMatchObject({ type: "weekly", status: "pending" });
-  });
-
-  it("refuses a site without a code and writes nothing", async () => {
-    seedLocationChoices();
-    fake.rows.location = [
-      { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: null },
-    ];
-
-    const res = await createRequest(createInput);
-
-    expect(res).toEqual({ ok: false, formError: siteCodeMissingMessage("Nestle Kejayan") });
-    expect(res.ok === false && res.formError).toContain("Nestle Kejayan");
-    expect(writes()).toEqual([]);
-    expect(counterCalls()).toEqual([]);
-  });
-
-  it("refuses an empty site code and writes nothing", async () => {
-    seedLocationChoices();
-    fake.rows.location = [
-      { id: LOCATION_A, siteId: SITE_A, siteName: "Nestle Kejayan", siteCode: "" },
-    ];
-
-    const res = await createRequest(createInput);
-
-    expect(res).toEqual({ ok: false, formError: siteCodeMissingMessage("Nestle Kejayan") });
-    expect(res.ok === false && res.formError).toContain("Nestle Kejayan");
-    expect(writes()).toEqual([]);
   });
 
   it("refuses a location outside the actor's access and writes nothing", async () => {
     actAs(adminA);
     seedLocationChoices();
-    fake.rows.location = [{ id: LOCATION_B, siteId: SITE_A, siteCode: "NSL" }];
+    fake.rows.location = [{ id: LOCATION_B, timezone: "Asia/Jakarta" }];
 
     const res = await createRequest({ ...createInput, locationId: LOCATION_B });
 
@@ -512,14 +500,53 @@ describe("createRequest", () => {
     expect(counterCalls()).toEqual([]);
   });
 
-  it("refuses a location in another site for HO and writes nothing", async () => {
-    actAs(hoB);
+  it("checks the loaded location row, not the id the client sent", async () => {
+    actAs(adminB);
     seedLocationChoices();
 
-    const res = await createRequest(createInput);
+    const res = await createRequest({ ...createInput, locationId: LOCATION_B });
 
     expect(res).toEqual({ ok: false, formError: LOCATION_NOT_FOUND_MESSAGE });
     expect(writes()).toEqual([]);
+    expect(counterCalls()).toEqual([]);
+  });
+
+  it("lets admin site create for its own location", async () => {
+    actAs(adminB);
+    fake.rows.location = [{ id: LOCATION_B, timezone: "Asia/Jakarta" }];
+    fake.rows.departments = [{ id: DEPT_A }];
+    fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
+    fake.rows.positions = [{ id: POSITION_A }];
+
+    const res = await createRequest({ ...createInput, locationId: LOCATION_B });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(writes()[0].values).toMatchObject({ locationId: LOCATION_B, createdBy: "admin-b" });
+  });
+
+  it("lets HO create for any location", async () => {
+    actAs(hoA);
+    fake.rows.location = [{ id: LOCATION_B, timezone: "Asia/Jakarta" }];
+    fake.rows.departments = [{ id: DEPT_A }];
+    fake.rows.subDepartments = [{ id: SUB_A, departmentId: DEPT_A }];
+    fake.rows.positions = [{ id: POSITION_A }];
+
+    const res = await createRequest({ ...createInput, locationId: LOCATION_B });
+
+    expect(res).toMatchObject({ ok: true });
+    expect(writes()[0].values).toMatchObject({ locationId: LOCATION_B });
+  });
+
+  it("loads the location with a share lock and a deleted_at filter, and no site join", async () => {
+    seedLocationChoices();
+
+    await createRequest(createInput);
+
+    const locked = fake.calls.find((c) => c.op === "select" && c.table === location);
+
+    expect(locked?.lock).toBe("share");
+    expect(Object.keys(locked?.fields ?? {}).sort()).toEqual(["id", "timezone"]);
+    expect(dialect.sqlToQuery(locked?.where as SQL).sql).toContain('"location"."deleted_at" is null');
   });
 
   it("refuses a missing or deleted location and writes nothing", async () => {
@@ -548,7 +575,7 @@ describe("createRequest", () => {
     expect(counterCalls()).toEqual([]);
   });
 
-  it("refuses a position from another site and inserts nothing", async () => {
+  it("refuses a position that is not an active position and inserts nothing", async () => {
     seedLocationChoices();
 
     const res = await createRequest({
@@ -556,7 +583,7 @@ describe("createRequest", () => {
       lines: [{ ...line, positionId: POSITION_B }],
     });
 
-    expect(res).toEqual({ ok: false, fieldErrors: { lines: "Choose a position from this site" } });
+    expect(res).toEqual({ ok: false, fieldErrors: { lines: "Choose an active position" } });
     expect(writes()).toEqual([]);
   });
 
@@ -571,6 +598,68 @@ describe("createRequest", () => {
   });
 });
 
+describe("createRequest PO number", () => {
+  it("ends in -0008 when the period counter returns 8", async () => {
+    seedLocationChoices();
+    fake.sequence = 8;
+    const period = poPeriod(new Date(), "Asia/Jakarta");
+
+    const res = await createRequest(createInput);
+
+    expect(res).toEqual({ ok: true, id: "request-new", poNumber: `PO-${period}-0008` });
+    expect(writes()[0].values).toMatchObject({ poNumber: `PO-${period}-0008` });
+    expect(writes()[0].values).not.toHaveProperty("siteId");
+  });
+
+  it("issues the number with one upsert keyed by the period alone, in the insert's transaction", async () => {
+    seedLocationChoices();
+    fake.sequence = 8;
+    const period = poPeriod(new Date(), "Asia/Jakarta");
+
+    await createRequest(createInput);
+
+    const [counter, ...others] = counterCalls();
+    const { sql: statement, params } = counter.values as { sql: string; params: unknown[] };
+    const insertIndex = fake.calls.findIndex(
+      (call) => call.op === "insert" && call.table === rosterRequest,
+    );
+
+    expect(others).toEqual([]);
+    expect(params).toEqual([period]);
+    expect(statement).toContain("insert into po_counter (period, last_value)");
+    expect(statement).toContain("on conflict (period)");
+    expect(statement).toContain("do update set last_value = po_counter.last_value + 1");
+    expect(statement).toContain("returning last_value");
+    expect(statement).not.toContain("site");
+    expect(counter.tx).toBe(fake.tx);
+    expect(counter.inTx).toBe(true);
+    expect(fake.calls[insertIndex].inTx).toBe(true);
+    expect(fake.calls.indexOf(counter)).toBeLessThan(insertIndex);
+  });
+
+  it("gives two requests of the same month consecutive numbers", async () => {
+    seedLocationChoices();
+    fake.sequence = 7;
+    const period = poPeriod(new Date(), "Asia/Jakarta");
+
+    const first = await createRequest(createInput);
+    const second = await createRequest(createInput);
+
+    expect(first).toMatchObject({ ok: true, poNumber: `PO-${period}-0007` });
+    expect(second).toMatchObject({ ok: true, poNumber: `PO-${period}-0008` });
+  });
+
+  it("does not truncate a sequence above 9999", async () => {
+    seedLocationChoices();
+    fake.sequence = 10000;
+    const period = poPeriod(new Date(), "Asia/Jakarta");
+
+    const res = await createRequest(createInput);
+
+    expect(res).toMatchObject({ ok: true, poNumber: `PO-${period}-10000` });
+  });
+});
+
 describe("createRequest in the location's time zone", () => {
   it("accepts today in a Jakarta location and issues the Jakarta month", async () => {
     freezeAtJakartaMonthEnd();
@@ -579,9 +668,7 @@ describe("createRequest in the location's time zone", () => {
     const res = await createRequest({ ...createInput, startDate: "2026-11-30" });
 
     expect(res).toMatchObject({ ok: true });
-    expect(counterCalls().map((call) => call.values)).toEqual([
-      { siteId: SITE_A, period: "202611" },
-    ]);
+    expect(counterParams()).toEqual([["202611"]]);
   });
 
   it("refuses a date that is already past in the location's zone and writes nothing", async () => {
@@ -605,9 +692,7 @@ describe("createRequest in the location's time zone", () => {
     const res = await createRequest({ ...createInput, startDate: "2026-12-01" });
 
     expect(res).toMatchObject({ ok: true });
-    expect(counterCalls().map((call) => call.values)).toEqual([
-      { siteId: SITE_A, period: "202612" },
-    ]);
+    expect(counterParams()).toEqual([["202612"]]);
   });
 
   it("issues different periods for two locations at the same instant", async () => {
@@ -618,10 +703,7 @@ describe("createRequest in the location's time zone", () => {
     seedLocationChoices("Asia/Makassar");
     await createRequest({ ...createInput, startDate: "2026-12-01" });
 
-    expect(counterCalls().map((call) => (call.values as { period: string }).period)).toEqual([
-      "202611",
-      "202612",
-    ]);
+    expect(counterParams()).toEqual([["202611"], ["202612"]]);
   });
 
   it("reports a past start date and a line error together", async () => {
@@ -638,7 +720,7 @@ describe("createRequest in the location's time zone", () => {
       ok: false,
       fieldErrors: {
         startDate: START_DATE_PAST_MESSAGE,
-        lines: "Choose a position from this site",
+        lines: "Choose an active position",
       },
     });
     expect(writes()).toEqual([]);
@@ -701,7 +783,7 @@ describe("updateRequest", () => {
     expect(res).toEqual({ ok: true });
     const locked = fake.calls.find((c) => c.op === "select" && c.table === rosterRequest);
     expect(locked?.lock).toBe("update");
-    expect(whereParams(locked?.where)).toEqual([REQUEST_ID, SITE_A]);
+    expect(whereParams(locked?.where)).toEqual([REQUEST_ID]);
 
     expect(requestUpdate()?.set).not.toHaveProperty("note");
     expect(requestUpdate()?.set).toEqual({
@@ -726,7 +808,7 @@ describe("updateRequest", () => {
     expect(requestUpdate()?.set).toEqual({
       startDate: FUTURE,
       status: "approved",
-      updatedBy: "super-1",
+      updatedBy: "ho-a",
     });
   });
 
@@ -962,8 +1044,8 @@ describe("approveRequest", () => {
     expect(writes()).toEqual([]);
   });
 
-  it("returns not found for HO of another site even when the row is read", async () => {
-    actAs(hoB);
+  it("returns not found for admin site of another location even when the row is read", async () => {
+    actAs(adminB);
     fake.rows.request = [storedRequest()];
 
     const res = await approveRequest(REQUEST_ID);
@@ -973,20 +1055,30 @@ describe("approveRequest", () => {
   });
 
   it("returns not found for a request outside the scope and issues no update", async () => {
-    actAs(hoB);
+    actAs(adminB);
 
     const res = await approveRequest(REQUEST_ID);
 
     expect(res).toEqual({ ok: false, formError: REQUEST_NOT_FOUND_MESSAGE });
     expect(writes()).toEqual([]);
     const read = fake.calls.find((c) => c.op === "select" && c.table === rosterRequest);
-    expect(whereParams(read?.where)).toEqual([REQUEST_ID, SITE_B]);
+    expect(whereParams(read?.where)).toEqual([REQUEST_ID, LOCATION_B]);
   });
 
-  it.each([
-    ["HO of the same site", hoA],
-    ["superadmin", superadmin],
-  ])("lets %s approve a pending request", async (_label, role) => {
+  it("returns not found for an HO that carries a location, like the guard would refuse", async () => {
+    actAs({
+      actor: { id: "ho-x", name: "HO X", role: "ho", locationId: LOCATION_A },
+      access: { locationId: null },
+    });
+    fake.rows.request = [storedRequest()];
+
+    const res = await approveRequest(REQUEST_ID);
+
+    expect(res).toEqual({ ok: false, formError: REQUEST_NOT_FOUND_MESSAGE });
+    expect(writes()).toEqual([]);
+  });
+
+  it.each([["HO", hoA]])("lets %s approve a pending request", async (_label, role) => {
     actAs(role);
     fake.rows.request = [storedRequest()];
 
@@ -1056,10 +1148,10 @@ describe("rejectRequest", () => {
     expect(res).toEqual({ ok: true });
   });
 
-  it("returns not found for admin site and HO of another site and issues no update", async () => {
+  it("returns not found for admin site, in its own or another location, and issues no update", async () => {
     fake.rows.request = [storedRequest()];
 
-    for (const role of [adminA, hoB]) {
+    for (const role of [adminA, adminB]) {
       actAs(role);
       const res = await rejectRequest(REQUEST_ID, "No");
       expect(res).toEqual({ ok: false, formError: REQUEST_NOT_FOUND_MESSAGE });

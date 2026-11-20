@@ -1,5 +1,4 @@
 import type { db } from "@/lib/db";
-import type { SiteOption } from "@/types/locations";
 import type { PageParams } from "@/types/pagination";
 import type { SortCriterion } from "@/types/sort";
 import type { LocationTimezone } from "@/validation/location";
@@ -37,7 +36,6 @@ export type RequestRow = {
   // YYYY-MM-DD, a calendar date with no time zone.
   startDate: string;
   status: RequestStatus;
-  siteId: string;
   locationId: string;
   locationName: string;
   lineCount: number;
@@ -45,7 +43,6 @@ export type RequestRow = {
 };
 
 export type RequestDetail = RequestRow & {
-  siteName: string;
   rejectReason: string | null;
   lines: RequestLineInput[];
   // The shifts the lines name, deleted ones included, so a request that was rejected or cancelled
@@ -63,8 +60,6 @@ export type RequestPage = {
 export type RequestListParams = PageParams & {
   status: RequestStatusFilter;
   type: RequestTypeFilter;
-  // null means every site the actor can see.
-  siteId: string | null;
   // null means every location the actor can see.
   locationId: string | null;
   sort: SortCriterion<RequestSortColumn>[];
@@ -81,20 +76,16 @@ export type RequestShiftChoice = {
 };
 
 export type RequestChoices = {
-  sites: { id: string; name: string }[];
-  locations: { id: string; name: string; siteId: string; timezone: LocationTimezone }[];
+  locations: { id: string; name: string; timezone: LocationTimezone }[];
   departments: { id: string; name: string; locationId: string }[];
   subDepartments: { id: string; name: string; departmentId: string }[];
-  positions: { id: string; name: string; siteId: string }[];
+  positions: { id: string; name: string }[];
   shifts: RequestShiftChoice[];
 };
 
 export type RequestField = "type" | "startDate" | "locationId" | "lines";
 
 export type RequestFieldErrors = Partial<Record<RequestField, string>>;
-
-// The server never reports a site error, so only the form adds one.
-export type RequestFormFieldErrors = RequestFieldErrors & { siteId?: string };
 
 export type RequestActionResult =
   | { ok: true; id?: string; poNumber?: string }
@@ -117,28 +108,19 @@ export type RequestsDataTableProps = {
   data: RequestPage;
   status: RequestStatusFilter;
   type: RequestTypeFilter;
-  // True for a superadmin with more than one site. HO and admin site get no site filter.
-  pickSite: boolean;
-  siteId: string | null;
-  sites: SiteOption[];
   // False for admin site, which has one location and so nothing to filter by.
   pickLocation: boolean;
   locationId: string | null;
-  // The locations the location filter offers, already narrowed to the chosen site.
+  // The locations the location filter offers.
   locations: RequestLocationOption[];
   sort: SortCriterion<RequestSortColumn>[];
-  // True for superadmin and HO. The server checks again in the action.
+  // True for HO. The server checks again in the action.
   canDecide: boolean;
 };
 
 export type RequestStatusFilterProps = { status: RequestStatusFilter };
 
 export type RequestTypeFilterProps = { type: RequestTypeFilter };
-
-export type RequestSiteFilterProps = {
-  siteId: string | null;
-  sites: SiteOption[];
-};
 
 export type RequestLocationFilterProps = {
   locationId: string | null;
@@ -157,7 +139,6 @@ export type RequestActor = {
   id: string;
   name: string;
   role: string | null;
-  siteId?: string | null;
   locationId?: string | null;
 };
 
@@ -182,15 +163,12 @@ export type RequestFormLine = {
   dayHeadcounts: number[];
 };
 
-// The form's own state. An empty string is an unchosen type, date, site, location, department, or
+// The form's own state. An empty string is an unchosen type, date, location, department, or
 // position, and NaN is an empty headcount. On submit toRequestLineInputs converts the lines and
 // the zod schema turns the result into RequestInput.
-// The site only narrows the locations; it is not part of RequestInput, because the server reads
-// the site from the location.
 export type RequestFormValues = {
   type: RequestType | "";
   startDate: string;
-  siteId: string;
   locationId: string;
   lines: RequestFormLine[];
 };

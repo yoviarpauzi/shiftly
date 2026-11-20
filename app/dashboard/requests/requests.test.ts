@@ -7,6 +7,7 @@ import {
   rosterRequestLineDay,
 } from "@/database/schema/request-schema";
 import { location } from "@/database/schema/location-schema";
+import { position } from "@/database/schema/position-schema";
 import { shift } from "@/database/schema/shift-schema";
 import type { RequestAccess } from "@/types/requests";
 
@@ -28,6 +29,7 @@ const fake = vi.hoisted(() => ({
     days: [] as unknown[],
     shifts: [] as unknown[],
     locations: [] as unknown[],
+    positions: [] as unknown[],
   },
 }));
 
@@ -39,6 +41,7 @@ function result(call: Call): unknown {
   if (call.table === rosterRequestLineDay) return fake.rows.days;
   if (call.table === shift) return fake.rows.shifts;
   if (call.table === location) return fake.rows.locations;
+  if (call.table === position) return fake.rows.positions;
   return [];
 }
 
@@ -70,7 +73,7 @@ function builder(call: Call) {
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/db", () => ({ db: { select: () => builder({}) } }));
 
-const { getRequest, requestChoicesFor } = await import("./requests");
+const { getRequest, requestChoicesFor, requestScopeFilter } = await import("./requests");
 
 const REQUEST_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const LINE_1 = "b1111111-1111-4111-8111-111111111111";
@@ -80,21 +83,18 @@ const DEPT_B = "66666666-6666-4666-8666-666666666666";
 const SUB_A = "77777777-7777-4777-8777-777777777777";
 const POSITION_A = "88888888-8888-4888-8888-888888888888";
 const POSITION_B = "99999999-9999-4999-8999-999999999999";
-const SITE_A = "11111111-1111-4111-8111-111111111111";
 const LOCATION_A = "33333333-3333-4333-8333-333333333333";
 const SHIFT_1 = "51111111-1111-4111-8111-111111111111";
 
-const access: RequestAccess = { siteId: null, locationId: null };
+const access: RequestAccess = { locationId: null };
 
 function header(overrides: Record<string, unknown> = {}) {
   return {
     id: REQUEST_ID,
-    poNumber: "PO-NSL-2611-0001",
+    poNumber: "PO-202611-0001",
     type: "weekly",
     startDate: "2099-01-05",
     status: "pending",
-    siteId: SITE_A,
-    siteName: "Nestle Kejayan",
     locationId: LOCATION_A,
     locationName: "Gudang Utara",
     createdByName: "Admin A",
@@ -138,7 +138,7 @@ function renderHeaderWhere(): { sql: string; params: unknown[] } {
 
 beforeEach(() => {
   fake.calls = [];
-  fake.rows = { header: [], lines: [], days: [], shifts: [], locations: [] };
+  fake.rows = { header: [], lines: [], days: [], shifts: [], locations: [], positions: [] };
 });
 
 describe("getRequest", () => {
@@ -166,12 +166,10 @@ describe("getRequest", () => {
 
     expect(res).toEqual({
       id: REQUEST_ID,
-      poNumber: "PO-NSL-2611-0001",
+      poNumber: "PO-202611-0001",
       type: "weekly",
       startDate: "2099-01-05",
       status: "rejected",
-      siteId: SITE_A,
-      siteName: "Nestle Kejayan",
       locationId: LOCATION_A,
       locationName: "Gudang Utara",
       createdByName: "Admin A",
@@ -277,37 +275,32 @@ describe("getRequest", () => {
   // A request outside the actor's scope must read as missing, so the header query itself has to
   // carry the scope. The recorder cannot run a WHERE, so these tests read the condition it was given.
   describe("scope of the header query", () => {
-    it("filters by the request id alone for a superadmin", async () => {
-      await getRequest({ siteId: null, locationId: null }, REQUEST_ID);
+    it("filters by the request id alone for an HO", async () => {
+      await getRequest({ locationId: null }, REQUEST_ID);
 
       const where = renderHeaderWhere();
 
       expect(where.params).toEqual([REQUEST_ID]);
       expect(where.sql).toContain('"roster_request"."id" = $1');
-      expect(where.sql).not.toContain('"roster_request"."site_id"');
+      expect(where.sql).not.toContain("site_id");
       expect(where.sql).not.toContain('"roster_request"."location_id"');
     });
 
-    it("adds the site of an HO to the request id", async () => {
-      await getRequest({ siteId: SITE_A, locationId: null }, REQUEST_ID);
-
-      const where = renderHeaderWhere();
-
-      expect(where.params).toEqual([REQUEST_ID, SITE_A]);
-      expect(where.sql).toContain('"roster_request"."id" = $1');
-      expect(where.sql).toContain('"roster_request"."site_id" = $2');
-      expect(where.sql).not.toContain('"roster_request"."location_id"');
-    });
-
-    it("adds the location of an admin site, and not its site, to the request id", async () => {
-      await getRequest({ siteId: SITE_A, locationId: LOCATION_A }, REQUEST_ID);
+    it("adds the location of an admin site to the request id", async () => {
+      await getRequest({ locationId: LOCATION_A }, REQUEST_ID);
 
       const where = renderHeaderWhere();
 
       expect(where.params).toEqual([REQUEST_ID, LOCATION_A]);
       expect(where.sql).toContain('"roster_request"."id" = $1');
       expect(where.sql).toContain('"roster_request"."location_id" = $2');
-      expect(where.sql).not.toContain('"roster_request"."site_id"');
+    });
+
+    it("returns null when the header query finds no row for the location", async () => {
+      fake.rows.header = [];
+
+      expect(await getRequest({ locationId: LOCATION_A }, REQUEST_ID)).toBeNull();
+      expect(fake.calls.map((c) => c.table)).toEqual([rosterRequest]);
     });
   });
 
@@ -335,8 +328,8 @@ describe("requestChoicesFor", () => {
 
   it("reads the shifts of the locations, ordered by location then shift order", async () => {
     fake.rows.locations = [
-      { id: LOCATION_A, name: "Gudang Utara", siteId: SITE_A, timezone: "Asia/Jakarta" },
-      { id: LOCATION_A2, name: "Gudang Selatan", siteId: SITE_A, timezone: "Asia/Jakarta" },
+      { id: LOCATION_A, name: "Gudang Utara", timezone: "Asia/Jakarta" },
+      { id: LOCATION_A2, name: "Gudang Selatan", timezone: "Asia/Jakarta" },
     ];
     fake.rows.shifts = [
       {
@@ -369,5 +362,61 @@ describe("requestChoicesFor", () => {
         locationId: LOCATION_A,
       },
     ]);
+  });
+
+  it("offers the global positions with no site column and no site read", async () => {
+    fake.rows.locations = [
+      { id: LOCATION_A, name: "Gudang Utara", timezone: "Asia/Jakarta" },
+    ];
+    fake.rows.positions = [{ id: POSITION_A, name: "Cook" }];
+
+    const res = await requestChoicesFor(access);
+    const call = fake.calls.find((c) => c.table === position);
+    const where = dialect.sqlToQuery(call?.where as SQL);
+
+    expect(res).not.toHaveProperty("sites");
+    expect(res.positions).toEqual([{ id: POSITION_A, name: "Cook" }]);
+    expect(where.sql).toContain('"position"."deleted_at" is null');
+    expect(where.sql).not.toContain("location_id");
+    expect(where.params).toEqual([]);
+  });
+
+  it("limits an admin site to its own location", async () => {
+    fake.rows.locations = [
+      { id: LOCATION_A, name: "Gudang Utara", timezone: "Asia/Jakarta" },
+    ];
+
+    await requestChoicesFor({ locationId: LOCATION_A });
+
+    const call = fake.calls.find((c) => c.table === location);
+    const where = dialect.sqlToQuery(call?.where as SQL);
+
+    expect(where.params).toEqual([LOCATION_A]);
+    expect(where.sql).toContain('"location"."id" =');
+  });
+
+  it("returns empty choices when no location is available", async () => {
+    fake.rows.locations = [];
+
+    expect(await requestChoicesFor(access)).toEqual({
+      locations: [],
+      departments: [],
+      subDepartments: [],
+      positions: [],
+      shifts: [],
+    });
+  });
+});
+
+describe("requestScopeFilter", () => {
+  it("is no filter for an HO, who sees every location", () => {
+    expect(requestScopeFilter({ locationId: null })).toBeUndefined();
+  });
+
+  it("limits an admin site to the requests of its own location", () => {
+    const where = dialect.sqlToQuery(requestScopeFilter({ locationId: LOCATION_A }) as SQL);
+
+    expect(where.sql).toBe('"roster_request"."location_id" = $1');
+    expect(where.params).toEqual([LOCATION_A]);
   });
 });

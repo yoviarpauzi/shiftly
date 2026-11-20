@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { createRequest, updateRequest } from "@/app/dashboard/requests/actions";
 import {
   MAX_REQUEST_LINES,
-  afterSiteChange,
   blankLine,
   canAddLine,
   canRemoveLine,
@@ -23,14 +22,13 @@ import {
   shiftsForRequest,
   subDepartmentsFor,
   toRequestLineInputs,
-  withSiteError,
 } from "@/app/dashboard/requests/request-form-options";
 import {
   linesHeadcountsError,
   requestFieldErrors,
 } from "@/app/dashboard/requests/request-rules";
 import type {
-  RequestFormFieldErrors,
+  RequestFieldErrors,
   RequestFormProps,
   RequestFormValues,
 } from "@/types/requests";
@@ -68,11 +66,10 @@ function fieldError(message: string | undefined) {
   return message ? { message } : undefined;
 }
 
-function errorFields(errors: RequestFormFieldErrors) {
+function errorFields(errors: RequestFieldErrors) {
   return {
     type: fieldError(errors.type),
     startDate: fieldError(errors.startDate),
-    siteId: fieldError(errors.siteId),
     locationId: fieldError(errors.locationId),
     lines: fieldError(errors.lines),
   };
@@ -95,9 +92,6 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
     lines: toRequestLineInputs(lineType(value), value.lines),
   });
 
-  // Exactly when the Site field below renders its picker.
-  const pickSite = !request && choices.sites.length > 1;
-
   const form = useForm({
     defaultValues,
     // On edit the server decides the date rule: a stored date that has passed may be kept.
@@ -111,7 +105,7 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
         if (!parsed.success) {
           const errors = requestFieldErrors(parsed.error.issues);
 
-          return { fields: errorFields(withSiteError(errors, value.siteId, pickSite)) };
+          return { fields: errorFields(errors) };
         }
 
         // A create without a type has already failed the schema above.
@@ -161,13 +155,12 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
     },
   });
 
-  const siteId = useStore(form.store, (state) => state.values.siteId);
   const locationId = useStore(form.store, (state) => state.values.locationId);
   const type = useStore(form.store, (state) => state.values.type);
   const startDate = useStore(form.store, (state) => state.values.startDate);
-  const siteLocations = locationsFor(choices, siteId);
+  const locationOptions = locationsFor(choices);
   const departments = departmentsFor(choices, locationId);
-  const positions = positionsFor(choices, locationId);
+  const positions = positionsFor(choices);
   const shifts = shiftsForRequest(choices, locationId, request);
   const isEdit = request !== null;
 
@@ -257,81 +250,6 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                     );
                   }}
                 </form.Field>
-                <form.Field name="siteId">
-                  {(field) => {
-                    // The site is fixed after creation.
-                    if (request) {
-                      return (
-                        <Field>
-                          <FieldLabel htmlFor={field.name}>Site</FieldLabel>
-                          <Input
-                            id={field.name}
-                            value={request.siteName}
-                            disabled
-                            readOnly
-                          />
-                        </Field>
-                      );
-                    }
-
-                    // HO and admin site have one site, already set in the default values.
-                    if (choices.sites.length <= 1) {
-                      return (
-                        <Field>
-                          <FieldLabel>Site</FieldLabel>
-                          <p className="text-sm">
-                            {choices.sites[0]?.name ?? "No site available"}
-                          </p>
-                        </Field>
-                      );
-                    }
-
-                    const isInvalid = field.state.meta.errors.length > 0;
-
-                    return (
-                      <Field data-invalid={isInvalid || undefined}>
-                        <FieldLabel htmlFor={field.name}>Site</FieldLabel>
-                        <Select
-                          value={field.state.value || null}
-                          onValueChange={(value) => {
-                            if (value && value !== field.state.value) {
-                              const next = afterSiteChange(choices, value);
-
-                              field.handleChange(value);
-                              form.setFieldValue("locationId", next.locationId);
-                              form.setFieldValue("lines", next.lines);
-                            }
-                          }}
-                          items={choices.sites.map((row) => ({
-                            value: row.id,
-                            label: row.name,
-                          }))}
-                          disabled={disabled}
-                        >
-                          <SelectTrigger
-                            id={field.name}
-                            className="w-full"
-                            aria-invalid={isInvalid || undefined}
-                          >
-                            <SelectValue placeholder="Choose a site" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {choices.sites.map((row) => (
-                                <SelectItem key={row.id} value={row.id}>
-                                  {row.name}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                        {isInvalid && (
-                          <FieldError errors={field.state.meta.errors} />
-                        )}
-                      </Field>
-                    );
-                  }}
-                </form.Field>
                 <form.Field name="locationId">
                   {(field) => {
                     const isInvalid = field.state.meta.errors.length > 0;
@@ -355,14 +273,14 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                       );
                     }
 
-                    // A site with one location (or none) leaves nothing to choose. The one
-                    // location is already set in the default values and by a site change.
-                    if (siteId && siteLocations.length <= 1) {
+                    // One location (or none) leaves nothing to choose. The one location is
+                    // already set in the default values.
+                    if (locationOptions.length <= 1) {
                       return (
                         <Field data-invalid={isInvalid || undefined}>
                           <FieldLabel>Location</FieldLabel>
                           <p className="text-sm">
-                            {siteLocations[0]?.name ?? "No location available"}
+                            {locationOptions[0]?.name ?? "No location available"}
                           </p>
                           {error}
                         </Field>
@@ -383,28 +301,22 @@ export function RequestForm({ request, choices, readOnly }: RequestFormProps) {
                               );
                             }
                           }}
-                          items={siteLocations.map((row) => ({
+                          items={locationOptions.map((row) => ({
                             value: row.id,
                             label: row.name,
                           }))}
-                          disabled={disabled || !siteId}
+                          disabled={disabled}
                         >
                           <SelectTrigger
                             id={field.name}
                             className="w-full"
                             aria-invalid={isInvalid || undefined}
                           >
-                            <SelectValue
-                              placeholder={
-                                siteId
-                                  ? "Choose a location"
-                                  : "Choose a site first"
-                              }
-                            />
+                            <SelectValue placeholder="Choose a location" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              {siteLocations.map((row) => (
+                              {locationOptions.map((row) => (
                                 <SelectItem key={row.id} value={row.id}>
                                   {row.name}
                                 </SelectItem>

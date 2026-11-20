@@ -2,13 +2,10 @@ import { describe, expect, it } from "vitest";
 import type {
   RequestChoices,
   RequestDetail,
-  RequestFieldErrors,
   RequestFormLine,
 } from "@/types/requests";
 import {
   MAX_REQUEST_LINES,
-  SITE_REQUIRED_MESSAGE,
-  afterSiteChange,
   blankLine,
   canAddLine,
   canRemoveLine,
@@ -28,12 +25,9 @@ import {
   shiftsForRequest,
   subDepartmentsFor,
   toRequestLineInputs,
-  withSiteError,
   minStartDateFor,
 } from "./request-form-options";
 
-const SITE_A = "a0000000-0000-4000-8000-000000000000";
-const SITE_B = "b0000000-0000-4000-8000-000000000000";
 const LOC_A1 = "a1000000-0000-4000-8000-000000000000";
 const LOC_A2 = "a2000000-0000-4000-8000-000000000000";
 const LOC_B1 = "b1000000-0000-4000-8000-000000000000";
@@ -50,14 +44,10 @@ const SHIFT_A2 = "5a000000-0000-4000-8000-000000000000";
 const SHIFT_B1 = "5b000000-0000-4000-8000-000000000000";
 
 const choices: RequestChoices = {
-  sites: [
-    { id: SITE_A, name: "Site A" },
-    { id: SITE_B, name: "Site B" },
-  ],
   locations: [
-    { id: LOC_A1, name: "A1", siteId: SITE_A, timezone: "Asia/Jakarta" },
-    { id: LOC_A2, name: "A2", siteId: SITE_A, timezone: "Asia/Jakarta" },
-    { id: LOC_B1, name: "B1", siteId: SITE_B, timezone: "Asia/Makassar" },
+    { id: LOC_A1, name: "A1", timezone: "Asia/Jakarta" },
+    { id: LOC_A2, name: "A2", timezone: "Asia/Jakarta" },
+    { id: LOC_B1, name: "B1", timezone: "Asia/Makassar" },
   ],
   departments: [
     { id: DEPT_A1, name: "Kitchen", locationId: LOC_A1 },
@@ -69,8 +59,8 @@ const choices: RequestChoices = {
     { id: SUB_B1, name: "Front", departmentId: DEPT_B1 },
   ],
   positions: [
-    { id: POS_A, name: "Cook", siteId: SITE_A },
-    { id: POS_B, name: "Porter", siteId: SITE_B },
+    { id: POS_A, name: "Cook" },
+    { id: POS_B, name: "Porter" },
   ],
   shifts: [
     { id: SHIFT_1, name: "Pagi", order: 1, startTime: "06:00", endTime: "14:00", locationId: LOC_A1 },
@@ -86,8 +76,6 @@ const detail: RequestDetail = {
   type: "weekly",
   startDate: "2026-11-09",
   status: "approved",
-  siteId: SITE_A,
-  siteName: "Site A",
   locationId: LOC_A1,
   locationName: "A1",
   lineCount: 1,
@@ -128,35 +116,16 @@ function formLine(fields: Partial<RequestFormLine> = {}): RequestFormLine {
 }
 
 describe("locationsFor", () => {
-  it("returns only the locations of the site", () => {
-    expect(locationsFor(choices, SITE_A).map((row) => row.id)).toEqual([LOC_A1, LOC_A2]);
-    expect(locationsFor(choices, SITE_B).map((row) => row.id)).toEqual([LOC_B1]);
+  it("returns every location the choices hold, as options", () => {
+    expect(locationsFor(choices)).toEqual([
+      { id: LOC_A1, name: "A1" },
+      { id: LOC_A2, name: "A2" },
+      { id: LOC_B1, name: "B1" },
+    ]);
   });
 
-  it("returns nothing when no site is chosen or the site is unknown", () => {
-    expect(locationsFor(choices, "")).toEqual([]);
-    expect(locationsFor(choices, "unknown")).toEqual([]);
-  });
-});
-
-describe("afterSiteChange", () => {
-  it("clears the location and starts the lines over for a site with several locations", () => {
-    const next = afterSiteChange(choices, SITE_A);
-
-    expect(next.locationId).toBe("");
-    expect(next.lines).toHaveLength(1);
-    expect(next.lines[0].departmentId).toBe("");
-  });
-
-  it("starts the lines over on Any shift", () => {
-    expect(afterSiteChange(choices, SITE_A).lines.map((row) => row.shiftId)).toEqual([null]);
-  });
-
-  it("presets the location when the new site has only one", () => {
-    const next = afterSiteChange(choices, SITE_B);
-
-    expect(next.locationId).toBe(LOC_B1);
-    expect(next.lines).toHaveLength(1);
+  it("returns nothing when the actor has no location", () => {
+    expect(locationsFor({ ...choices, locations: [] })).toEqual([]);
   });
 });
 
@@ -185,14 +154,12 @@ describe("subDepartmentsFor", () => {
 });
 
 describe("positionsFor", () => {
-  it("returns the positions of the location's site", () => {
-    expect(positionsFor(choices, LOC_A2).map((row) => row.id)).toEqual([POS_A]);
-    expect(positionsFor(choices, LOC_B1).map((row) => row.id)).toEqual([POS_B]);
+  it("returns every active position, whatever the location", () => {
+    expect(positionsFor(choices).map((row) => row.id)).toEqual([POS_A, POS_B]);
   });
 
-  it("returns nothing for an unknown or empty location", () => {
-    expect(positionsFor(choices, "")).toEqual([]);
-    expect(positionsFor(choices, "unknown")).toEqual([]);
+  it("offers id and name only", () => {
+    expect(positionsFor(choices)[0]).toEqual({ id: POS_A, name: "Cook" });
   });
 });
 
@@ -341,54 +308,30 @@ describe("requestFormDefaults shifts", () => {
 });
 
 describe("requestFormDefaults", () => {
-  it("starts a new request blank with one line when several sites are available", () => {
+  it("starts a new request blank with one line when several locations are available", () => {
     const values = requestFormDefaults(null, choices);
 
     expect(values.type).toBe("");
     expect(values.startDate).toBe("");
-    expect(values.siteId).toBe("");
     expect(values.locationId).toBe("");
+    expect(values).not.toHaveProperty("siteId");
     expect(values.lines).toHaveLength(1);
   });
 
-  it("presets the site and the location when the actor has only one of each", () => {
-    const single = {
-      ...choices,
-      sites: [choices.sites[0]],
-      locations: [choices.locations[0]],
-    };
-    const values = requestFormDefaults(null, single);
+  it("presets the location when the actor has only one", () => {
+    const single = { ...choices, locations: [choices.locations[0]] };
 
-    expect(values.siteId).toBe(SITE_A);
-    expect(values.locationId).toBe(LOC_A1);
+    expect(requestFormDefaults(null, single).locationId).toBe(LOC_A1);
   });
 
-  it("presets only the site when its site has several locations", () => {
-    const oneSite = {
-      ...choices,
-      sites: [choices.sites[0]],
-      locations: [choices.locations[0], choices.locations[1]],
-    };
-    const values = requestFormDefaults(null, oneSite);
-
-    expect(values.siteId).toBe(SITE_A);
-    expect(values.locationId).toBe("");
+  it("presets nothing when the actor has no location", () => {
+    expect(requestFormDefaults(null, { ...choices, locations: [] }).locationId).toBe("");
   });
 
-  it("does not preset a location while the site is still to be chosen", () => {
-    const perSite = {
-      ...choices,
-      locations: [choices.locations[0], choices.locations[2]],
-    };
-
-    expect(requestFormDefaults(null, perSite).locationId).toBe("");
-  });
-
-  it("loads an existing request with its site", () => {
+  it("loads an existing request with its location", () => {
     expect(requestFormDefaults(detail, choices)).toEqual({
       type: "weekly",
       startDate: "2026-11-09",
-      siteId: SITE_A,
       locationId: LOC_A1,
       lines: detail.lines.map(formLineFromInput),
     });
@@ -528,44 +471,6 @@ describe("status helpers", () => {
     expect(isReadOnlyStatus("cancelled")).toBe(true);
     expect(isReadOnlyStatus("pending")).toBe(false);
     expect(isReadOnlyStatus("approved")).toBe(false);
-  });
-});
-
-describe("withSiteError", () => {
-  const errors: RequestFieldErrors = {
-    locationId: "Choose a location",
-    lines: "Add at least one line",
-  };
-
-  it("moves the location error onto the site when the site picker shows and no site is chosen", () => {
-    const next = withSiteError(errors, "", true);
-
-    expect(SITE_REQUIRED_MESSAGE).toBe("Choose a site");
-    expect(next).toEqual({ siteId: "Choose a site", lines: "Add at least one line" });
-    expect("locationId" in next).toBe(false);
-  });
-
-  it("keeps a location error on the location once a site is chosen", () => {
-    expect(withSiteError(errors, SITE_A, true)).toEqual(errors);
-  });
-
-  it("leaves the errors alone when the site is fixed text, which cannot show an error", () => {
-    expect(withSiteError(errors, "", false)).toEqual(errors);
-  });
-
-  it("adds nothing when there is no location error", () => {
-    const other: RequestFieldErrors = { type: "Choose a type" };
-
-    expect(withSiteError(other, "", true)).toEqual(other);
-    expect(withSiteError({}, "", true)).toEqual({});
-  });
-
-  it("does not change the errors it is given", () => {
-    const input: RequestFieldErrors = { ...errors };
-
-    withSiteError(input, "", true);
-
-    expect(input).toEqual(errors);
   });
 });
 

@@ -32,8 +32,22 @@ const joined = (overrides: Record<string, unknown> = {}) => ({
   endTime: "15:00:00",
   status: null,
   reason: null,
+  substituteId: null,
+  substituteWorkerId: null,
+  substituteEmployeeId: null,
+  substituteName: null,
   ...overrides,
 });
+
+const replaced = (overrides: Record<string, unknown> = {}) =>
+  joined({
+    status: "absent",
+    substituteId: "sub1",
+    substituteWorkerId: "w9",
+    substituteEmployeeId: "E-900",
+    substituteName: "Citra Dewi",
+    ...overrides,
+  });
 
 describe("buildAttendanceList", () => {
   it("gives a worker with no attendance row a null status", () => {
@@ -116,7 +130,48 @@ describe("buildAttendanceList", () => {
       present: 1,
       absent: 1,
       notMarked: 1,
+      covered: 0,
     });
+  });
+
+  it("maps the flat replacement columns to a substitute", () => {
+    const { rows } = buildAttendanceList([replaced({ assignmentId: "a1" })], filters());
+
+    expect(rows[0].substitute).toEqual({
+      id: "sub1",
+      workerId: "w9",
+      employeeId: "E-900",
+      name: "Citra Dewi",
+    });
+    expect(rows[0]).not.toHaveProperty("substituteId");
+    expect(rows[0]).not.toHaveProperty("substituteName");
+  });
+
+  it("gives an Absent row with no replacement a null substitute", () => {
+    const { rows, summary } = buildAttendanceList(
+      [joined({ assignmentId: "a1", status: "absent" })],
+      filters(),
+    );
+
+    expect(rows[0].substitute).toBeNull();
+    expect(summary.covered).toBe(0);
+  });
+
+  it("counts each replaced row once in the summary, whatever the filters", () => {
+    const input = [
+      replaced({ assignmentId: "a1", departmentId: "d1", shiftId: "s1" }),
+      replaced({ assignmentId: "a2", departmentId: "d2", shiftId: "s2", substituteId: "sub2" }),
+      joined({ assignmentId: "a3", status: "absent" }),
+      joined({ assignmentId: "a4", status: "present" }),
+    ];
+
+    const { rows, summary } = buildAttendanceList(
+      input,
+      filters({ departmentId: "d1", shiftId: "s1", status: "present", query: "nobody" }),
+    );
+
+    expect(rows).toHaveLength(0);
+    expect(summary).toMatchObject({ scheduled: 4, absent: 3, covered: 2 });
   });
 
   it("orders by department, then shift order, then worker name", () => {

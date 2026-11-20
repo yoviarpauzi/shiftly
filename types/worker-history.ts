@@ -32,6 +32,8 @@ export type WorkerHistoryRow = {
   poNumber: string;
   // Null for off and break.
   attendance: HistoryAttendance | null;
+  // The name of the absent worker this day was worked in place of. Null on an ordinary row.
+  coveredFor: string | null;
 };
 
 // One row as the history query returns it. Times are as stored (HH:MM:SS).
@@ -51,6 +53,8 @@ export type WorkerHistoryJoinedRow = {
   rosterId: string;
   poNumber: string;
   attendanceStatus: string | null;
+  // Set on a covered day, left out on an ordinary row.
+  coveredFor?: string | null;
 };
 
 export type HistoryAttendanceFilter = "all" | HistoryAttendance;

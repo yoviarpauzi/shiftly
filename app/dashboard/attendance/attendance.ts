@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { toHourMinute } from "@/app/dashboard/shifts/shift-rules";
-import { attendance } from "@/database/schema/attendance-schema";
+import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { department } from "@/database/schema/department-schema";
 import { location } from "@/database/schema/location-schema";
 import { position } from "@/database/schema/position-schema";
@@ -49,16 +50,38 @@ export function buildAttendanceList(
   joined: AttendanceJoinedRow[],
   filters: AttendanceFilters,
 ): { rows: AttendanceRow[]; summary: AttendanceListResult["summary"] } {
-  const entries = joined.map(({ departmentId, shiftId, ...rest }) => ({
-    departmentId,
-    shiftId,
-    row: {
-      ...rest,
-      status: rest.status as AttendanceStatus | null,
-      startTime: toHourMinute(rest.startTime),
-      endTime: toHourMinute(rest.endTime),
-    } satisfies AttendanceRow,
-  }));
+  const entries = joined.map(
+    ({
+      departmentId,
+      shiftId,
+      substituteId,
+      substituteWorkerId,
+      substituteEmployeeId,
+      substituteName,
+      ...rest
+    }) => ({
+      departmentId,
+      shiftId,
+      row: {
+        ...rest,
+        status: rest.status as AttendanceStatus | null,
+        startTime: toHourMinute(rest.startTime),
+        endTime: toHourMinute(rest.endTime),
+        substitute:
+          substituteId !== null &&
+          substituteWorkerId !== null &&
+          substituteEmployeeId !== null &&
+          substituteName !== null
+            ? {
+                id: substituteId,
+                workerId: substituteWorkerId,
+                employeeId: substituteEmployeeId,
+                name: substituteName,
+              }
+            : null,
+      } satisfies AttendanceRow,
+    }),
+  );
   const all = entries.map((entry) => entry.row);
 
   const needle = filters.query.toLowerCase();
@@ -90,7 +113,10 @@ export function buildAttendanceList(
         byText(a.assignmentId, b.assignmentId),
     );
 
-  return { rows, summary: summarize(all) };
+  // The rows are live assignments already, so a replacement on one of them is live.
+  const covered = all.filter((row) => row.substitute !== null).length;
+
+  return { rows, summary: summarize(all, covered) };
 }
 
 // The locations, departments, and shifts the Attendance filters offer to this access, and the
@@ -156,6 +182,8 @@ export async function listAttendance(
     };
   }
 
+  const substituteWorker = alias(worker, "substitute_worker");
+
   const joined = await db
     .select({
       assignmentId: rosterAssignment.id,
@@ -172,6 +200,10 @@ export async function listAttendance(
       endTime: shift.endTime,
       status: attendance.status,
       reason: attendance.reason,
+      substituteId: attendanceSubstitute.id,
+      substituteWorkerId: substituteWorker.id,
+      substituteEmployeeId: substituteWorker.employeeId,
+      substituteName: substituteWorker.name,
     })
     .from(rosterAssignment)
     .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
@@ -183,6 +215,8 @@ export async function listAttendance(
     .innerJoin(position, eq(position.id, rosterRequestLine.positionId))
     .innerJoin(shift, eq(shift.id, rosterAssignment.shiftId))
     .leftJoin(attendance, eq(attendance.rosterAssignmentId, rosterAssignment.id))
+    .leftJoin(attendanceSubstitute, eq(attendanceSubstitute.attendanceId, attendance.id))
+    .leftJoin(substituteWorker, eq(substituteWorker.id, attendanceSubstitute.substituteWorkerId))
     .where(
       and(
         eq(rosterAssignment.workDate, filters.date),

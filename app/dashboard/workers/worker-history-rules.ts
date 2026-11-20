@@ -105,10 +105,17 @@ export function toHistoryRows(joined: WorkerHistoryJoinedRow[]): WorkerHistoryRo
       rosterId: entry.rosterId,
       poNumber: entry.poNumber,
       attendance: work ? ((entry.attendanceStatus ?? "not-marked") as HistoryAttendance) : null,
+      coveredFor: entry.coveredFor ?? null,
     };
   });
 }
 
+// The note under a covered day, or null on an ordinary day.
+export function coveredForText(row: Pick<WorkerHistoryRow, "coveredFor">): string | null {
+  return row.coveredFor ? `Covered for ${row.coveredFor}` : null;
+}
+
+// Covered days are work rows marked present, so they count as a shift worked and as present.
 export function summarizeHistory(rows: WorkerHistoryRow[]): WorkerHistorySummary {
   const summary: WorkerHistorySummary = {
     shiftsWorked: 0,

@@ -10,12 +10,15 @@ import { worker } from "@/database/schema/worker-schema";
 import { db } from "@/lib/db";
 import type { WorkerHistoryRow } from "@/types/worker-history";
 import type { WorkerAccess } from "@/types/workers";
-import { toHistoryRows } from "./worker-history-rules";
+import { coverRowsQuery } from "../attendance/attendance-cover";
+import { sortHistory, toHistoryRows } from "./worker-history-rules";
 import { workerScopeFilter } from "./workers";
 
 // The assignments of one worker in the date range that count as history: a confirmed roster whose
 // request is still approved, the same rule Attendance uses. A department, sub-department, or shift
 // deleted afterwards stays: the day happened. The scope is applied here too, not only by the caller.
+// A day worked as a replacement is added as a work row marked present, with the name of the absent
+// worker, under the same scope applied to the replacement.
 export async function loadWorkerMonth(
   access: WorkerAccess,
   workerId: string,
@@ -61,10 +64,45 @@ export async function loadWorkerMonth(
     )
     .orderBy(asc(rosterAssignment.workDate), asc(rosterAssignment.id));
 
-  return toHistoryRows(joined);
+  const covers = await coverRowsQuery(
+    db,
+    [workerId],
+    bounds.from,
+    bounds.to,
+    workerScopeFilter(access),
+  );
+
+  const own = toHistoryRows(joined);
+
+  if (covers.length === 0) {
+    return own;
+  }
+
+  const covered = toHistoryRows(
+    covers.map((cover) => ({
+      assignmentId: cover.id,
+      date: cover.date,
+      kind: "work" as const,
+      shiftId: cover.shiftId,
+      shiftOrder: cover.shiftOrder,
+      shiftName: cover.shiftName,
+      startTime: cover.startTime,
+      endTime: cover.endTime,
+      departmentId: cover.departmentId,
+      departmentName: cover.departmentName,
+      subDepartmentName: cover.subDepartmentName,
+      positionName: cover.positionName,
+      rosterId: cover.rosterId,
+      poNumber: cover.poNumber,
+      attendanceStatus: "present",
+      coveredFor: cover.absentWorkerName,
+    })),
+  );
+
+  return sortHistory([...own, ...covered], "asc");
 }
 
-// Whether the worker has any history at all, in any month up to today. It tells an empty month from
+// Whether the worker has any history at all, in any month up to today, a day worked as a replacement included. It tells an empty month from
 // a worker who was never in a confirmed roster. A roster that starts after today is not history
 // yet, so a new hire does not get "pick an earlier month" for months that were never theirs.
 export async function workerHasHistory(
@@ -89,5 +127,11 @@ export async function workerHasHistory(
     )
     .limit(1);
 
-  return rows.length > 0;
+  if (rows.length > 0) {
+    return true;
+  }
+
+  const covers = await coverRowsQuery(db, [workerId], "0001-01-01", today, workerScopeFilter(access));
+
+  return covers.length > 0;
 }

@@ -74,12 +74,16 @@ export type AttendanceRow = {
   substitute: AttendanceSubstitute | null;
 };
 
-// A row as the query returns it: the times are still HH:mm:ss, and the ids the filters need are
-// still there.
-export type AttendanceJoinedRow = Omit<AttendanceRow, "status"> & {
+// A row as the query returns it: the times are still HH:mm:ss, the ids the filters need are still
+// there, and the replacement is four flat columns, all null when there is none.
+export type AttendanceJoinedRow = Omit<AttendanceRow, "status" | "substitute"> & {
   departmentId: string;
   shiftId: string;
   status: string | null;
+  substituteId: string | null;
+  substituteWorkerId: string | null;
+  substituteEmployeeId: string | null;
+  substituteName: string | null;
 };
 
 export type AttendanceListResult = {

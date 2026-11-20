@@ -7,6 +7,7 @@ import type {
 } from "@/types/worker-history";
 import {
   buildWorkerHistory,
+  coveredForText,
   daysText,
   filterHistory,
   historyChoices,
@@ -47,6 +48,7 @@ function row(overrides: Partial<WorkerHistoryRow> = {}): WorkerHistoryRow {
     rosterId: "roster-1",
     poNumber: "PO-NK-202611-0001",
     attendance: "present",
+    coveredFor: null,
     ...overrides,
   };
 }
@@ -142,6 +144,18 @@ describe("toHistoryRows", () => {
     expect(toHistoryRows([{ ...joined, attendanceStatus: "absent" }])[0].attendance).toBe("absent");
   });
 
+  it("gives an ordinary row no coveredFor", () => {
+    expect(toHistoryRows([joined])[0].coveredFor).toBeNull();
+  });
+
+  it("carries the absent worker's name of a covered day", () => {
+    const [result] = toHistoryRows([
+      { ...joined, attendanceStatus: "present", coveredFor: "Budi Santoso" },
+    ]);
+
+    expect(result).toMatchObject({ attendance: "present", coveredFor: "Budi Santoso" });
+  });
+
   it("gives an off row no shift and no attendance", () => {
     const [result] = toHistoryRows([
       {
@@ -160,7 +174,23 @@ describe("toHistoryRows", () => {
   });
 });
 
+describe("coveredForText", () => {
+  it("names the absent worker only when the row is a covered day", () => {
+    expect(coveredForText(row({ coveredFor: "Budi Santoso" }))).toBe("Covered for Budi Santoso");
+    expect(coveredForText(row())).toBeNull();
+  });
+});
+
 describe("summarizeHistory", () => {
+  it("counts a covered day once, in shiftsWorked and present", () => {
+    const summary = summarizeHistory([
+      row({ attendance: "present" }),
+      row({ attendance: "present", coveredFor: "Budi Santoso" }),
+    ]);
+
+    expect(summary).toMatchObject({ shiftsWorked: 2, present: 2, absent: 0, notMarked: 0 });
+  });
+
   it("counts days by kind and work days by attendance", () => {
     const rows = [
       ...workRows(6, "present"),

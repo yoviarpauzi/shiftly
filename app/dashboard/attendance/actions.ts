@@ -3,16 +3,26 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
 import { eq, inArray, sql } from "drizzle-orm";
-import { attendance } from "@/database/schema/attendance-schema";
+import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment } from "@/database/schema/roster-schema";
+import { isUniqueViolation } from "@/error/db-error";
 import { db } from "@/lib/db";
 import { dateInZone } from "@/lib/indonesia-date";
-import type { AttendanceActionResult } from "@/types/attendance";
+import type { AttendanceActionResult, SubstituteActionResult } from "@/types/attendance";
+import type { ReplaceOption } from "@/types/rosters";
 import { locationTimezoneSchema } from "@/validation/location";
-import { saveAttendanceSchema, type SaveAttendanceInput } from "@/validation/attendance";
+import {
+  listSubstituteCandidatesSchema,
+  saveAttendanceSchema,
+  setSubstituteSchema,
+  type ListSubstituteCandidatesInput,
+  type SaveAttendanceInput,
+  type SetSubstituteInput,
+} from "@/validation/attendance";
 import { INVALID_TIMEZONE_MESSAGE } from "../requests/request-rules";
+import { loadEngineRules } from "../rosters/roster-work-rules";
 import { canAccessAttendanceLocation } from "./attendance-access";
 import { requireAttendanceAccess } from "./attendance-guard";
 import {
@@ -21,6 +31,13 @@ import {
   isFutureDay,
   scheduledWorkError,
 } from "./attendance-rules";
+import { loadSubstituteCandidates, loadSubstituteTarget } from "./attendance-substitute";
+import {
+  checkSubstitute,
+  NEEDS_ABSENT_MESSAGE,
+  SUBSTITUTE_COVERS_MESSAGE,
+  SUBSTITUTE_MESSAGES,
+} from "./attendance-substitute-rules";
 
 const ATTENDANCE_PATH = "/dashboard/attendance";
 
@@ -145,6 +162,20 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
             updatedAt: new Date(),
           },
         });
+
+      // A worker marked Present did work, so nobody covers them. The rows are removed after the
+      // upsert has locked the attendance rows, and in the same transaction. Clearing needs no such
+      // statement: deleting the attendance row cascades to its replacement.
+      const present = marked.filter((entry) => entry.status === "present");
+
+      if (present.length > 0) {
+        await tx.delete(attendanceSubstitute).where(
+          sql`${attendanceSubstitute.attendanceId} in (select ${attendance.id} from ${attendance} where ${inArray(
+            attendance.rosterAssignmentId,
+            present.map((entry) => entry.assignmentId),
+          )})`,
+        );
+      }
     }
 
     if (cleared.length > 0) {
@@ -158,6 +189,183 @@ export async function saveAttendance(input: SaveAttendanceInput): Promise<Attend
 
     return { ok: true, saved: marked.length, cleared: cleared.length };
   });
+
+  if (result.ok) {
+    revalidatePath(ATTENDANCE_PATH);
+  }
+
+  return result;
+}
+
+// The workers who could cover an absent worker, each with the reasons that block the choice (hard)
+// and the roster rules it would break (warnings). Read only. Anything the caller may not see, or a
+// row that is not Absent, gives an empty list, so the answer does not tell what exists elsewhere.
+export async function listSubstituteCandidates(
+  input: ListSubstituteCandidatesInput,
+): Promise<ReplaceOption[]> {
+  const access = await requireAttendanceAccess();
+  const parsed = listSubstituteCandidatesSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  const target = await loadSubstituteTarget(db, parsed.data.assignmentId);
+
+  if (
+    !target ||
+    !canAccessAttendanceLocation(access, { id: target.locationId }) ||
+    scheduledWorkError(
+      {
+        kind: target.kind,
+        workDate: target.date,
+        rosterStatus: target.rosterStatus,
+        requestStatus: target.requestStatus,
+      },
+      target.date,
+    ) ||
+    target.status !== "absent"
+  ) {
+    return [];
+  }
+
+  const [candidates, rules] = await Promise.all([
+    loadSubstituteCandidates(db, target, { candidateIds: null }),
+    loadEngineRules(db, { locationId: target.locationId }),
+  ]);
+
+  return candidates
+    .filter((candidate) => candidate.id !== target.workerId)
+    .map((candidate) => ({
+      workerId: candidate.id,
+      employeeId: candidate.employeeId,
+      name: candidate.name,
+      positionNames: candidate.positionNames,
+      ...checkSubstitute({
+        date: target.date,
+        absentWorkerId: target.workerId,
+        absentShiftOrder: target.shiftOrder,
+        position: target.position,
+        rules,
+        candidate,
+        locationId: target.locationId,
+        workDatesToday: candidate.workDatesToday,
+        alreadyCovering: candidate.alreadyCovering,
+        history: candidate.history,
+      }),
+    }));
+}
+
+// Sets, changes, or removes the worker who covers an absent worker for the day. The row is read
+// again under lock inside the transaction, so a change to the roster, the request, or the status
+// at the same moment waits for this save. A hard reason refuses the choice, and a warning is only
+// returned.
+export async function setSubstitute(input: SetSubstituteInput): Promise<SubstituteActionResult> {
+  const access = await requireAttendanceAccess();
+  const parsed = setSubstituteSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { ok: false, formError: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const { assignmentId, substituteWorkerId } = parsed.data;
+  let result: SubstituteActionResult;
+
+  try {
+    result = await db.transaction(async (tx): Promise<SubstituteActionResult> => {
+      const target = await loadSubstituteTarget(tx, assignmentId, { lock: true });
+
+      if (!target || !canAccessAttendanceLocation(access, { id: target.locationId })) {
+        return { ok: false, formError: ATTENDANCE_NOT_FOUND_MESSAGE };
+      }
+
+      const scheduleError = scheduledWorkError(
+        {
+          kind: target.kind,
+          workDate: target.date,
+          rosterStatus: target.rosterStatus,
+          requestStatus: target.requestStatus,
+        },
+        target.date,
+      );
+
+      if (scheduleError) {
+        return { ok: false, formError: scheduleError };
+      }
+
+      const zone = locationTimezoneSchema.safeParse(target.timezone);
+
+      if (!zone.success) {
+        return { ok: false, formError: INVALID_TIMEZONE_MESSAGE };
+      }
+
+      if (isFutureDay(target.date, dateInZone(zone.data))) {
+        return { ok: false, formError: FUTURE_DAY_MESSAGE };
+      }
+
+      if (target.status !== "absent" || target.attendanceId === null) {
+        return { ok: false, formError: NEEDS_ABSENT_MESSAGE };
+      }
+
+      if (substituteWorkerId === null) {
+        await tx
+          .delete(attendanceSubstitute)
+          .where(eq(attendanceSubstitute.attendanceId, target.attendanceId));
+
+        return { ok: true, warnings: [] };
+      }
+
+      const [candidate] = await loadSubstituteCandidates(tx, target, {
+        candidateIds: [substituteWorkerId],
+      });
+
+      if (!candidate) {
+        return { ok: false, formError: SUBSTITUTE_MESSAGES.notAvailable };
+      }
+
+      const rules = await loadEngineRules(tx, { locationId: target.locationId });
+      const { hard, warnings } = checkSubstitute({
+        date: target.date,
+        absentWorkerId: target.workerId,
+        absentShiftOrder: target.shiftOrder,
+        position: target.position,
+        rules,
+        candidate,
+        locationId: target.locationId,
+        workDatesToday: candidate.workDatesToday,
+        alreadyCovering: candidate.alreadyCovering,
+        history: candidate.history,
+      });
+
+      if (hard.length > 0) {
+        return { ok: false, formError: hard.join(" ") };
+      }
+
+      // One replacement per absent row: choosing again swaps the worker and takes the new editor
+      // and time.
+      await tx
+        .insert(attendanceSubstitute)
+        .values({
+          attendanceId: target.attendanceId,
+          substituteWorkerId,
+          workDate: target.date,
+          createdBy: access.userId,
+        })
+        .onConflictDoUpdate({
+          target: attendanceSubstitute.attendanceId,
+          set: { substituteWorkerId, createdBy: access.userId, createdAt: new Date() },
+        });
+
+      return { ok: true, warnings };
+    });
+  } catch (error) {
+    // A unique violation aborts the transaction, so it is caught out here, after the rollback.
+    if (isUniqueViolation(error)) {
+      return { ok: false, formError: SUBSTITUTE_COVERS_MESSAGE };
+    }
+
+    throw error;
+  }
 
   if (result.ok) {
     revalidatePath(ATTENDANCE_PATH);

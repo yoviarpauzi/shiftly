@@ -8,6 +8,8 @@ export const SUBSTITUTE_COVERS_MESSAGE = "This worker already covers someone els
 
 export const SUBSTITUTE_MESSAGES = {
   deleted: "This worker is no longer active.",
+  // The chosen id is not an active worker of the location: unknown, removed, or elsewhere.
+  notAvailable: "This worker is not available.",
   otherLocation: "This worker belongs to another location.",
   sameWorker: "The absent worker cannot cover themself.",
   contractEnded: (endContract: string) => `Contract ended ${endContract}.`,

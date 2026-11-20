@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { department, subDepartment } from "@/database/schema/department-schema";
@@ -8,6 +8,7 @@ import { rosterRequest, rosterRequestLine } from "@/database/schema/request-sche
 import { roster, rosterAssignment } from "@/database/schema/roster-schema";
 import { shift } from "@/database/schema/shift-schema";
 import { worker } from "@/database/schema/worker-schema";
+import { db } from "@/lib/db";
 import type { Reader } from "@/types/rosters";
 
 // The days the given workers worked as a replacement, between from and to (YYYY-MM-DD, inclusive).
@@ -76,4 +77,40 @@ export async function coverRowsQuery(
       ),
     )
     .orderBy(asc(attendanceSubstitute.workDate), asc(attendanceSubstitute.id));
+}
+
+// How many replacements cover a shift on each date, for the shifts of the given locations, between
+// from and to (YYYY-MM-DD, inclusive). One row per date with at least one. The dashboard adds it
+// to the day's Present. It applies the same live rule as coverRowsQuery: the absent worker's work
+// assignment on a confirmed roster of an approved request, with its attendance row still Absent.
+// The date and the location are those of the absent worker's assignment, the shift that was covered.
+// With no locationIds nothing is queried.
+export async function coverCountsByDate(
+  locationIds: string[],
+  from: string,
+  to: string,
+): Promise<{ workDate: string; covered: number }[]> {
+  if (locationIds.length === 0) {
+    return [];
+  }
+
+  return db
+    .select({ workDate: rosterAssignment.workDate, covered: count() })
+    .from(attendanceSubstitute)
+    .innerJoin(attendance, eq(attendance.id, attendanceSubstitute.attendanceId))
+    .innerJoin(rosterAssignment, eq(rosterAssignment.id, attendance.rosterAssignmentId))
+    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+    .where(
+      and(
+        eq(attendance.status, "absent"),
+        eq(rosterAssignment.kind, "work"),
+        eq(roster.status, "confirmed"),
+        eq(rosterRequest.status, "approved"),
+        inArray(rosterRequest.locationId, locationIds),
+        gte(rosterAssignment.workDate, from),
+        lte(rosterAssignment.workDate, to),
+      ),
+    )
+    .groupBy(rosterAssignment.workDate);
 }

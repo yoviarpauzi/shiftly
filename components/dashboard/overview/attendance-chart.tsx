@@ -156,7 +156,7 @@ export function AttendanceChart({ series }: AttendanceChartProps) {
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>
-          Workers marked present, and workers who were absent
+          Workers marked present or covered, and workers who were absent
         </CardDescription>
         <CardAction>
           <ToggleGroup

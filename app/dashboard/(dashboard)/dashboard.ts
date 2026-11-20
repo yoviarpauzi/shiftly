@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm";
 import { lastDays, scopeToday, weekDays } from "@/app/dashboard/(dashboard)/dashboard-rules";
 import { addDays } from "@/app/dashboard/rosters/roster-rules";
+import { coverCountsByDate } from "@/app/dashboard/attendance/attendance-cover";
 import { contractEndingFilter } from "@/app/dashboard/workers/workers";
 import { attendance } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
@@ -71,22 +72,35 @@ function scheduledShifts(locationIds: string[], from: string, to: string, ...ext
 
 // Per date: distinct workers, shifts, and the attendance status of the same shifts. A shift with
 // no attendance row counts in `scheduled` only. attendance is unique per assignment, so the left
-// join never repeats a shift.
-function shiftCounts(zone: ScopeZone, from: string, to: string) {
-  return db
-    .select({
-      workDate: rosterAssignment.workDate,
-      workers: countDistinct(rosterAssignment.workerId),
-      scheduled: count(),
-      present: countWhere(sql`${attendance.status} = ${"present"}`),
-      absent: countWhere(sql`${attendance.status} = ${"absent"}`),
-    })
-    .from(rosterAssignment)
-    .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
-    .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
-    .leftJoin(attendance, eq(attendance.rosterAssignmentId, rosterAssignment.id))
-    .where(scheduledShifts(zone.locationIds, from, to))
-    .groupBy(rosterAssignment.workDate);
+// join never repeats a shift. A replacement counts as having worked the shift it covers, so `present`
+// also holds that date's live covers. The absent worker keeps their `absent` and `scheduled` row, and
+// a cover on a date with no scheduled shift is dropped.
+async function shiftCounts(zone: ScopeZone, from: string, to: string) {
+  if (zone.locationIds.length === 0) {
+    return [];
+  }
+
+  const [rows, covers] = await Promise.all([
+    db
+      .select({
+        workDate: rosterAssignment.workDate,
+        workers: countDistinct(rosterAssignment.workerId),
+        scheduled: count(),
+        present: countWhere(sql`${attendance.status} = ${"present"}`),
+        absent: countWhere(sql`${attendance.status} = ${"absent"}`),
+      })
+      .from(rosterAssignment)
+      .innerJoin(roster, eq(roster.id, rosterAssignment.rosterId))
+      .innerJoin(rosterRequest, eq(rosterRequest.id, roster.requestId))
+      .leftJoin(attendance, eq(attendance.rosterAssignmentId, rosterAssignment.id))
+      .where(scheduledShifts(zone.locationIds, from, to))
+      .groupBy(rosterAssignment.workDate),
+    coverCountsByDate(zone.locationIds, from, to),
+  ]);
+
+  const coveredOn = new Map(covers.map((row) => [row.workDate, row.covered]));
+
+  return rows.map((row) => ({ ...row, present: row.present + (coveredOn.get(row.workDate) ?? 0) }));
 }
 
 // Per location: draft rosters, the conflict rows they hold, and how many of them hold any.

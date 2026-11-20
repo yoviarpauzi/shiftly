@@ -1,7 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { attendance } from "@/database/schema/attendance-schema";
+import { attendance, attendanceSubstitute } from "@/database/schema/attendance-schema";
 import { location } from "@/database/schema/location-schema";
 import { rosterRequest } from "@/database/schema/request-schema";
 import { roster, rosterAssignment, rosterConflict } from "@/database/schema/roster-schema";
@@ -258,6 +258,7 @@ describe("getKpis", () => {
 
     const shifts = callsOn(rosterAssignment);
     expect(shifts).toHaveLength(2);
+    expect(callsOn(attendanceSubstitute)).toHaveLength(2);
 
     const [wib, wita] = shifts;
     expectScheduledJoins(wib);
@@ -460,6 +461,7 @@ describe("getAttendanceSeries", () => {
 
     const [wib, wita] = callsOn(rosterAssignment);
     expect(callsOn(rosterAssignment)).toHaveLength(2);
+    expect(callsOn(attendanceSubstitute)).toHaveLength(2);
     expectScheduledJoins(wib);
 
     expect(render(wib.where)).toEqual({
@@ -470,7 +472,7 @@ describe("getAttendanceSeries", () => {
       sql: `${scheduledWhere(1)})`,
       params: ["confirmed", "approved", "work", LOC_B, "2026-10-12", "2026-11-10"],
     });
-    expect(calls()).toHaveLength(2);
+    expect(calls()).toHaveLength(4);
   });
 
   it("returns 30 days oldest first, zero-filled, adding the zones on a shared date", async () => {
@@ -482,10 +484,13 @@ describe("getAttendanceSeries", () => {
       absent,
     });
 
-    fake.answer = (call: Call) =>
-      zoneOf(call) === "WIB"
+    fake.answer = (call: Call) => {
+      if (call.table !== rosterAssignment) return [];
+
+      return zoneOf(call) === "WIB"
         ? [day("2026-11-09", 4, 2)]
         : [day("2026-11-09", 2, 1), day("2026-11-10", 1, 0)];
+    };
 
     const series = await getAttendanceSeries(twoZones);
 
@@ -494,6 +499,109 @@ describe("getAttendanceSeries", () => {
     expect(series[28]).toEqual({ date: "2026-11-09", present: 6, notPresent: 3 });
     expect(series[29]).toEqual({ date: "2026-11-10", present: 1, notPresent: 0 });
     expect(series.filter((point) => point.present + point.notPresent > 0)).toHaveLength(2);
+  });
+});
+
+// A replacement counts as having worked the absent worker's shift. The cover query finds the live
+// ones per date and shiftCounts adds them to `present`. Scheduled, absent and workers keep their
+// meaning, so a covered shift is still one scheduled shift and one absent row.
+describe("replacement days in the attendance numbers", () => {
+  const oneZone: DashboardScope = {
+    access: { locationId: null },
+    locations: [scopeLocation({ id: LOC_A })],
+    zones: [{ timezone: "Asia/Jakarta", today: "2026-11-12", locationIds: [LOC_A] }],
+  };
+
+  // 3 scheduled shifts, 2 marked present, 1 absent that has a replacement.
+  function feed(covered: { workDate: string; covered: number }[]) {
+    fake.answer = (call: Call) => {
+      if (call.table === attendanceSubstitute) return covered;
+      if (call.table !== rosterAssignment) return [];
+
+      return [
+        { workDate: "2026-11-11", workers: 3, scheduled: 3, present: 2, absent: 1 },
+        { workDate: "2026-11-12", workers: 3, scheduled: 3, present: 2, absent: 1 },
+      ];
+    };
+  }
+
+  it("reads live covers per date of the zone's locations, through the absent work assignment", async () => {
+    await getKpis(oneZone);
+
+    const [cover] = callsOn(attendanceSubstitute);
+    expect(cover.joins).toEqual([
+      { kind: "inner", table: attendance },
+      { kind: "inner", table: rosterAssignment },
+      { kind: "inner", table: roster },
+      { kind: "inner", table: rosterRequest },
+    ]);
+    // Only a Confirmed roster of an Approved request, on the Absent row of a work assignment.
+    expect(render(cover.where)).toEqual({
+      sql: '("attendance"."status" = $1 and "roster_assignment"."kind" = $2 and "roster"."status" = $3 and "roster_request"."status" = $4 and "roster_request"."location_id" in ($5) and "roster_assignment"."work_date" >= $6 and "roster_assignment"."work_date" <= $7)',
+      params: ["absent", "work", "confirmed", "approved", LOC_A, "2026-11-11", "2026-11-12"],
+    });
+    expect(cover.groupBy).toEqual([rosterAssignment.workDate]);
+    expect(column(cover, "covered").sql).toBe("count(*)");
+    expect(Object.keys(cover.columns).sort()).toEqual(["covered", "workDate"]);
+  });
+
+  it("adds the covers to Present and leaves Scheduled and Absent alone in the KPIs", async () => {
+    feed([{ workDate: "2026-11-12", covered: 1 }]);
+
+    const kpis = await getKpis(oneZone);
+
+    expect(kpis.today).toEqual({ scheduled: 3, present: 3, absent: 1 });
+    expect(kpis.workersToday).toBe(3);
+    // No cover yesterday.
+    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1 });
+  });
+
+  it("adds the covers to the 30-day Present and keeps Not present as the absent rows", async () => {
+    feed([{ workDate: "2026-11-11", covered: 1 }]);
+
+    const series = await getAttendanceSeries(oneZone);
+
+    expect(series.find((point) => point.date === "2026-11-11")).toEqual({
+      date: "2026-11-11",
+      present: 3,
+      notPresent: 1,
+    });
+    expect(series.find((point) => point.date === "2026-11-12")).toEqual({
+      date: "2026-11-12",
+      present: 2,
+      notPresent: 1,
+    });
+  });
+
+  it("does not change the weekly chart, which counts scheduled workers, not attendance", async () => {
+    feed([{ workDate: "2026-11-12", covered: 1 }]);
+
+    const points = await getWeekChart(oneZone, "scheduled");
+
+    expect(points.find((point) => point.date === "2026-11-11")?.value).toBe(3);
+    expect(points.find((point) => point.date === "2026-11-12")?.value).toBe(3);
+  });
+
+  it("ignores a cover on a date with no scheduled shift", async () => {
+    feed([{ workDate: "2026-11-10", covered: 2 }]);
+
+    const kpis = await getKpis(oneZone);
+
+    expect(kpis.today).toEqual({ scheduled: 3, present: 2, absent: 1 });
+    expect(kpis.yesterday).toEqual({ scheduled: 3, present: 2, absent: 1 });
+  });
+
+  it("does not query for a zone with no locations", async () => {
+    const empty: DashboardScope = {
+      ...oneZone,
+      zones: [{ timezone: "Asia/Jakarta", today: "2026-11-12", locationIds: [] }],
+    };
+
+    const kpis = await getKpis(empty);
+
+    expect(callsOn(attendanceSubstitute)).toHaveLength(0);
+    expect(callsOn(rosterAssignment)).toHaveLength(0);
+    expect(kpis.today).toEqual({ scheduled: 0, present: 0, absent: 0 });
   });
 });
 
@@ -621,15 +729,18 @@ describe("getWeekChart", () => {
       zones: [{ timezone: "Asia/Jakarta", today: "2026-11-12", locationIds: [LOC_A] }],
     };
 
-    fake.answer = () => [
-      { workDate: "2026-11-09", workers: 5, scheduled: 6, present: 0, absent: 0 },
-      { workDate: "2026-11-15", workers: 2, scheduled: 2, present: 0, absent: 0 },
-    ];
+    fake.answer = (call: Call) =>
+      call.table !== rosterAssignment
+        ? []
+        : [
+            { workDate: "2026-11-09", workers: 5, scheduled: 6, present: 0, absent: 0 },
+            { workDate: "2026-11-15", workers: 2, scheduled: 2, present: 0, absent: 0 },
+          ];
 
     const points = await getWeekChart(thursday, "scheduled");
 
     const [shifts] = callsOn(rosterAssignment);
-    expect(calls()).toHaveLength(1);
+    expect(calls()).toHaveLength(2);
     expectScheduledJoins(shifts);
     expect(render(shifts.where)).toEqual({
       sql: `${scheduledWhere(1)})`,

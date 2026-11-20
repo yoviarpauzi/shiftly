@@ -4,14 +4,12 @@ import { Pool } from "pg";
 import * as schema from "../database/schema/auth-schema";
 import { auth } from "../lib/auth";
 
-const email = process.env.SUPERADMIN_EMAIL;
-const password = process.env.SUPERADMIN_PASSWORD;
-const name = process.env.SUPERADMIN_NAME;
+const email = process.env.HO_EMAIL;
+const password = process.env.HO_PASSWORD;
+const name = process.env.HO_NAME;
 
 if (!email || !password || !name) {
-  throw new Error(
-    "SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, and SUPERADMIN_NAME must be set in .env",
-  );
+  throw new Error("HO_EMAIL, HO_PASSWORD, and HO_NAME must be set in .env");
 }
 
 const pool = new Pool({ connectionString: process.env.DB_URL });
@@ -25,18 +23,18 @@ try {
   if (existing) {
     await db
       .update(schema.user)
-      .set({ role: "superadmin" })
+      .set({ role: "ho", locationId: null })
       .where(eq(schema.user.id, existing.id));
-    console.log(`User ${email} already exists. Role set to superadmin.`);
+    console.log(`User ${email} already exists. Role set to HO.`);
   } else {
     // createUser sets the role directly and starts no session. signUpEmail would sign the new
     // user in as admin_site, which has no location yet, so the session hook would refuse it.
     // Called without headers, it runs as the server and needs no admin session.
     await auth.api.createUser({
-      body: { email, password, name, role: "superadmin" },
+      body: { email, password, name, role: "ho" },
     });
 
-    console.log(`Superadmin ${email} created.`);
+    console.log(`HO ${email} created.`);
   }
 } catch (error) {
   // Exiting from finally would otherwise swallow the error and report success.
